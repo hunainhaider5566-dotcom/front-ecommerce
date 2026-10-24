@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, Package, PackageSearch, Pencil, Plus, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
@@ -275,7 +275,14 @@ export function VendorDashboardPage() {
     <div className="vendor-dashboard-layout">
     <aside className="vendor-sidebar" aria-label={t('Vendor dashboard navigation')}>
     <nav className="vendor-tabs" aria-label={t('Vendor sections')}>
-      {([['overview', 'Overview'], ['listings', 'Listings'], ['inventory', 'Inventory'], ['orders', 'Fulfilment'], ['cases', 'Cases'], ['settings', 'Shop settings']] as const).map(([value, label]) => <button key={value} type="button" className={tab === value ? 'is-active' : ''} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(label)}</button>)}
+      {([
+        { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { value: 'listings', label: 'Listings', icon: PackageSearch },
+        { value: 'inventory', label: 'Inventory', icon: Boxes },
+        { value: 'orders', label: 'Fulfilment', icon: Truck },
+        { value: 'cases', label: 'Cases', icon: ClipboardList },
+        { value: 'settings', label: 'Shop settings', icon: Settings },
+      ] as const).map(({ value, label, icon: Icon }) => <button key={value} type="button" className={tab === value ? 'is-active' : ''} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}><Icon size={17} aria-hidden="true" /><span>{t(label)}</span></button>)}
     </nav>
     <Link to="/account" className="vendor-sidebar-account">{t('Account settings')}</Link>
     </aside>
@@ -311,7 +318,7 @@ export function VendorDashboardPage() {
         onSaved={async (message) => { push(message, 'success'); setCreatingProduct(false); setEditingProduct(null); await load() }}
       />}
       {products.length === 0 && !creatingProduct && <div className="empty-state"><Package size={28} /><h2>{t('No listings yet')}</h2><p>{t('Submit a listing for moderation. It will appear in the catalog once approved.')}</p></div>}
-      {products.length > 0 && <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Price')}</th><th>{t('Publication')}</th><th>{t('Moderation')}</th><th>{t('Costs')}</th><th>{t('Actions')}</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td><strong>{product.name}</strong><small>{categoriesById.get(product.category_id ?? '') ?? t('No category')}</small></td><td>{formatPKR(Number(product.price))}</td><td><StatusBadge status={product.publication_status} /></td><td><StatusBadge status={product.moderation_status} /></td><td><small>{t('Supplier')}: {product.supplier_cost === null ? '—' : formatPKR(Number(product.supplier_cost))}<br />{t('Fulfilment')}: {formatPKR(Number(product.fulfillment_expense))}</small></td><td><button type="button" className="text-button" onClick={() => { setEditingProduct(product); setCreatingProduct(false) }}><Pencil size={14} /> {t('Edit')}</button></td></tr>)}</tbody></table></div>}
+      {products.length > 0 && <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Price')}</th><th>{t('Publication')}</th><th>{t('Moderation')}</th><th>{t('Costs')}</th><th>{t('Actions')}</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td data-label={t('Product')}><strong>{product.name}</strong><small>{categoriesById.get(product.category_id ?? '') ?? t('No category')}</small></td><td data-label={t('Price')}>{formatPKR(Number(product.price))}</td><td data-label={t('Publication')}><StatusBadge status={product.publication_status} /></td><td data-label={t('Moderation')}><StatusBadge status={product.moderation_status} /></td><td data-label={t('Costs')}><small>{t('Supplier')}: {product.supplier_cost === null ? '—' : formatPKR(Number(product.supplier_cost))}<br />{t('Fulfilment')}: {formatPKR(Number(product.fulfillment_expense))}</small></td><td data-label={t('Actions')}><button type="button" className="text-button" onClick={() => { setEditingProduct(product); setCreatingProduct(false) }}><Pencil size={14} /> {t('Edit')}</button></td></tr>)}</tbody></table></div>}
     </section>}
 
     {tab === 'inventory' && <section className="account-panel">
@@ -421,11 +428,11 @@ function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSav
     finally { setSaving(false) }
   }
   return <tr>
-    <td><strong>{item.product_name}</strong></td>
-    <td>{item.variant_name ?? t('Default')}</td>
-    <td>{item.quantity}</td>
-    <td><small>{new Date(item.updated_at).toLocaleDateString()}</small></td>
-    <td>{editing ? <form className="inline-form" onSubmit={save}><input aria-label={t('New quantity')} type="number" min="0" step="1" autoFocus value={quantity} onChange={(event) => setQuantity(event.target.value)} /><input aria-label={t('Adjustment reason')} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('Reason')} /><button type="submit" className="text-button" disabled={saving}>{saving ? t('Saving…') : t('Save')}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>{t('Cancel')}</button></form> : <button type="button" className="text-button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('Adjust')}</button>}</td>
+    <td data-label={t('Product')}><strong>{item.product_name}</strong></td>
+    <td data-label={t('Variant')}>{item.variant_name ?? t('Default')}</td>
+    <td data-label={t('Quantity')}>{item.quantity}</td>
+    <td data-label={t('Updated')}><small>{new Date(item.updated_at).toLocaleDateString()}</small></td>
+    <td data-label={t('Adjust')}>{editing ? <form className="inline-form" onSubmit={save}><input aria-label={t('New quantity')} type="number" min="0" step="1" autoFocus value={quantity} onChange={(event) => setQuantity(event.target.value)} /><input aria-label={t('Adjustment reason')} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('Reason')} /><button type="submit" className="text-button" disabled={saving}>{saving ? t('Saving…') : t('Save')}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>{t('Cancel')}</button></form> : <button type="button" className="text-button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('Adjust')}</button>}</td>
   </tr>
 }
 
