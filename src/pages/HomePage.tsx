@@ -44,9 +44,9 @@ export function HomePage() {
       <section className="home-section home-categories" aria-labelledby="home-categories-title">
         <div className="home-section__heading">
           <div>
-            <span className="home-eyebrow">{t('Explore Categories')}</span>
-            <h2 id="home-categories-title">{t('Curated collections.')}</h2>
-            <p>{t('Discover quality products from verified independent vendors.')}</p>
+            <span className="home-eyebrow">{t('Browse')}</span>
+            <h2 id="home-categories-title">{t('Shop by Popular Categories')}</h2>
+            <p>{t('Find exactly what you need, fast.')}</p>
           </div>
           <Link className="home-text-link" to="/categories">{t('View all collections')} <ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
@@ -162,12 +162,11 @@ function HomeCategoryCard({ category }: { category: Category }) {
   return (
     <Link to={`/categories/${category.slug}`} className="home-category-card shine-surface">
       <div className="home-category-card__image">
-        {failed || !category.image ? <div className="home-image-fallback" role="img" aria-label={name}><BookOpen size={28} aria-hidden="true" /><span>{name}</span></div> : <img src={category.image} alt={`${name} ${t('category collection')}`} loading="lazy" onError={() => setFailed(true)} />}
+          {failed || !category.image ? <div className="home-image-fallback" role="img" aria-label={name}><BookOpen size={28} aria-hidden="true" /></div> : <img src={category.image} alt={`${name} ${t('category collection')}`} loading="lazy" onError={() => setFailed(true)} />}
+        <span className="home-category-card__shade" />
+        <span className="home-category-card__caption"><strong>{name}</strong><small>{t('Explore products')}</small></span>
         <span className="home-category-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span>
       </div>
-      <span className="home-eyebrow">{t(category.eyebrow ?? 'Collection')}</span>
-      <h3>{name}</h3>
-      <p>{t(category.description)}</p>
     </Link>
   )
 }

@@ -1,4 +1,5 @@
 export const STORE_URDU: Record<string, string> = {
+  'Explore products': 'مصنوعات دیکھیں',
   'Dismiss notification': 'اطلاع بند کریں',
   'View': 'دیکھیں',
   'Add': 'شامل کریں',

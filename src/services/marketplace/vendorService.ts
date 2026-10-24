@@ -7,7 +7,7 @@ export type VendorInventory = Database['public']['Tables']['product_inventory'][
 export type MarketplaceCase = Database['public']['Tables']['marketplace_cases']['Row']
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
 
-const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
+const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
@@ -16,6 +16,24 @@ export interface VendorShopInput {
   description: string
   contact_email: string | null
   phone: string | null
+  shop_image_url?: string | null
+}
+
+export async function uploadVendorShopImage(file: File): Promise<{ path: string; url: string }> {
+  if (file.size > 5 * 1024 * 1024) throw new Error('Shop images must be 5 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Choose a JPG, PNG, WebP or AVIF shop image.')
+  const client = getSupabase()
+  const user = (await client.auth.getUser()).data.user
+  if (!user) throw new Error('Sign in before uploading a shop image.')
+  const path = `${user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`
+  const { error } = await client.storage.from('shop-images').upload(path, file, { upsert: false, contentType: file.type })
+  assertError(error)
+  return { path, url: client.storage.from('shop-images').getPublicUrl(path).data.publicUrl }
+}
+
+export async function removeVendorShopImage(path: string): Promise<void> {
+  const { error } = await getSupabase().storage.from('shop-images').remove([path])
+  assertError(error)
 }
 
 function assertError(error: { message: string } | null) {
@@ -67,6 +85,7 @@ export async function applyAsSeller(input: VendorShopInput & { document_path?: s
     description: input.description,
     contact_email: input.contact_email,
     phone: input.phone,
+    ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
     document_path: input.document_path ?? null,
   }).select(SELLER_COLUMNS).single()
   assertError(error)
@@ -83,6 +102,7 @@ export async function updateOwnShop(input: VendorShopInput & { document_path?: s
     description: input.description,
     contact_email: input.contact_email,
     phone: input.phone,
+    ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
     ...(input.document_path ? { document_path: input.document_path } : {}),
   }).eq('user_id', user.id).select(SELLER_COLUMNS).single()
   assertError(error)

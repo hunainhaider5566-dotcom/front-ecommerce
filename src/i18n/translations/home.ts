@@ -1,4 +1,7 @@
 export const HOME_URDU: Record<string, string> = {
+  'Browse': 'دیکھیں',
+  'Shop by Popular Categories': 'مقبول زمروں کے مطابق خریداری کریں',
+  'Find exactly what you need, fast.': 'اپنی مطلوبہ چیز فوراً تلاش کریں۔',
   "Considered goods for everyday routines, creative ideas and the spaces they share.": "روزمرہ معمولات، تخلیقی خیالات اور ان کی جگہوں کے لیے منتخب اشیا۔",
   "A considered collection": "سوچا سمجھا مجموعہ",
   "For everyday living": "روزمرہ زندگی کے لیے",

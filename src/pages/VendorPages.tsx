@@ -23,6 +23,8 @@ import {
   updateOwnShop,
   updateVendorProduct,
   uploadVendorDocument,
+  uploadVendorShopImage,
+  removeVendorShopImage,
   type MarketplaceCase,
   type SellerProfile,
   type VendorInventory,
@@ -74,6 +76,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const { t } = useI18n()
   const { push } = useToast()
   const [saving, setSaving] = useState(false)
+  const [shopImage, setShopImage] = useState<File | null>(null)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -91,16 +94,30 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
 
     setSaving(true)
     try {
-      const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone }
-      const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
-      push(t(profile ? 'Shop details updated.' : 'Seller application submitted for review.'), 'success')
-      if (profile && profile.status === 'rejected') {
-        const resubmitted = await resubmitSellerApplication()
-        onSaved(resubmitted)
-      } else {
-        onSaved(saved)
+      let uploadedImage: { path: string; url: string } | null = null
+      let committed = false
+      try {
+        if (shopImage && profile) uploadedImage = await uploadVendorShopImage(shopImage)
+        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}) }
+        const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
+        committed = true
+        if (uploadedImage && profile?.shop_image_url?.includes('/shop-images/')) {
+          const previousPath = decodeURIComponent(new URL(profile.shop_image_url).pathname.split('/shop-images/').at(-1) ?? '')
+          if (previousPath) await removeVendorShopImage(previousPath).catch(() => undefined)
+        }
+        push(t(profile ? 'Shop details updated.' : 'Seller application submitted for review.'), 'success')
+        if (profile && profile.status === 'rejected') {
+          const resubmitted = await resubmitSellerApplication()
+          onSaved(resubmitted)
+        } else {
+          onSaved(saved)
+        }
+      } catch (cause) {
+        if (uploadedImage && !committed) await removeVendorShopImage(uploadedImage.path).catch(() => undefined)
+        throw cause
       }
       form.reset()
+      setShopImage(null)
     } catch (cause) {
       push(cause instanceof Error ? cause.message : t('The shop details could not be saved.'), 'error')
     } finally {
@@ -116,6 +133,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="contact_email">{t('Business contact email')}</label><input id="contact_email" name="contact_email" type="email" defaultValue={profile?.contact_email ?? ''} placeholder="vendor@acme.com" /></div>
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
+    {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{profile?.shop_image_url && <img className="vendor-shop-image-preview" src={profile.shop_image_url} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }
@@ -395,7 +413,7 @@ function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSav
     <td>{item.variant_name ?? t('Default')}</td>
     <td>{item.quantity}</td>
     <td><small>{new Date(item.updated_at).toLocaleDateString()}</small></td>
-    <td>{editing ? <form className="inline-form" onSubmit={save}><input aria-label={t('New quantity')} type="number" min="0" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /><input aria-label={t('Adjustment reason')} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('Reason')} /><button type="submit" className="text-button" disabled={saving}>{saving ? t('Saving…') : t('Save')}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>{t('Cancel')}</button></form> : <button type="button" className="text-button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('Adjust')}</button>}</td>
+    <td>{editing ? <form className="inline-form" onSubmit={save}><input aria-label={t('New quantity')} type="number" min="0" step="1" autoFocus value={quantity} onChange={(event) => setQuantity(event.target.value)} /><input aria-label={t('Adjustment reason')} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('Reason')} /><button type="submit" className="text-button" disabled={saving}>{saving ? t('Saving…') : t('Save')}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>{t('Cancel')}</button></form> : <button type="button" className="text-button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('Adjust')}</button>}</td>
   </tr>
 }
 
@@ -426,6 +444,7 @@ function OrderItemRow({ item, onUpdated, onError }: { item: VendorOrderItem; onU
   return <div className="vendor-order-card">
     <div className="vendor-order-card__head"><div><strong>{item.order_number} · {item.product_name_snapshot}</strong><small>{t('Qty')} {item.quantity} · {formatPKR(Number(item.line_total))} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status} /></div>
     {nextStatus && <div className="vendor-order-card__fields">
+      {nextStatus !== 'shipped' && <small className="vendor-form-help--wide">{t('Tracking inputs unlock after the item reaches processing. Add a buyer note at any step.')}</small>}
       <div className="form-field"><label htmlFor={`tracking-number-${item.id}`}>{t('Tracking number')}</label><input id={`tracking-number-${item.id}`} value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} disabled={nextStatus !== 'shipped'} /></div>
       <div className="form-field"><label htmlFor={`tracking-url-${item.id}`}>{t('Tracking URL')}</label><input id={`tracking-url-${item.id}`} type="url" placeholder="https://" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} disabled={nextStatus !== 'shipped'} /></div>
       <div className="form-field form-field--wide"><label htmlFor={`vendor-note-${item.id}`}>{t('Note to buyer')}</label><input id={`vendor-note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} /></div>

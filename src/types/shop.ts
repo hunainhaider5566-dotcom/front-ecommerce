@@ -5,4 +5,5 @@ export interface PublicShop {
   description: string
   createdAt: string
   productCount: number
+  shopImageUrl: string | null
 }

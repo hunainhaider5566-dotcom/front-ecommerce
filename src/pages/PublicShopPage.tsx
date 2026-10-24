@@ -36,7 +36,7 @@ export function PublicShopPage() {
     <div className="page-shell public-shop-page">
       <header className="shop-header-card shine-surface">
         <div className="shop-header-main">
-          <span className="shop-avatar"><Store size={32} /></span>
+          <span className="shop-avatar">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt={`${shop.shopName} shop`} /> : <Store size={32} />}</span>
           <div>
             <div className="shop-title-row">
               <h1>{shop.shopName}</h1>

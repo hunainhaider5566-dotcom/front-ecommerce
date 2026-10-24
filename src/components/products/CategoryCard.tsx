@@ -11,12 +11,11 @@ export function CategoryCard({ category }: { category: Category }) {
   return (
     <Link to={`/categories/${category.slug}`} className="category-card shine-surface">
       <div className="category-card__image">
-        {failed || !category.image ? <div className="image-fallback"><BookOpen size={30} aria-hidden="true" /><span>{name}</span></div> : <img src={category.image} alt={`${name} ${t('category collection')}`} loading="lazy" onError={() => setFailed(true)} />}
+        {failed || !category.image ? <div className="category-card__fallback"><BookOpen size={30} aria-hidden="true" /></div> : <img src={category.image} alt={`${name} ${t('category collection')}`} loading="lazy" onError={() => setFailed(true)} />}
+        <span className="category-card__shade" />
+        <span className="category-card__caption"><strong>{name}</strong><small>{t('Explore products')}</small></span>
         <span className="category-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span>
       </div>
-      <span className="eyebrow">{t(category.eyebrow ?? 'Collection')}</span>
-      <h3>{name}</h3>
-      <p>{t(category.description)}</p>
     </Link>
   )
 }

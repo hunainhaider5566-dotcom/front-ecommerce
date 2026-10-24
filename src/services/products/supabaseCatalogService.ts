@@ -50,6 +50,7 @@ function mapShop(row: PublicShopRow): PublicShop {
     description: row.description,
     createdAt: row.created_at,
     productCount: Number(row.product_count),
+    shopImageUrl: row.shop_image_url,
   }
 }
 

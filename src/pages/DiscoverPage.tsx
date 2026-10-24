@@ -50,10 +50,13 @@ export function DiscoverPage() {
   }, [currentIndex, reducedMotion])
 
   useEffect(() => {
-    if (paused || reducedMotion || window.matchMedia('(max-width: 760px)').matches || currentIndex >= visibleItems.length - 1) return
-    const timer = window.setInterval(() => setCurrentIndex((index) => Math.min(visibleItems.length - 1, index + 1)), 6500)
+    if (paused || reducedMotion || window.matchMedia('(max-width: 760px)').matches || currentIndex >= items.length - 1) return
+    const timer = window.setInterval(() => {
+      setVisibleCount((count) => Math.min(items.length, Math.max(count, currentIndex + 2)))
+      setCurrentIndex((index) => Math.min(items.length - 1, index + 1))
+    }, 6500)
     return () => window.clearInterval(timer)
-  }, [currentIndex, visibleItems.length, paused, reducedMotion])
+  }, [currentIndex, visibleItems.length, items.length, paused, reducedMotion])
 
   function handleTrackScroll() {
     const track = trackRef.current
@@ -100,7 +103,7 @@ export function DiscoverPage() {
   const hasMore = visibleItems.length < items.length
 
   return (
-    <div className="discover-page-container" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }}>
+    <div className="discover-page-container" onFocus={() => setPaused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }}>
       <header className="discover-heading"><span className="eyebrow">{t('Discover')}</span><h1>{t('Find your next')} <em>{t('favourite.')}</em></h1><p>{t('Real finds from independent marketplace shops.')}</p></header>
       <div className="discover-nav-buttons">
         <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))} disabled={currentIndex === 0} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
