@@ -1,5 +1,5 @@
 import { ArrowRight, ArrowUpRight, BookOpen, Check, ExternalLink, Heart, Leaf, MessageCircle, PencilRuler, ShoppingBag } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { useCatalog } from '../contexts/CatalogContext'
@@ -13,6 +13,7 @@ import { useI18n } from '../i18n/LocaleContext'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import { HeroSlider } from '../components/home/HeroSlider'
 import { NewsletterSignup } from '../components/home/NewsletterSignup'
+import { fetchActivePromotions, type PromotionItem } from '../services/marketplace/promotionsService'
 
 const faqs = [
   { question: 'Is Meridion a live marketplace?', answer: 'Yes. Meridion Marketplace features live products from verified sellers, accurate stock status, and structured order delivery.' },
@@ -30,7 +31,9 @@ export function HomePage() {
   const { t } = useI18n()
   const { products, categories, status, error } = useCatalog()
   const homeRef = useScrollReveal<HTMLDivElement>()
+  const [sellerBanner, setSellerBanner] = useState<PromotionItem | null>(null)
   usePageMeta(t('Meridion Marketplace — Quality Goods Worldwide'), t('Discover verified sellers, shop within your budget, and enjoy secure delivery.'))
+  useEffect(() => { let active = true; void fetchActivePromotions('seller_banner').then((items) => { if (active) setSellerBanner(items[0] ?? null) }); return () => { active = false } }, [])
 
   const orderedProducts = products.filter((product) => product.isPublished).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
   const featured = orderedProducts.filter((product) => product.isFeatured)
@@ -74,19 +77,19 @@ export function HomePage() {
 
       <section className="home-editorial home-editorial--sage shine-surface" aria-labelledby="study-edit-title">
         <div className="home-editorial__media">
-          <img src="/images/study-kit.webp" alt={t('A study kit arranged on a warm desk')} loading="lazy" />
+          <img src={sellerBanner?.banner_image_url || '/images/study-kit.webp'} alt={sellerBanner?.title || t('A study kit arranged on a warm desk')} loading="lazy" />
           <span className="home-editorial__stamp">{t('Meridion Verified Marketplace')}</span>
         </div>
         <div className="home-editorial__copy">
           <span className="home-eyebrow">{t('Vendor Platform')}</span>
-          <h2 id="study-edit-title">{t('Grow your business on Meridion.')}</h2>
-          <p>{t('Reach active shoppers with store management, inventory tools, and transparent order handling.')}</p>
+          <h2 id="study-edit-title">{sellerBanner?.title || t('Grow your business on Meridion.')}</h2>
+          <p>{sellerBanner?.description || t('Reach active shoppers with store management, inventory tools, and transparent order handling.')}</p>
           <ul className="home-check-list">
             <li><Check size={16} aria-hidden="true" /> {t('Simple business verification')}</li>
             <li><Check size={16} aria-hidden="true" /> {t('Full control over listings & pricing')}</li>
             <li><Check size={16} aria-hidden="true" /> {t('Secure order handling and payouts')}</li>
           </ul>
-          <Link className="home-button home-button--dark" to="/vendor/apply">{t('Become a Seller')} <ArrowRight size={16} aria-hidden="true" /></Link>
+          <Link className="home-button home-button--dark" to={sellerBanner?.cta_destination?.startsWith('/') ? sellerBanner.cta_destination : '/vendor/apply'}>{sellerBanner?.cta_text || t('Become a Seller')} <ArrowRight size={16} aria-hidden="true" /></Link>
         </div>
       </section>
 

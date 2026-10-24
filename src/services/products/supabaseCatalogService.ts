@@ -55,7 +55,7 @@ function mapShop(row: PublicShopRow): PublicShop {
 }
 
 function mapImage(row: ProductImageRow): string {
-  if (row.image_url) return row.image_url
+  if (row.image_url) return /(?:placehold\.co|placehold\.it|via\.placeholder\.com)/i.test(row.image_url) ? '' : row.image_url
   if (row.storage_path) return getSupabase().storage.from('product-images').getPublicUrl(row.storage_path).data.publicUrl
   return ''
 }

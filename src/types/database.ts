@@ -37,6 +37,7 @@ type NotificationRow = { id: string; user_id: string; kind: NotificationKind; ti
 type AdminAuditLogRow = { id: string; actor_id: string | null; action: 'INSERT' | 'UPDATE' | 'DELETE'; entity: string; entity_id: string | null; details: Json; created_at: string }
 type SellerProfileRow = { id: string; user_id: string; shop_name: string; slug: string; description: string; contact_email: string | null; phone: string | null; document_path: string | null; shop_image_url: string | null; status: SellerStatus; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string; updated_at: string }
 type MarketplaceCaseRow = { id: string; order_id: string; order_item_id: string | null; buyer_id: string; seller_id: string | null; case_type: CaseType; status: CaseStatus; reason: string; evidence_path: string | null; seller_response: string | null; admin_decision: string | null; decided_by: string | null; decided_at: string | null; created_at: string; updated_at: string }
+type SupportTicketRow = { id: string; seller_id: string; created_by: string; subject: string; message: string; status: 'open' | 'in_progress' | 'resolved'; admin_response: string | null; created_at: string; updated_at: string }
 type VendorOrderItemRow = { id: string; order_id: string; order_number: string; product_name_snapshot: string; sku_snapshot: string | null; variant_snapshot: Json; quantity: number; unit_price: number; line_total: number; vendor_fulfillment_status: VendorFulfillmentStatus; tracking_number: string | null; tracking_url: string | null; vendor_note: string | null; vendor_updated_at: string | null; created_at: string }
 type StoreSettingsRow = { id: string; store_name: string; support_email: string | null; support_phone: string | null; support_whatsapp: string | null; delivery_fee: number; cod_enabled: boolean; return_window_days: number; updated_at: string }
 type NewsletterSubscriberRow = { id: string; email: string; source: string; subscribed_at: string; unsubscribed_at: string | null }
@@ -82,6 +83,7 @@ export interface Database {
       orders: Table<OrderRow, 'customer_name' | 'customer_phone' | 'shipping_address_snapshot' | 'subtotal'>
       order_items: Table<OrderItemRow, 'order_id' | 'product_name_snapshot' | 'quantity' | 'unit_price'>
       marketplace_cases: Table<MarketplaceCaseRow, 'order_id' | 'buyer_id' | 'case_type' | 'reason'>
+      support_tickets: Table<SupportTicketRow, 'seller_id' | 'created_by' | 'subject' | 'message'>
       payment_transactions: Table<PaymentTransactionRow, 'order_id' | 'provider' | 'amount'>
       admin_order_notes: Table<AdminOrderNoteRow, 'order_id' | 'created_by' | 'note'>
       notifications: Table<NotificationRow, 'user_id' | 'title'>

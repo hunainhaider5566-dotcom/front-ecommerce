@@ -6,6 +6,7 @@ export type VendorProduct = Database['public']['Tables']['products']['Row']
 export type VendorInventory = Database['public']['Tables']['product_inventory']['Row'] & { product_name: string; variant_name: string | null }
 export type MarketplaceCase = Database['public']['Tables']['marketplace_cases']['Row']
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
+export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
 const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
@@ -221,6 +222,20 @@ export async function respondToCase(id: string, sellerResponse: string): Promise
   const { error } = await getSupabase().from('marketplace_cases')
     .update({ seller_response: sellerResponse.trim(), status: 'seller_responded' })
     .eq('id', id)
+  assertError(error)
+}
+
+export async function listOwnSupportTickets(): Promise<VendorSupportTicket[]> {
+  const { data, error } = await getSupabase().from('support_tickets').select('*').order('created_at', { ascending: false }).limit(100)
+  assertError(error)
+  return data ?? []
+}
+
+export async function createOwnSupportTicket(sellerId: string, subject: string, message: string): Promise<void> {
+  const client = getSupabase()
+  const user = (await client.auth.getUser()).data.user
+  if (!user) throw new Error('Sign in before creating a support ticket.')
+  const { error } = await client.from('support_tickets').insert({ seller_id: sellerId, created_by: user.id, subject: subject.trim(), message: message.trim() })
   assertError(error)
 }
 

@@ -781,6 +781,56 @@ button { font-family: var(--font-body); }
 .home-image-fallback span { display: none; }
 .category-grid--large { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .category-card { color: var(--ink); }
+.notification-list { display: grid; max-height: min(64vh, 560px); overflow-y: auto; margin: 0; padding: 6px; list-style: none; }
+.notification-item { min-width: 0; border-bottom: 1px solid var(--line); }
+.notification-item:last-child { border-bottom: 0; }
+.notification-item__button { display: grid; width: 100%; gap: 6px; padding: 13px 12px; border: 0; border-radius: 9px; color: var(--ink); background: transparent; text-align: left; cursor: pointer; }
+.notification-item__button:hover, .notification-item.is-unread .notification-item__button { background: #f5f4ef; }
+.notification-item__button strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; }
+.notification-item__button span { overflow-wrap: anywhere; color: #60645d; font-size: 12px; line-height: 1.55; }
+.notification-item__button small { color: #85877f; font-size: 10px; }
+.location-pin-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+.vendor-cases-subheading { margin: 24px 0 12px; font-size: 20px; }
+.vendor-table { min-width: 780px; }
+.vendor-table th, .vendor-table td { padding: 14px 12px; vertical-align: middle; }
+.vendor-table tbody tr:nth-child(even) { background: #faf9f6; }
+.vendor-table td:first-child { min-width: 220px; }
+.vendor-table .inline-form { display: flex; min-width: 310px; flex-wrap: wrap; align-items: center; gap: 7px; }
+.vendor-table .inline-form input { min-width: 105px; flex: 1 1 125px; }
+.vendor-order-card { display: grid; gap: 18px; padding: clamp(16px, 2.6vw, 24px); border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgba(32,35,31,.055); }
+.vendor-order-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
+.vendor-order-card__head strong { display: block; font-size: 15px; line-height: 1.45; }
+.vendor-order-card__head small { display: block; margin-top: 5px; color: var(--muted); }
+.vendor-order-card__fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; gap: 13px; padding-top: 15px; border-top: 1px solid var(--line); }
+.vendor-order-card__fields .vendor-form-help--wide, .vendor-order-card__fields .form-field--wide, .vendor-order-card__fields > .button { grid-column: 1 / -1; }
+.vendor-order-card__fields input:disabled { color: #777; background: #f2f1ed; cursor: not-allowed; }
+.info-feature-grid article, .info-page .contact-placeholder, .info-page .policy-copy, .info-page .info-accordion, .info-page > .placeholder-panel { border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: 0 12px 36px rgba(32,35,31,.055); }
+.info-feature-grid article { padding: 24px; }
+.info-page .policy-copy { padding: clamp(20px, 4vw, 36px); }
+.info-page .contact-placeholder { padding: clamp(24px, 5vw, 44px); }
+@media (max-width: 600px) { .vendor-order-card__fields { grid-template-columns: 1fr; } .vendor-order-card__fields .form-field--wide, .vendor-order-card__fields > .button { grid-column: auto; } }
+@media (prefers-reduced-motion: reduce) { .confirmation-icon, .confirmation-icon svg { animation: none !important; } }
+.vendor-support-desk { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; }
+.vendor-support-form, .vendor-support-ticket { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.vendor-support-form { display: grid; gap: 13px; }
+.vendor-support-form h3, .vendor-support-list h3 { margin: 0 0 9px; font-size: 17px; }
+.vendor-support-form textarea { width: 100%; }
+.vendor-support-list { display: grid; align-content: start; gap: 10px; }
+.vendor-support-ticket > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vendor-support-ticket p { margin: 9px 0; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.vendor-support-ticket blockquote { margin: 10px 0; padding: 12px; border-left: 3px solid var(--terracotta); background: #f8f6f1; white-space: pre-wrap; }
+.vendor-support-ticket small { color: var(--muted); font-size: 11px; }
+.confirmation-icon { animation: confirmation-pop .58s cubic-bezier(.18,.9,.2,1.3) both; }
+.confirmation-icon svg { animation: confirmation-check .6s .15s ease-out both; }
+@keyframes confirmation-pop { 0% { opacity: 0; transform: scale(.45) rotate(-14deg); } 75% { opacity: 1; transform: scale(1.12) rotate(3deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes confirmation-check { 0% { stroke-dasharray: 0 100; opacity: .35; } 100% { stroke-dasharray: 100 0; opacity: 1; } }
+.product-seller-link { display: flex; align-items: center; width: fit-content; gap: 9px; margin-top: 12px; padding: 11px 15px; border: 1px solid rgba(185,110,82,.28); border-radius: 12px; color: var(--terracotta-ink); background: #fffaf6; font-size: 14px; font-weight: 650; box-shadow: 0 5px 16px rgba(32,35,31,.045); transition: transform .18s ease, box-shadow .18s ease; }
+.product-seller-link:hover { transform: translateY(-2px); color: var(--terracotta-ink); box-shadow: 0 9px 24px rgba(32,35,31,.09); }
+.image-fallback { color: #fff; background: radial-gradient(ellipse at 75% 12%, rgba(255,255,255,.2), transparent 38%), linear-gradient(140deg, #7b897b, #45534a 58%, #2b3933); font-weight: 600; }
+.image-fallback svg { color: #f4c5a9; }
+.info-page__heading { margin-bottom: 32px; }
+.info-page > :is(.info-grid, .info-accordion, .policy-copy, .contact-grid, .shipping-copy, .returns-copy) { padding: clamp(20px, 4vw, 36px); border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.82); box-shadow: 0 12px 36px rgba(32,35,31,.055); }
+@media (max-width: 700px) { .vendor-support-desk { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .home-category-grid, .category-grid--large { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
   .home-category-grid, .category-grid--large { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

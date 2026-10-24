@@ -26,7 +26,6 @@ export function DiscoverPage() {
   usePageMeta(t('Discover Feed'), t('Explore trending products and top sellers in a swipeable discovery feed.'))
 
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
   const [reducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [visibleCount, setVisibleCount] = useState(6)
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -50,13 +49,13 @@ export function DiscoverPage() {
   }, [currentIndex, reducedMotion])
 
   useEffect(() => {
-    if (paused || reducedMotion || window.matchMedia('(max-width: 760px)').matches || currentIndex >= items.length - 1) return
+    if (reducedMotion || window.matchMedia('(max-width: 760px)').matches || items.length < 2) return
     const timer = window.setInterval(() => {
       setVisibleCount((count) => Math.min(items.length, Math.max(count, currentIndex + 2)))
-      setCurrentIndex((index) => Math.min(items.length - 1, index + 1))
+      setCurrentIndex((index) => index >= items.length - 1 ? 0 : index + 1)
     }, 6500)
     return () => window.clearInterval(timer)
-  }, [currentIndex, visibleItems.length, items.length, paused, reducedMotion])
+  }, [currentIndex, visibleItems.length, items.length, reducedMotion])
 
   function handleTrackScroll() {
     const track = trackRef.current
@@ -103,7 +102,7 @@ export function DiscoverPage() {
   const hasMore = visibleItems.length < items.length
 
   return (
-    <div className="discover-page-container" onFocus={() => setPaused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }}>
+    <div className="discover-page-container">
       <header className="discover-heading"><span className="eyebrow">{t('Discover')}</span><h1>{t('Find your next')} <em>{t('favourite.')}</em></h1><p>{t('Real finds from independent marketplace shops.')}</p></header>
       <div className="discover-nav-buttons">
         <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))} disabled={currentIndex === 0} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>

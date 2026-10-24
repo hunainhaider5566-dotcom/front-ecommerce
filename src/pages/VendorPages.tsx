@@ -25,11 +25,14 @@ import {
   uploadVendorDocument,
   uploadVendorShopImage,
   removeVendorShopImage,
+  listOwnSupportTickets,
+  createOwnSupportTicket,
   type MarketplaceCase,
   type SellerProfile,
   type VendorInventory,
   type VendorOrderItem,
   type VendorProduct,
+  type VendorSupportTicket,
 } from '../services/marketplace/vendorService'
 
 function SignInForVendor() {
@@ -77,6 +80,14 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const { push } = useToast()
   const [saving, setSaving] = useState(false)
   const [shopImage, setShopImage] = useState<File | null>(null)
+  const [shopPreview, setShopPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!shopImage) { setShopPreview(null); return }
+    const preview = URL.createObjectURL(shopImage)
+    setShopPreview(preview)
+    return () => URL.revokeObjectURL(preview)
+  }, [shopImage])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -133,7 +144,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="contact_email">{t('Business contact email')}</label><input id="contact_email" name="contact_email" type="email" defaultValue={profile?.contact_email ?? ''} placeholder="vendor@acme.com" /></div>
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
-    {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{profile?.shop_image_url && <img className="vendor-shop-image-preview" src={profile.shop_image_url} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
+    {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }
@@ -311,14 +322,15 @@ export function VendorDashboardPage() {
     {tab === 'orders' && <VendorOrdersPanel items={orderItems} onUpdated={load} onError={(message) => push(message, 'error')} />}
 
     {tab === 'cases' && <section className="account-panel">
-      <div className="account-panel__heading"><div><h2>{t('Customer cases')}</h2><p>{t('Respond to returns, refunds and complaints for your items.')}</p></div><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div>
+      <div className="account-panel__heading"><div><h2>{t('Support & cases')}</h2><p>{t('Create a support ticket or respond to customer returns and complaints.')}</p></div><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div>
+      <VendorSupportDesk sellerId={profile.id} onError={(message) => push(message, 'error')} />
+      <h3 className="vendor-cases-subheading">{t('Customer cases')}</h3>
       {cases.length === 0 ? <div className="empty-state"><ClipboardList size={28} /><h2>{t('No cases')}</h2><p>{t('Buyer cases for your items will appear here.')}</p></div> : <div className="case-list">{cases.map((item) => <CaseResponse key={item.id} item={item} onResponded={async () => { push(t('Response sent.'), 'success'); await load() }} onError={(message) => push(message, 'error')} />)}</div>}
     </section>}
 
     {tab === 'settings' && <section className="account-panel">
-      <div className="account-panel__heading"><div><h2>{t('Shop settings')}</h2><p>{t('Update public shop details or replace your private verification document.')}</p></div></div>
+      <div className="account-panel__heading"><div><h2>{t('Shop settings')}</h2><p>{t('Update the public details and logo customers see on your shop page.')}</p></div></div>
       <ShopForm profile={profile} mode="settings" onSaved={(saved) => { setProfile(saved); push(t('Shop settings saved.'), 'success') }} />
-      <VerificationDocumentSection profile={profile} onSaved={(saved) => setProfile(saved)} />
     </section>}
     </div></div>
   </section></VendorGate>
@@ -436,7 +448,7 @@ function OrderItemRow({ item, onUpdated, onError }: { item: VendorOrderItem; onU
     if (!nextStatus) return
     setSaving(true)
     try {
-      await updateOwnOrderItem(item.id, nextStatus, nextStatus === 'shipped' ? trackingNumber.trim() || null : item.tracking_number, nextStatus === 'shipped' ? trackingUrl.trim() || null : item.tracking_url, note.trim() || null)
+      await updateOwnOrderItem(item.id, nextStatus, trackingNumber.trim() || null, trackingUrl.trim() || null, note.trim() || null)
       await onUpdated()
     } catch (cause) { onError(cause instanceof Error ? cause.message : t('Fulfilment update failed.')) }
     finally { setSaving(false) }
@@ -444,9 +456,9 @@ function OrderItemRow({ item, onUpdated, onError }: { item: VendorOrderItem; onU
   return <div className="vendor-order-card">
     <div className="vendor-order-card__head"><div><strong>{item.order_number} · {item.product_name_snapshot}</strong><small>{t('Qty')} {item.quantity} · {formatPKR(Number(item.line_total))} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status} /></div>
     {nextStatus && <div className="vendor-order-card__fields">
-      {nextStatus !== 'shipped' && <small className="vendor-form-help--wide">{t('Tracking inputs unlock after the item reaches processing. Add a buyer note at any step.')}</small>}
-      <div className="form-field"><label htmlFor={`tracking-number-${item.id}`}>{t('Tracking number')}</label><input id={`tracking-number-${item.id}`} value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} disabled={nextStatus !== 'shipped'} /></div>
-      <div className="form-field"><label htmlFor={`tracking-url-${item.id}`}>{t('Tracking URL')}</label><input id={`tracking-url-${item.id}`} type="url" placeholder="https://" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} disabled={nextStatus !== 'shipped'} /></div>
+      <small className="vendor-form-help--wide">{t('Add tracking details when available. They are saved with each fulfilment update.')}</small>
+      <div className="form-field"><label htmlFor={`tracking-number-${item.id}`}>{t('Tracking number')}</label><input id={`tracking-number-${item.id}`} value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} /></div>
+      <div className="form-field"><label htmlFor={`tracking-url-${item.id}`}>{t('Tracking URL')}</label><input id={`tracking-url-${item.id}`} type="url" placeholder="https://" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} /></div>
       <div className="form-field form-field--wide"><label htmlFor={`vendor-note-${item.id}`}>{t('Note to buyer')}</label><input id={`vendor-note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} /></div>
       <button type="button" className="button button--dark" onClick={() => void advance()} disabled={saving}>{saving ? t('Updating…') : <>{t('Mark as')} {t(nextStatus)} <ArrowRight size={15} /></>}</button>
     </div>}
@@ -476,4 +488,29 @@ function CaseResponse({ item, onResponded, onError }: { item: MarketplaceCase; o
       {canRespond && <form className="case-response-form" onSubmit={submit}><label className="sr-only" htmlFor={`case-response-${item.id}`}>{t('Your response')}</label><textarea id={`case-response-${item.id}`} rows={3} value={response} onChange={(event) => setResponse(event.target.value)} placeholder={t('Explain what you can offer or what you have checked.')} /><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Sending…') : t('Send response')}</button></form>}
     </div>
   </article>
+}
+
+function VendorSupportDesk({ sellerId, onError }: { sellerId: string; onError: (message: string) => void }) {
+  const { t } = useI18n()
+  const { push } = useToast()
+  const [tickets, setTickets] = useState<VendorSupportTicket[]>([])
+  const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
+  useEffect(() => { let active = true; void listOwnSupportTickets().then((rows) => { if (active) { setTickets(rows); setLoadError(null) } }).catch((cause: unknown) => { if (active) setLoadError(cause instanceof Error ? cause.message : t('Support tickets could not be loaded.')) }); return () => { active = false } }, [refresh, t])
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const subject = String(data.get('subject') ?? '').trim()
+    const message = String(data.get('message') ?? '').trim()
+    setSaving(true)
+    try { await createOwnSupportTicket(sellerId, subject, message); form.reset(); push(t('Support ticket sent to the marketplace team.'), 'success'); setRefresh((value) => value + 1) }
+    catch (cause) { onError(cause instanceof Error ? cause.message : t('Support ticket could not be created.')) }
+    finally { setSaving(false) }
+  }
+  return <div className="vendor-support-desk">
+    <form className="vendor-support-form" onSubmit={(event) => void submit(event)}><h3>{t('Contact marketplace support')}</h3><div className="form-field"><label htmlFor="vendor-ticket-subject">{t('Subject')}</label><input id="vendor-ticket-subject" name="subject" required minLength={3} maxLength={180} /></div><div className="form-field"><label htmlFor="vendor-ticket-message">{t('How can we help?')}</label><textarea id="vendor-ticket-message" name="message" required minLength={3} maxLength={4000} rows={4} /></div><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Sending…') : t('Create support ticket')}</button></form>
+    <div className="vendor-support-list"><h3>{t('Your support tickets')}</h3>{loadError ? <p className="field-error">{loadError}</p> : tickets.length === 0 ? <p>{t('No support tickets yet.')}</p> : tickets.map((ticket) => <article className="vendor-support-ticket" key={ticket.id}><div><strong>{ticket.subject}</strong><StatusBadge status={ticket.status} /></div><p>{ticket.message}</p>{ticket.admin_response && <blockquote><b>{t('Marketplace reply')}</b><br />{ticket.admin_response}</blockquote>}<small>{new Date(ticket.created_at).toLocaleString()}</small></article>)}</div>
+  </div>
 }
