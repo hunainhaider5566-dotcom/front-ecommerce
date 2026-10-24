@@ -32,8 +32,16 @@ export function HomePage() {
   const { products, categories, status, error } = useCatalog()
   const homeRef = useScrollReveal<HTMLDivElement>()
   const [sellerBanner, setSellerBanner] = useState<PromotionItem | null>(null)
+  const [sellerBannerImageIndex, setSellerBannerImageIndex] = useState(0)
   usePageMeta(t('Meridion Marketplace — Quality Goods Worldwide'), t('Discover verified sellers, shop within your budget, and enjoy secure delivery.'))
   useEffect(() => { let active = true; void fetchActivePromotions('seller_banner').then((items) => { if (active) setSellerBanner(items[0] ?? null) }); return () => { active = false } }, [])
+  const sellerBannerImages = sellerBanner?.banner_image_urls?.length ? sellerBanner.banner_image_urls : sellerBanner?.banner_image_url ? [sellerBanner.banner_image_url] : []
+  useEffect(() => {
+    setSellerBannerImageIndex(0)
+    if (sellerBannerImages.length < 2) return
+    const timer = window.setInterval(() => setSellerBannerImageIndex((index) => (index + 1) % sellerBannerImages.length), 5000)
+    return () => window.clearInterval(timer)
+  }, [sellerBanner?.id, sellerBannerImages.length])
 
   const orderedProducts = products.filter((product) => product.isPublished).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
   const featured = orderedProducts.filter((product) => product.isFeatured)
@@ -77,7 +85,8 @@ export function HomePage() {
 
       <section className="home-editorial home-editorial--sage shine-surface" aria-labelledby="study-edit-title">
         <div className="home-editorial__media">
-          <img src={sellerBanner?.banner_image_url || '/images/study-kit.webp'} alt={sellerBanner?.title || t('A study kit arranged on a warm desk')} loading="lazy" />
+          <img src={sellerBannerImages[sellerBannerImageIndex] || '/images/study-kit.webp'} alt={sellerBanner?.title || t('A study kit arranged on a warm desk')} loading="lazy" />
+          {sellerBannerImages.length > 1 && <div className="home-editorial__image-dots" aria-label={`Banner image ${sellerBannerImageIndex + 1} of ${sellerBannerImages.length}`}>{sellerBannerImages.map((image, index) => <button key={`${image}-${index}`} type="button" aria-label={`Show banner image ${index + 1}`} aria-current={index === sellerBannerImageIndex} onClick={() => setSellerBannerImageIndex(index)} />)}</div>}
           <span className="home-editorial__stamp">{t('Meridion Verified Marketplace')}</span>
         </div>
         <div className="home-editorial__copy">

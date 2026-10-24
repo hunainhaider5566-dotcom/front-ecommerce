@@ -17,6 +17,7 @@ export interface PromotionItem {
   title: string
   description: string | null
   banner_image_url: string | null
+  banner_image_urls: string[]
   cta_text: string | null
   cta_destination: string | null
   display_position: string
@@ -41,7 +42,7 @@ export async function fetchActivePromotions(position?: string): Promise<Promotio
   const client = getSupabase()
   let query = client
     .from('promotions')
-    .select('id, title, description, banner_image_url, cta_text, cta_destination, display_position, priority, coupon_code, discount_percent')
+    .select('id, title, description, banner_image_url, banner_image_urls, cta_text, cta_destination, display_position, priority, coupon_code, discount_percent')
     .eq('status', 'approved')
     .order('priority', { ascending: false })
 
