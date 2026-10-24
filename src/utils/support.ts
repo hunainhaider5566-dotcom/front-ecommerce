@@ -1,7 +1,5 @@
-import { WHATSAPP_NUMBER } from '../config/store'
-
-export function normalizedWhatsAppNumber(value = WHATSAPP_NUMBER): string | null {
-  const input = value.trim()
+export function normalizedWhatsAppNumber(value?: string | null): string | null {
+  const input = (value ?? '').trim()
   const digits = input.replace(/\D/g, '')
   if (!digits) return null
   if (/^0?3\d{9}$/.test(digits)) return `92${digits.startsWith('0') ? digits.slice(1) : digits}`
@@ -11,8 +9,8 @@ export function normalizedWhatsAppNumber(value = WHATSAPP_NUMBER): string | null
   return international
 }
 
-export function supportDestination(message?: string): string {
-  const number = normalizedWhatsAppNumber()
+export function supportDestination(message?: string, whatsappNumber?: string | null): string {
+  const number = normalizedWhatsAppNumber(whatsappNumber)
   if (!number) return '/contact'
   const text = message || 'Hello, I have a question about Meridion Marketplace.'
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`

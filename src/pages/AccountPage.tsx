@@ -117,6 +117,11 @@ export function AccountPage() {
     setAddressForm((current) => current ? { ...current, [name]: type === 'checkbox' ? (event.target as HTMLInputElement).checked : (value || null) } : current)
   }
 
+  function startNewAddress() {
+    setAddressForm({ ...emptyAddress, is_default: addresses.length === 0 })
+    setEditingAddressId(null)
+  }
+
   function startEditAddress(address: SavedAddress) {
     setEditingAddressId(address.id)
     setAddressForm({
@@ -274,10 +279,10 @@ export function AccountPage() {
     </section>}
 
     {tab === 'addresses' && <section className="account-panel" aria-labelledby="account-addresses-title">
-      <div className="account-panel__heading"><div><h2 id="account-addresses-title">{t('Delivery addresses')}</h2><p>{t('Save addresses to speed up checkout.')}</p></div>{!addressForm && <button type="button" className="button button--dark" onClick={() => { setAddressForm({ ...emptyAddress, is_default: addresses.length === 0 }); setEditingAddressId(null) }}><Plus size={15} /> {t('Add address')}</button>}</div>
+      <div className="account-panel__heading"><div><h2 id="account-addresses-title">{t('Delivery addresses')}</h2><p>{t('Save addresses to speed up checkout.')}</p></div>{!addressForm && <button type="button" className="button button--dark" onClick={startNewAddress}><Plus size={15} /> {t('Add address')}</button>}</div>
       {addressesLoading && <LoadingState label={t('Loading addresses…')} />}
       {addressesError && <><ErrorState message={addressesError} /><button type="button" className="button button--outline" onClick={() => void loadAddresses()}>{t('Try again')}</button></>}
-      {!addressesLoading && !addressesError && addresses.length === 0 && !addressForm && <EmptyState title={t('No saved addresses')} description={t('Add an address here or save one during checkout.')} actionLabel={t('Add address')} actionHref="#" />}
+      {!addressesLoading && !addressesError && addresses.length === 0 && !addressForm && <EmptyState title={t('No saved addresses')} description={t('Add an address here or save one during checkout.')} actionLabel={t('Add address')} onAction={startNewAddress} />}
       {!addressesLoading && addresses.length > 0 && <div className="address-grid">
         {addresses.map((address) => <article className="address-card" key={address.id}>
           <div className="address-card__head"><strong>{address.recipient_name}</strong>{address.is_default && <span className="address-card__default"><CheckCircle2 size={13} /> {t('Default')}</span>}</div>
@@ -322,7 +327,7 @@ export function AccountPage() {
       </form>}
       {casesLoading && <LoadingState label={t('Loading your cases…')} />}
       {casesError && <><ErrorState message={casesError} /><button type="button" className="button button--outline" onClick={() => void loadCases()}>{t('Try again')}</button></>}
-      {!casesLoading && !casesError && cases.length === 0 && <EmptyState title={t('No returns or complaints')} description={t('Open a case from a delivered or shipped order item if something is wrong.')} actionLabel={t('View your orders')} actionHref="#" />}
+      {!casesLoading && !casesError && cases.length === 0 && <EmptyState title={t('No returns or complaints')} description={t('Open a case from a delivered or shipped order item if something is wrong.')} actionLabel={t('View your orders')} onAction={() => setTab('orders')} />}
       {!casesLoading && !casesError && cases.length > 0 && <div className="case-list">
         {cases.map((item) => <article className="case-card" key={item.id}>
           <div className="case-card__head"><div><strong>{t(item.case_type)}</strong><span>{orderNumbers.get(item.order_id) || item.order_id}</span></div><span className={statusClass(item.status)}>{t(item.status)}</span></div>

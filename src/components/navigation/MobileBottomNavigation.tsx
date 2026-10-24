@@ -2,6 +2,7 @@ import { Grid2X2, House, MessageCircle, Search, ShoppingCart } from 'lucide-reac
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../../contexts/CartContext'
 import { useI18n } from '../../i18n/LocaleContext'
+import { useStoreSettings } from '../../hooks/useStoreSettings'
 import { supportDestination } from '../../utils/support'
 
 const items = [
@@ -15,7 +16,8 @@ export function MobileBottomNavigation() {
   const location = useLocation()
   const { itemCount } = useCart()
   const { t } = useI18n()
-  const support = supportDestination()
+  const settings = useStoreSettings()
+  const support = supportDestination(undefined, settings.supportWhatsapp)
   const supportActive = location.pathname === '/contact'
   return <nav className="mobile-bottom-nav" aria-label={t('Mobile primary navigation')}>
     {items.map(({ to, label, Icon, match }) => <Link key={to} to={to} className={`mobile-nav-item${match(location.pathname) ? ' is-active' : ''}`} aria-current={match(location.pathname) ? 'page' : undefined} aria-label={t(label)}>

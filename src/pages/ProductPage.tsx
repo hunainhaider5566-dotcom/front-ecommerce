@@ -50,7 +50,7 @@ export function ProductPage() {
   const activeImage = images[imageIndex]
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
   const price = selectedVariant?.price ?? product.price
-  const support = supportDestination(productInquiryMessage(productName, product.slug))
+  const support = supportDestination(productInquiryMessage(productName, product.slug), settings.supportWhatsapp)
   const availability = selectedVariant?.availabilityStatus ?? product.availabilityStatus
   const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
   const previousImage = () => { setImageFailed(false); setImageIndex((current) => (current - 1 + images.length) % images.length) }

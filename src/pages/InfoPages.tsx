@@ -7,7 +7,6 @@ import { useStoreSettings } from '../hooks/useStoreSettings'
 import { supportDestination } from '../utils/support'
 import { useI18n } from '../i18n/LocaleContext'
 import { formatPKR } from '../utils/money'
-import { STORE_CONTACT } from '../config/store'
 
 function InfoLayout({ eyebrow, title, intro, children }: { eyebrow: string; title: React.ReactNode; intro: string; children: React.ReactNode }) {
   return <div className="page-shell info-page"><header className="info-page__heading"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{intro}</p></header>{children}</div>
@@ -31,19 +30,18 @@ export function ContactPage() {
   const { t } = useI18n()
   const settings = useStoreSettings()
   usePageMeta(t('Contact'), t('Contact Meridion Marketplace support.'))
-  const destination = supportDestination()
-  const email = settings.supportEmail || STORE_CONTACT.email
-  const phone = settings.supportPhone || STORE_CONTACT.phone
+  const destination = supportDestination(undefined, settings.supportWhatsapp)
+  const email = settings.supportEmail
+  const phone = settings.supportPhone
   return <InfoLayout eyebrow={t('Questions & notes')} title={<>{t('Let’s keep the')} <em>{t('conversation clear.')}</em></>} intro={t('Reach the marketplace support team for help with orders, delivery, returns or seller questions.')}>
     <section className="placeholder-panel contact-placeholder">
       <span className="contact-placeholder__icon"><MessageCircle size={21} /></span>
       <div>
         <span className="eyebrow">{t('Customer support')}</span>
         <h2>{t('We are here to help')}</h2>
-        <p>{t('Email us at')} <a className="text-link" href={`mailto:${email}`}>{email}</a>{phone ? <> · {t('Call')} <a className="text-link" href={`tel:${phone.replace(/\s/g, '')}`}>{phone}</a></> : null}</p>
-        {destination.startsWith('https://')
-          ? <a className="button button--dark" href={destination} target="_blank" rel="noopener noreferrer">{t('Open WhatsApp')} <ExternalLink size={15} /></a>
-          : <Link className="text-link" to="/faq">{t('Read the FAQ')} <ArrowRight size={15} /></Link>}
+        {email || phone ? <p>{email && <>{t('Email us at')} <a className="text-link" href={`mailto:${email}`}>{email}</a></>}{email && phone ? ' · ' : null}{phone && <>{t('Call')} <a className="text-link" href={`tel:${phone.replace(/\s/g, '')}`}>{phone}</a></>}</p> : <p>{t('Support contact details have not been published yet. You can still track orders and open a case from your account.')}</p>}
+        {destination.startsWith('https://') && <a className="button button--dark" href={destination} target="_blank" rel="noopener noreferrer">{t('Open WhatsApp')} <ExternalLink size={15} /></a>}
+        <p><Link className="text-link" to="/faq">{t('Read the FAQ')} <ArrowRight size={15} /></Link></p>
       </div>
     </section>
   </InfoLayout>
@@ -59,7 +57,7 @@ export function FAQPage() {
     { question: 'How is stock confirmed?', answer: 'Availability is shown from the published catalog and checked again by the database when you place an order. If an item sells out first, the order is rejected safely.' },
     { question: 'What is the delivery timeline?', answer: 'Delivery timing depends on the seller and courier. You can track order and vendor fulfilment status from your account after placing an order.' },
     { question: 'What is the return or refund policy?', answer: `Returns and complaints can be opened from your account within ${settings.returnWindowDays} days of delivery. Include a reason and, where useful, evidence. The seller responds and the marketplace reviews the case.` },
-    { question: 'How do I contact support?', answer: `Email ${settings.supportEmail || STORE_CONTACT.email} or use the contact page. Include your order number so we can help faster.` },
+    { question: 'How do I contact support?', answer: settings.supportEmail ? `Email ${settings.supportEmail} or use the contact page. Include your order number so we can help faster.` : 'Use the contact page for the support details published by the marketplace. Include your order number so we can help faster.' },
     { question: 'What happens to my checkout details?', answer: 'Your order and delivery details are stored with your account so you can track the order, save addresses and open a return. Your cart is kept on this device until you place the order.' },
   ]
   return <InfoLayout eyebrow={t('Helpful notes')} title={<>{t('Frequently')} <em>{t('asked.')}</em></>} intro={t('Straight answers about ordering, delivery and marketplace policies.')}><div className="info-accordion">{faqItems.map((item) => <details className="faq-item" key={item.question}><summary>{t(item.question)}<span aria-hidden="true">+</span></summary><p>{t(item.answer)}</p></details>)}</div></InfoLayout>

@@ -2,13 +2,17 @@ import { ArrowRight, BookOpen, CircleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../i18n/LocaleContext'
 
-export function EmptyState({ title, description, actionLabel = 'Explore the collection', actionHref = '/shop' }: { title: string; description: string; actionLabel?: string; actionHref?: string }) {
+export function EmptyState({ title, description, actionLabel = 'Explore the collection', actionHref, onAction }: { title: string; description: string; actionLabel?: string; actionHref?: string; onAction?: () => void }) {
   const { t } = useI18n()
   return (
     <section className="empty-state">
       <span className="empty-state__icon"><BookOpen size={22} aria-hidden="true" /></span>
       <h2>{t(title)}</h2><p>{t(description)}</p>
-      <Link className="button button--outline" to={actionHref}>{t(actionLabel)}<ArrowRight size={16} aria-hidden="true" /></Link>
+      {onAction
+        ? <button type="button" className="button button--outline" onClick={onAction}>{t(actionLabel)}<ArrowRight size={16} aria-hidden="true" /></button>
+        : actionHref
+          ? <Link className="button button--outline" to={actionHref}>{t(actionLabel)}<ArrowRight size={16} aria-hidden="true" /></Link>
+          : null}
     </section>
   )
 }
