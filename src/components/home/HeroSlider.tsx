@@ -220,7 +220,7 @@ export function HeroSlider() {
               <Link className="hero-slider__primary" to={activeSlide.primaryHref}>{t(activeSlide.primaryLabel)} <ArrowRight size={16} aria-hidden="true" /></Link>
               <Link className="hero-slider__secondary" to={activeSlide.secondaryHref}>{t(activeSlide.secondaryLabel)} <ArrowDownRight size={15} aria-hidden="true" /></Link>
             </div>
-            <div className="hero-slider__footnote"><span>{String(activeIndex + 1).padStart(2, '0')}</span><span>{t('Published catalog · Cash on delivery · Nationwide delivery')}</span></div>
+            <div className="hero-slider__footnote"><span>{String(activeIndex + 1).padStart(2, '0')}</span><span>{t('Verified sellers · Live catalog')}</span></div>
           </div>
           <div className="hero-slider__visual">
             <div className="hero-slider__image-frame">

@@ -52,7 +52,7 @@ export function FAQPage() {
   const settings = useStoreSettings()
   usePageMeta(t('Frequently asked questions'), t('Answers about ordering, delivery, returns and seller verification.'))
   const faqItems = [
-    { question: 'Is Meridion accepting orders?', answer: 'Yes. Signed-in customers can place cash-on-delivery orders from published products. The marketplace validates price, stock and delivery fee when the order is created.' },
+    { question: 'Is Meridion accepting orders?', answer: settings.codEnabled ? 'Yes. Signed-in customers can place cash-on-delivery orders from published products. The marketplace validates price, stock and delivery fee when the order is created.' : 'Cash on delivery is currently paused, so checkout is unavailable. Published products and their stock status can still be browsed.' },
     { question: 'Is cash on delivery available?', answer: settings.codEnabled ? `Yes. Cash on delivery is available, with a delivery fee of ${formatPKR(settings.deliveryFee)} per order.` : 'Cash on delivery is currently paused. Please contact support before ordering.' },
     { question: 'How is stock confirmed?', answer: 'Availability is shown from the published catalog and checked again by the database when you place an order. If an item sells out first, the order is rejected safely.' },
     { question: 'What is the delivery timeline?', answer: 'Delivery timing depends on the seller and courier. You can track order and vendor fulfilment status from your account after placing an order.' },

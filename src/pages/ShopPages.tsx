@@ -53,7 +53,8 @@ export function ShopPage() {
   const { products, categories, status, error } = useCatalog()
   const catalog = useCatalogFilters(products)
   usePageMeta(t('Shop the collection'), t('Explore the currently published Meridion catalog.'))
-  return <div className="page-shell"><div className="page-heading page-heading--with-search"><div><span className="eyebrow">{t('The Meridion collection')}</span><h1>{t('Good things for')} <em>{t('your desk.')}</em></h1><p>{t('Browse published products across the active Meridion categories.')}</p></div><CatalogSearch t={t} /></div><CatalogFilters category={catalog.category} onCategory={catalog.setCategory} sort={catalog.sort} onSort={catalog.setSort} count={catalog.items.length} categories={categories} t={t} /><CatalogState status={status} error={error} />{status === 'ready' && <ProductGrid products={catalog.items} emptyTitle={t('Nothing on this page yet')} emptyDescription={t('Try another category or clear your filters.')} />}</div>
+  const catalogEmpty = products.length === 0
+  return <div className="page-shell"><div className="page-heading page-heading--with-search"><div><span className="eyebrow">{t('The Meridion collection')}</span><h1>{t('Good things,')} <em>{t('well chosen.')}</em></h1><p>{t('Browse published products across the active Meridion categories.')}</p></div><CatalogSearch t={t} /></div><CatalogFilters category={catalog.category} onCategory={catalog.setCategory} sort={catalog.sort} onSort={catalog.setSort} count={catalog.items.length} categories={categories} t={t} /><CatalogState status={status} error={error} />{status === 'ready' && <ProductGrid products={catalog.items} emptyTitle={t(catalogEmpty ? 'No products are published yet' : 'Nothing on this page yet')} emptyDescription={t(catalogEmpty ? 'New listings will appear after sellers add products and they pass moderation.' : 'Try another category or clear your filters.')} />}</div>
 }
 
 export function CategoriesPage() {

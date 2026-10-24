@@ -1,38 +1,52 @@
-# Paperloom — Considered Goods Demo Storefront
+# Meridion Marketplace storefront
 
-A responsive, client-rendered React + TypeScript + Vite storefront frontend for a configurable, multi-category brand concept. Its current sample catalog is stationery-led, but the store UI and category data are not restricted to stationery. This is a **demo-only** experience: sample products, prices and availability are not live offers; checkout, COD and real order submission are disabled; no vendor, courier, payment, email, OTP or authentication provider is connected.
+A responsive React + TypeScript + Vite storefront for Meridion Marketplace. The application uses the shared Supabase project `xrrhbnnzjqkqnqdvayjw` for authentication, catalog, shops, stock availability, orders, addresses, wishlists, notifications, returns/complaints and store settings.
+
+This is a real-data application. There is no demo catalog, mock checkout, fabricated order history or sample revenue. Empty tables render honest empty states, and failed Supabase calls render an error instead of falling back to local mock data.
 
 ## Run locally
 
 ```bash
 pnpm install
+cp .env.example .env.local
 pnpm dev
 ```
 
-Type-check and create a production bundle with `pnpm typecheck` and `pnpm build`. The development app binds to port 3000. The app uses React Router, Tailwind CSS, Lucide React and browser local storage for only cart quantities/product/variant IDs and wishlist product IDs.
+The development server binds to port 3000. `pnpm typecheck` runs the TypeScript build check and `pnpm build` creates the production bundle in `dist`. There are currently no separate test or lint scripts.
 
-For Vercel, import the repository as a Vite project, install with `pnpm install --frozen-lockfile`, run `pnpm build`, and set the output directory to `dist`. `vercel.json` contains the SPA route rewrite for client-side navigation.
+`.env.local` needs the browser-safe project values:
 
-## Routes
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+```
 
-The project includes `/`, `/shop`, `/categories`, `/categories/:slug`, `/products/:slug`, `/search`, `/wishlist`, `/cart`, `/checkout`, `/order-confirmation`, `/account`, `/login`, `/register`, `/forgot-password`, `/verify-email`, `/verify-otp`, `/reset-password`, `/logout`, `/about`, `/contact`, `/faq`, `/privacy`, `/shipping`, `/returns` and a custom 404. Auth pages are presentation/validation only and never simulate a session; credentials, email addresses and OTPs are not transmitted to any provider or service and are not persisted. Reserved admin routes are not implemented. `public/manus-routes.json` declares the page route patterns.
+Never put a service-role key in a Vite environment variable or browser code. RLS and database grants are the security boundary.
 
-## Language and account preview
+## What is implemented
 
-The interface supports English and Urdu; Urdu switches the document to RTL and stores only the locale preference. The account screens show future order-history, saved-address and wishlist-sync placeholders. Login, registration, email/OTP verification, Google sign-in and password-reset flows are UI-only: there is no auth provider or email service, so no account, session, email, OTP or password change can be created or claimed. The registration and recovery forms clear their fictional input after local preview validation.
+- **Catalog:** published, approved products and active categories are read from Supabase. Product detail pages show real images, variants, prices and boolean availability from `get_public_availability`.
+- **Shops:** the public shop directory uses `list_public_shops`, so approved seller shops are visible without exposing the private `seller_profiles` table.
+- **Cart:** the guest cart is stored in `localStorage` as product/variant IDs and quantities. It survives sign-in. Prices and availability are always recalculated from the live catalog.
+- **Checkout:** checkout requires a signed-in Supabase user. It supports optional GPS or manually entered coordinates and cash on delivery. The browser calls the authenticated `place_order` RPC; the database derives the buyer from `auth.uid()`, revalidates product/variant publication, price, stock and delivery fee, locks inventory, and writes the order and line snapshots in one transaction. An idempotency key prevents duplicate submissions.
+- **Orders:** buyers can view only their own orders and line items, open return/refund/complaint cases against eligible items, upload evidence, and follow seller/admin responses.
+- **Account:** profile display, saved delivery addresses, wishlist, notifications and cases are backed by Supabase. Guest wishlist items are merged into the account after sign-in.
+- **Seller area:** authenticated users can apply to become a seller, resubmit a rejected application, manage an approved shop, submit products for moderation, adjust inventory, fulfil their own order items, and respond to cases. Supplier costs and verification documents remain private.
+- **Admin-managed content:** homepage heroes, promotions, categories and store settings (support contacts, delivery fee, COD availability, return window) are managed in the admin dashboard. The storefront reads the live values; the built-in editorial hero is only a visual fallback when no published hero exists.
+- **Localisation:** English and Urdu, with RTL support and a locally stored locale preference.
 
-## Demo and configuration
+## Main routes
 
-`src/config/store.ts` sets `DEMO_MODE = true`, `COD_ENABLED = false`, `STORE_CURRENCY = 'PKR'`, a blank WhatsApp number and an unconfigured delivery fee (`null`). Checkout test values are explicitly fictional and are not persisted or transmitted. The order-service adapter returns a demo response stating that no real order exists; it performs no write and creates no order ID. Confirmation does not depend on a URL query parameter.
+`/`, `/discover`, `/budget`, `/shop`, `/categories`, `/categories/:slug`, `/products/:slug`, `/shops/:slug`, `/search`, `/wishlist`, `/cart`, `/checkout`, `/order-confirmation/:orderNumber`, `/account`, `/vendor/apply`, `/vendor`, `/login`, `/register`, `/forgot-password`, `/verify-email`, `/verify-otp`, `/reset-password`, `/logout`, `/about`, `/contact`, `/faq`, `/privacy`, `/shipping`, `/returns` and a custom 404.
 
-Prices, specifications, descriptions and availability in `src/data/mockProducts.ts` are sample content only. The `demo` availability status means interaction is allowed solely in this mock cart, not that a real item is in stock. Shipping, returns, contacts and social accounts remain placeholders until verified. The site is client-rendered; route-specific titles/descriptions update in the browser, but this project does not claim server-rendered or complete crawler SEO.
+## Database setup
 
-All five generated editorial stationery images are bundled as optimized WebP files in `public/images/`, so the frontend does not depend on project-specific image-storage routing and can be built from this repository in Vercel or OpenCode.
+The canonical migrations live in [`supabase/migrations`](supabase/migrations) and must be applied in ascending filename order. The admin dashboard does not keep a second migration chain; it uses this directory.
 
-## Backend phase before launch
+The latest migration, `20261025090000_marketplace_checkout_security.sql`, adds the checkout RPC, store settings, newsletter subscriptions, public shop directory, admin/vendor product RPCs, complaint evidence policies and private storage buckets. Without it, checkout, store settings and some seller/admin screens will report that the database function or table is unavailable. The app does not hide that state with demo data.
 
-No Supabase integration is configured. Replace `src/services/products/productService.ts` with a server-backed data service and replace the demo order adapter only after a secure backend is implemented. The backend must independently validate prices, availability, variant choices, quantities, delivery fees and totals; create orders server-side; use Supabase PostgreSQL with Row Level Security; protect administrative operations with authentication; and avoid trusting browser totals. Confirm vendor, stock, payment/COD, courier, contact, privacy, shipping, returns and refund terms before launch. Do not place Supabase service-role credentials in browser code.
+The repository cannot apply migrations to the remote project without the project owner's Supabase credentials. Verify the remote schema and policies after applying the files. See [`supabase/README.md`](supabase/README.md) for the security model and remote verification checklist.
 
-## Continuing in OpenCode IDE
+## Deployment
 
-The project uses a conventional Vite source tree and `pnpm-lock.yaml`. Continue UI work locally with the commands above. Before adding Supabase, define server-only credentials and secure API boundaries; keep customer data out of local storage and never enable live checkout from a client-only flag.
+Deploy as a Vite project (for example on Vercel): install with `pnpm install --frozen-lockfile`, build with `pnpm build`, and publish `dist`. `vercel.json` contains the SPA rewrite. Configure the same two public environment variables in the hosting project and add the deployed origin to the Supabase Auth redirect allow-list.

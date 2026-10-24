@@ -101,6 +101,7 @@ export function HomePage() {
         </div>
         <div className="home-product-grid home-product-grid--arrivals">
           {status === 'ready' && newArrivals.map((product) => <HomeProductCard key={product.id} product={product} />)}
+          {status === 'ready' && newArrivals.length === 0 && <p className="home-empty-note">{t('No new arrivals are published yet.')}</p>}
         </div>
       </section>
 
