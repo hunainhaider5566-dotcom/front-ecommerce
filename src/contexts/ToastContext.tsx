@@ -11,7 +11,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([])
   const push = useCallback((message: string, tone: ToastTone = 'success') => {
     const id = Date.now() + Math.random()
-    setItems((current) => [...current.slice(-2), { id, message, tone }])
+    setItems((current) => current.some((item) => item.message === message && item.tone === tone) ? current : [...current.slice(-2), { id, message, tone }])
     window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 3600)
   }, [])
   const dismiss = useCallback((id: number) => setItems((current) => current.filter((item) => item.id !== id)), [])

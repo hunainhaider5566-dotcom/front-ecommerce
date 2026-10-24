@@ -4,6 +4,7 @@ import { HOME_URDU } from './translations/home'
 import { STORE_URDU } from './translations/store'
 import { AUTH_URDU } from './translations/auth'
 import { INFO_URDU } from './translations/info'
+import { VENDOR_URDU } from './translations/vendor'
 
 export type Locale = 'en' | 'ur'
 interface LocaleValue {
@@ -15,7 +16,7 @@ interface LocaleValue {
 }
 
 const LOCALE_KEY = 'meridion-locale-v1'
-const URDU = { ...COMMON_URDU, ...HOME_URDU, ...STORE_URDU, ...AUTH_URDU, ...INFO_URDU }
+const URDU = { ...COMMON_URDU, ...HOME_URDU, ...STORE_URDU, ...AUTH_URDU, ...INFO_URDU, ...VENDOR_URDU }
 const LocaleContext = createContext<LocaleValue | null>(null)
 
 function readLocale(): Locale {

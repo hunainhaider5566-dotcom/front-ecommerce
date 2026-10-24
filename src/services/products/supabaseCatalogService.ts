@@ -114,8 +114,8 @@ function mapProduct(
     isFeatured: row.is_featured,
     trackInventory: row.track_inventory,
     sellerId: row.seller_id,
-    sellerName: shop?.shopName ?? null,
-    sellerSlug: shop?.slug ?? null,
+    sellerName: shop?.shopName,
+    sellerSlug: shop?.slug,
     createdAt: row.created_at,
   }
 }

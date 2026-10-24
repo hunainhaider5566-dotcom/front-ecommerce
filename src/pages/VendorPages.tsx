@@ -44,7 +44,8 @@ function VendorGate({ children }: { children: React.ReactNode }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  return <span className={`vendor-status__badge vendor-status__badge--${status}`}>{status.replace(/_/g, ' ')}</span>
+  const { t } = useI18n()
+  return <span className={`vendor-status__badge vendor-status__badge--${status}`}>{t(status.replace(/_/g, ' '))}</span>
 }
 
 function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?: () => void }) {
@@ -65,6 +66,7 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
         <Link className="text-link" to="/account">{t('Back to account')}</Link>
       </div>
     </div>
+    <VerificationDocumentSection profile={profile} onSaved={() => undefined} />
   </section>
 }
 
@@ -72,7 +74,6 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const { t } = useI18n()
   const { push } = useToast()
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -83,7 +84,6 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     const description = String(data.get('description') ?? '').trim()
     const contactEmail = String(data.get('contact_email') ?? '').trim() || null
     const phone = String(data.get('phone') ?? '').trim() || null
-    const doc = data.get('verification_doc') as File | null
     if (shopName.length < 2) { push(t('Enter a shop name of at least two characters.'), 'error'); return }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { push(t('Use a URL-safe slug, for example acme-traders.'), 'error'); return }
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
@@ -91,9 +91,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
 
     setSaving(true)
     try {
-      let documentPath: string | null = null
-      if (doc && doc.size > 0) { setUploading(true); documentPath = await uploadVendorDocument(doc); setUploading(false) }
-      const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, document_path: documentPath }
+      const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone }
       const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
       push(t(profile ? 'Shop details updated.' : 'Seller application submitted for review.'), 'success')
       if (profile && profile.status === 'rejected') {
@@ -107,7 +105,6 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
       push(cause instanceof Error ? cause.message : t('The shop details could not be saved.'), 'error')
     } finally {
       setSaving(false)
-      setUploading(false)
     }
   }
 
@@ -119,8 +116,35 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="contact_email">{t('Business contact email')}</label><input id="contact_email" name="contact_email" type="email" defaultValue={profile?.contact_email ?? ''} placeholder="vendor@acme.com" /></div>
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
-    <div className="form-field form-field--wide"><label htmlFor="verification_doc">{t('Identity or business registration document')} <span>{t('stored privately')}</span></label><input id="verification_doc" name="verification_doc" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" /><p className="form-help"><ShieldCheck size={13} /> {t('PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p>{profile?.document_path && <p className="form-help"><FileUp size={13} /> {t('A document is already on file. Choosing a new file replaces it.')}</p>}</div>
-    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving || uploading}>{saving || uploading ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
+    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
+  </form>
+}
+
+function VerificationDocumentSection({ profile, onSaved }: { profile: SellerProfile; onSaved: (profile: SellerProfile) => void }) {
+  const { t } = useI18n()
+  const { push } = useToast()
+  const [file, setFile] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [hasDocument, setHasDocument] = useState(Boolean(profile.document_path))
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!file) { push(t('Choose a verification document first.'), 'error'); return }
+    setSaving(true)
+    try {
+      const documentPath = await uploadVendorDocument(file)
+      const saved = await updateOwnShop({ shop_name: profile.shop_name, slug: profile.slug, description: profile.description, contact_email: profile.contact_email, phone: profile.phone, document_path: documentPath })
+      onSaved(saved)
+      setFile(null)
+      setHasDocument(true)
+      push(t('Private verification document saved.'), 'success')
+    } catch (cause) { push(cause instanceof Error ? cause.message : t('The verification document could not be saved.'), 'error') }
+    finally { setSaving(false) }
+  }
+  return <form className="placeholder-panel vendor-form vendor-verification" onSubmit={(event) => void submit(event)}>
+    <h2>{t('Private verification documents')}</h2>
+    <p>{t(hasDocument ? 'A private verification document is on file.' : 'No private verification document is on file.')}</p>
+    <div className="form-field"><label htmlFor="vendor-private-document">{t('Identity or business registration document')}</label><input id="vendor-private-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>
+    <button type="submit" className="button button--outline" disabled={saving || !file}>{saving ? t('Uploading…') : t(hasDocument ? 'Replace private document' : 'Upload private document')}</button>
   </form>
 }
 
@@ -143,7 +167,7 @@ export function VendorApplicationPage() {
   }, [user])
 
   if (!user) return <SignInForVendor />
-  if (loading) return <section className="page-shell"><div className="placeholder-panel">Loading seller application…</div></section>
+  if (loading) return <section className="page-shell"><div className="placeholder-panel">{t('Loading seller application…')}</div></section>
 
   if (profile && !editing) {
     return <VendorGate><VendorStatusCard profile={profile} onEdit={() => setEditing(true)} /></VendorGate>
@@ -182,11 +206,17 @@ export function VendorDashboardPage() {
       const nextProfile = await getOwnSellerProfile()
       setProfile(nextProfile)
       if (nextProfile?.status === 'approved') {
-        const [nextProducts, nextInventory, nextCases, nextOrderItems] = await Promise.all([listOwnProducts(), listOwnInventory(), listOwnCases(), listOwnOrderItems()])
-        setProducts(nextProducts)
-        setInventory(nextInventory)
-        setCases(nextCases)
-        setOrderItems(nextOrderItems)
+        const results = await Promise.allSettled([listOwnProducts(), listOwnInventory(), listOwnCases(), listOwnOrderItems()] as const)
+        const [productsResult, inventoryResult, casesResult, ordersResult] = results
+        setProducts(productsResult.status === 'fulfilled' ? productsResult.value : [])
+        setInventory(inventoryResult.status === 'fulfilled' ? inventoryResult.value : [])
+        setCases(casesResult.status === 'fulfilled' ? casesResult.value : [])
+        setOrderItems(ordersResult.status === 'fulfilled' ? ordersResult.value : [])
+        const failures = [
+          { label: 'Listings', result: productsResult }, { label: 'Inventory', result: inventoryResult },
+          { label: 'Cases', result: casesResult }, { label: 'Fulfilment', result: ordersResult },
+        ].flatMap(({ label, result }) => result.status === 'rejected' ? [`${label}: ${result.reason instanceof Error ? result.reason.message : 'could not be loaded'}`] : [])
+        setError(failures.length ? failures.join(' · ') : null)
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Vendor data could not be loaded.')
@@ -213,16 +243,20 @@ export function VendorDashboardPage() {
 
     {error && <div className="placeholder-panel vendor-error"><AlertCircle size={18} /> {error}</div>}
 
+    <div className="vendor-dashboard-layout">
+    <aside className="vendor-sidebar" aria-label={t('Vendor dashboard navigation')}>
+    <nav className="vendor-tabs" aria-label={t('Vendor sections')}>
+      {([['overview', 'Overview'], ['listings', 'Listings'], ['inventory', 'Inventory'], ['orders', 'Fulfilment'], ['cases', 'Cases'], ['settings', 'Shop settings']] as const).map(([value, label]) => <button key={value} type="button" className={tab === value ? 'is-active' : ''} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(label)}</button>)}
+    </nav>
+    <Link to="/account" className="vendor-sidebar-account">{t('Account settings')}</Link>
+    </aside>
+    <div className="vendor-dashboard-main">
     <div className="vendor-metrics">
       <div><Store size={18} /><strong>{products.length}</strong><span>{t('Listings')}</span></div>
       <div><Boxes size={18} /><strong>{inventory.filter((item) => item.quantity > 0).length}</strong><span>{t('Stock records')}</span></div>
       <div><Truck size={18} /><strong>{orderItems.filter((item) => !['delivered', 'cancelled'].includes(item.vendor_fulfillment_status)).length}</strong><span>{t('Open fulfilment')}</span></div>
       <div><ClipboardList size={18} /><strong>{openCases}</strong><span>{t('Open cases')}</span></div>
     </div>
-
-    <nav className="vendor-tabs" aria-label={t('Vendor sections')}>
-      {([['overview', 'Overview'], ['listings', 'Listings'], ['inventory', 'Inventory'], ['orders', 'Fulfilment'], ['cases', 'Cases'], ['settings', 'Shop settings']] as const).map(([value, label]) => <button key={value} type="button" className={tab === value ? 'is-active' : ''} onClick={() => setTab(value)}>{t(label)}</button>)}
-    </nav>
 
     {tab === 'overview' && <div className="vendor-grid">
       <section className="placeholder-panel vendor-stack">
@@ -266,7 +300,9 @@ export function VendorDashboardPage() {
     {tab === 'settings' && <section className="account-panel">
       <div className="account-panel__heading"><div><h2>{t('Shop settings')}</h2><p>{t('Update public shop details or replace your private verification document.')}</p></div></div>
       <ShopForm profile={profile} mode="settings" onSaved={(saved) => { setProfile(saved); push(t('Shop settings saved.'), 'success') }} />
+      <VerificationDocumentSection profile={profile} onSaved={(saved) => setProfile(saved)} />
     </section>}
+    </div></div>
   </section></VendorGate>
 }
 

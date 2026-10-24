@@ -43,6 +43,9 @@ type NewsletterSubscriberRow = { id: string; email: string; source: string; subs
 type HomepageHeroRow = { id: string; title: string; subtitle: string | null; cta_text: string | null; cta_destination: string | null; image_url: string; mobile_image_url: string | null; image_alt_text: string | null; status: 'draft' | 'published' | 'archived'; display_order: number; start_date: string | null; end_date: string | null; created_by: string | null; created_at: string; updated_at: string }
 type PromotionRow = { id: string; title: string; description: string | null; banner_image_url: string | null; cta_text: string | null; cta_destination: string | null; is_platform_wide: boolean; seller_id: string | null; status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'hidden' | 'archived'; rejection_reason: string | null; reviewed_by: string | null; reviewed_at: string | null; display_position: string; priority: number; coupon_code: string | null; discount_percent: number | null; start_date: string | null; end_date: string | null; created_at: string; updated_at: string }
 
+type ProductReviewRow = { id: string; product_id: string; order_id: string; buyer_id: string; rating: number; title: string | null; comment: string | null; status: string; created_at: string; updated_at: string }
+type SellerReviewRow = { id: string; seller_id: string; order_id: string; buyer_id: string; rating: number; comment: string | null; status: string; created_at: string; updated_at: string }
+
 type PublicShopRow = { id: string; shop_name: string; slug: string; description: string; created_at: string; product_count: number }
 type PlacedOrderRow = { order_id: string; order_number: string; subtotal: number; delivery_fee: number; total: number }
 type AdminCustomerRow = { id: string; full_name: string | null; phone: string | null; avatar_url: string | null; email: string | null; order_count: number; lifetime_value: number; created_at: string; updated_at: string }
@@ -87,6 +90,8 @@ export interface Database {
       newsletter_subscribers: Table<NewsletterSubscriberRow, 'email'>
       homepage_heroes: Table<HomepageHeroRow, 'title' | 'image_url'>
       promotions: Table<PromotionRow, 'title'>
+      product_reviews: Table<ProductReviewRow, "product_id" | "order_id" | "buyer_id" | "rating">
+      seller_reviews: Table<SellerReviewRow, "seller_id" | "order_id" | "buyer_id" | "rating">
     }
     Views: Record<string, never>
     Functions: {

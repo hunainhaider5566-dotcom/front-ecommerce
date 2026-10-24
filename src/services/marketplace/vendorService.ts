@@ -56,6 +56,10 @@ export async function getOwnSellerProfile(): Promise<SellerProfile | null> {
 export async function applyAsSeller(input: VendorShopInput & { document_path?: string | null }): Promise<SellerProfile> {
   const user = (await getSupabase().auth.getUser()).data.user
   if (!user) throw new Error('Sign in before applying as a vendor.')
+  const existing = await getOwnSellerProfile()
+  if (existing) {
+    throw new Error(`A seller application already exists with status: ${existing.status}. Open your seller application to review or update it.`)
+  }
   const { data, error } = await getSupabase().from('seller_profiles').insert({
     user_id: user.id,
     shop_name: input.shop_name,

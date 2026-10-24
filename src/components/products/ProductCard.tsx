@@ -1,4 +1,4 @@
-import { BookOpen, ShoppingBag } from 'lucide-react'
+import { BookOpen, ShoppingBag, Store } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../../contexts/CartContext'
@@ -18,7 +18,8 @@ export function ProductCard({ product }: { product: Product }) {
   const { t } = useI18n()
   const { push } = useToast()
   const name = t(product.name)
-  const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus !== 'out-of-stock' && product.availabilityStatus !== 'unavailable' && product.availabilityStatus !== 'unknown'
+  const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus === 'available'
+
   function handleAdd() {
     if (product.variants.length > 0) {
       navigate(`/products/${product.slug}`)
@@ -35,6 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
       setAdding(false)
     }
   }
+
   return (
     <article className="product-card shine-surface">
       <div className="product-card__image-wrap">
@@ -45,9 +47,19 @@ export function ProductCard({ product }: { product: Product }) {
         <WishlistButton productId={product.id} productName={name} />
       </div>
       <div className="product-card__body">
+        {product.sellerSlug && (
+          <Link to={`/shops/${product.sellerSlug}`} className="product-card__shop-link">
+            <Store size={13} /> {product.sellerName || 'Verified Seller'}
+          </Link>
+        )}
         <div className="product-card__title-row"><Link to={`/products/${product.slug}`} className="product-card__name">{name}</Link><span className="product-card__price">{formatPKR(product.price)}</span></div>
         <p className="product-card__description">{t(product.shortDescription)}</p>
-        <div className="product-card__bottom"><AvailabilityBadge status={product.availabilityStatus} /><button type="button" className="product-add" onClick={handleAdd} disabled={!canAdd || adding} aria-busy={adding} aria-label={product.variants.length ? `${t('Choose options for')} ${name}` : `${t('Add')} ${name} ${t('to cart')}`}><ShoppingBag size={16} aria-hidden="true" /><span>{t(product.variants.length ? 'Choose options' : 'Add')}</span></button></div>
+        <div className="product-card__bottom">
+          <AvailabilityBadge status={product.availabilityStatus} />
+          <button type="button" className="product-add" onClick={handleAdd} disabled={product.variants.length > 0 ? !product.isPublished || product.availabilityStatus === 'unavailable' : !canAdd || adding} aria-busy={adding} aria-label={product.variants.length ? `${t('Choose options for')} ${name}` : `${t('Add')} ${name} ${t('to cart')}`}>
+            <ShoppingBag size={16} aria-hidden="true" /><span>{t(product.variants.length ? 'Choose options' : 'Add')}</span>
+          </button>
+        </div>
       </div>
     </article>
   )

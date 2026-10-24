@@ -51,6 +51,7 @@ export function CheckoutPage() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([])
   const [saveAddress, setSaveAddress] = useState(false)
   const [coords, setCoords] = useState<LocationCoordinates | null>(null)
+  const [pendingCoords, setPendingCoords] = useState<LocationCoordinates | null>(null)
   const [manualCoords, setManualCoords] = useState({ lat: '', lng: '', name: '' })
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
@@ -136,7 +137,7 @@ export function CheckoutPage() {
     setGeoError(null)
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({
+        setPendingCoords({
           lat: Number(position.coords.latitude.toFixed(7)),
           lng: Number(position.coords.longitude.toFixed(7)),
           name: `${form.city || 'Delivery'}, Pakistan`,
@@ -167,6 +168,21 @@ export function CheckoutPage() {
       name: manualCoords.name.trim() || `${form.area || form.city}, ${form.city}`,
       capturedAt: new Date().toISOString(),
     }
+  }
+
+  function confirmManualLocation() {
+    const location = resolvedLocation()
+    if (!location) { setGeoError(t('Enter valid latitude and longitude before confirming the pin.')); return }
+    setGeoError(null)
+    setPendingCoords(null)
+    setCoords(location)
+  }
+
+  function mapEmbedUrl(location: LocationCoordinates) {
+    const latDelta = 0.006
+    const lngDelta = 0.008
+    const bbox = [location.lng - lngDelta, Math.max(-85, location.lat - latDelta), location.lng + lngDelta, Math.min(85, location.lat + latDelta)].join(',')
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${location.lat}%2C${location.lng}`
   }
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
@@ -275,7 +291,7 @@ export function CheckoutPage() {
             </div>
             {geoError && <p className="field-error"><AlertCircle size={15} /> {geoError}</p>}
             {coords
-              ? <div className="coords-confirmed-badge"><CheckCircle2 size={18} /><div><strong>{t('GPS location captured')}</strong><span>{coords.lat}, {coords.lng}</span><button type="button" className="text-button" onClick={() => setCoords(null)}>{t('Clear pin')}</button></div></div>
+              ? <div className="coords-confirmed-badge"><CheckCircle2 size={18} /><div><strong>{t('Delivery pin confirmed')}</strong><span>{coords.lat}, {coords.lng}</span><button type="button" className="text-button" onClick={() => setCoords(null)}>{t('Change pin')}</button></div></div>
               : <div className="manual-coords">
                 <p>{t('No GPS? You can leave this blank and deliver by street address, or enter coordinates manually.')}</p>
                 <div className="form-grid">
@@ -283,7 +299,14 @@ export function CheckoutPage() {
                   <div className="form-field"><label htmlFor="manualLng">{t('Longitude')}</label><input id="manualLng" inputMode="decimal" value={manualCoords.lng} onChange={(event) => setManualCoords((current) => ({ ...current, lng: event.target.value }))} placeholder="74.3587" /></div>
                   <div className="form-field"><label htmlFor="pinName">{t('Location label')}</label><input id="pinName" value={manualCoords.name} onChange={(event) => setManualCoords((current) => ({ ...current, name: event.target.value }))} placeholder={t('e.g. Home')} /></div>
                 </div>
+                <button type="button" className="button button--outline" onClick={confirmManualLocation}>{t('Confirm coordinates')}</button>
               </div>}
+            {(coords || pendingCoords) && <div className="checkout-map-preview">
+              <iframe title={t('Map preview of selected delivery location')} src={mapEmbedUrl(pendingCoords ?? coords!)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              <div className="checkout-map-preview__caption"><span>{pendingCoords ? t('Review this location before confirming') : t('Confirmed delivery point')}</span><a href={`https://www.openstreetmap.org/?mlat=${(pendingCoords ?? coords)!.lat}&mlon=${(pendingCoords ?? coords)!.lng}#map=16/${(pendingCoords ?? coords)!.lat}/${(pendingCoords ?? coords)!.lng}`} target="_blank" rel="noreferrer">{t('Open interactive map')}</a></div>
+              {pendingCoords && <div className="checkout-map-preview__confirm"><span>{pendingCoords.lat}, {pendingCoords.lng}</span><button type="button" className="button button--dark" onClick={() => { setCoords(pendingCoords); setPendingCoords(null); setGeoError(null) }}>{t('Confirm delivery location')}</button></div>}
+              <small>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> {t('contributors')}</small>
+            </div>}
           </div>
         </section>
 

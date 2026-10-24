@@ -31,7 +31,8 @@ export interface Product {
   isFeatured?: boolean
   trackInventory?: boolean
   sellerId?: string | null
-  sellerName?: string | null
-  sellerSlug?: string | null
+  vendorId?: string
+  sellerName?: string
+  sellerSlug?: string
   createdAt?: string
 }
