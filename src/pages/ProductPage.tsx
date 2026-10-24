@@ -1,0 +1,99 @@
+import { ArrowLeft, ArrowRight, BookOpen, Check, MessageCircle, PackageCheck, ShieldCheck, Store } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { AvailabilityBadge } from '../components/products/AvailabilityBadge'
+import { QuantitySelector } from '../components/products/QuantitySelector'
+import { WishlistButton } from '../components/products/WishlistButton'
+import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
+import { useCart } from '../contexts/CartContext'
+import { useCatalog } from '../contexts/CatalogContext'
+import { useToast } from '../contexts/ToastContext'
+import { usePageMeta } from '../hooks/usePageMeta'
+import { useStoreSettings } from '../hooks/useStoreSettings'
+import { useI18n } from '../i18n/LocaleContext'
+import { formatPKR } from '../utils/money'
+import { supportDestination, productInquiryMessage } from '../utils/support'
+
+export function ProductPage() {
+  const { t } = useI18n()
+  const { slug = '' } = useParams()
+  const { status, error, findProductBySlug, categories } = useCatalog()
+  const settings = useStoreSettings()
+  const product = findProductBySlug(slug)
+  const [quantity, setQuantity] = useState(1)
+  const [variantId, setVariantId] = useState(product?.variants[0]?.id ?? '')
+  const [imageIndex, setImageIndex] = useState(0)
+  const [imageFailed, setImageFailed] = useState(false)
+  const [added, setAdded] = useState(false)
+  const addLock = useRef(false)
+  const { add } = useCart()
+  const { push } = useToast()
+
+  useEffect(() => {
+    setQuantity(1)
+    setVariantId(product?.variants[0]?.id ?? '')
+    setImageIndex(0)
+    setImageFailed(false)
+    setAdded(false)
+    addLock.current = false
+  }, [product?.id])
+
+  usePageMeta(product ? t(product.name) : t('Product not found'), product ? t(product.shortDescription) : t('This catalog product could not be found.'))
+  if (status === 'loading') return <div className="page-shell"><LoadingState label="Loading product details…" /></div>
+  if (status === 'error') return <div className="page-shell"><ErrorState message={error || 'The catalog could not be loaded.'} /></div>
+  if (status === 'unconfigured') return <div className="page-shell"><ErrorState message="The product catalog is temporarily unavailable." /></div>
+  if (!product) return <div className="page-shell"><EmptyState title="This product is not in the published catalog" description="It may have been unpublished or removed. Browse current active products instead." actionLabel="Browse the catalog" /></div>
+
+  const productName = t(product.name)
+  const categoryName = t(categories.find((item) => item.id === product.categoryId)?.name ?? 'Collection')
+  const images = product.images
+  const activeImage = images[imageIndex]
+  const selectedVariant = product.variants.find((variant) => variant.id === variantId)
+  const price = selectedVariant?.price ?? product.price
+  const support = supportDestination(productInquiryMessage(productName, product.slug))
+  const availability = selectedVariant?.availabilityStatus ?? product.availabilityStatus
+  const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
+  const previousImage = () => { setImageFailed(false); setImageIndex((current) => (current - 1 + images.length) % images.length) }
+  const nextImage = () => { setImageFailed(false); setImageIndex((current) => (current + 1) % images.length) }
+  function handleAdd() {
+    if (!product || !canAdd || added || addLock.current) return
+    addLock.current = true
+    if (add(product, quantity, variantId || undefined, selectedVariant?.value)) {
+      setAdded(true)
+      push(t('Added to your cart.'), 'success')
+      window.setTimeout(() => { addLock.current = false; setAdded(false) }, 2200)
+    } else {
+      addLock.current = false
+    }
+  }
+
+  return <div className="page-shell product-detail-page">
+    <Link to="/shop" className="back-link"><ArrowLeft size={15} /> {t('Back to collection')}</Link>
+    <div className="product-detail">
+      <div className="product-gallery" role="group" aria-label={`${productName} ${t('image gallery')}`}>
+        <div className="product-gallery__main">
+          {imageFailed || !activeImage ? <div className="image-fallback image-fallback--large"><BookOpen size={42} /><span>{productName}</span></div> : <img src={activeImage} alt={`${productName} ${imageIndex + 1}`} onError={() => setImageFailed(true)} />}
+          {images.length > 0 && <span className="gallery-counter" aria-live="polite">{String(imageIndex + 1).padStart(2, '0')} / {String(images.length).padStart(2, '0')}</span>}
+        </div>
+        {images.length > 1 && <>
+          <div className="product-gallery__controls"><button type="button" aria-label={t('Previous product image')} onClick={previousImage}><ArrowLeft size={17} /></button><span>{t('Image')} {imageIndex + 1} {t('of')} {images.length}</span><button type="button" aria-label={t('Next product image')} onClick={nextImage}><ArrowRight size={17} /></button></div>
+          <div className="product-gallery__thumbnails" aria-label={t('Choose a product image')}>{images.map((image, index) => <button type="button" key={image} className={`product-gallery__thumbnail${imageIndex === index ? ' is-active' : ''}`} aria-label={`${t('Show image')} ${index + 1} ${t('of')} ${images.length}`} aria-pressed={imageIndex === index} onClick={() => { setImageFailed(false); setImageIndex(index) }}><img src={image} alt="" aria-hidden="true" loading="lazy" /></button>)}</div>
+        </>}
+      </div>
+      <div className="product-detail__content">
+        <div className="product-detail__topline"><span className="eyebrow">{categoryName}</span><WishlistButton productId={product.id} productName={productName} /></div>
+        <h1>{productName}</h1>
+        <p className="product-detail__description">{t(product.description)}</p>
+        <div className="product-price-row"><strong>{formatPKR(price)}</strong><AvailabilityBadge status={availability} /></div>
+        <p className="product-price-caption">{t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
+        {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
+        <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
+        <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
+        <p className="product-detail__reassurance"><ShieldCheck size={15} /> {t('Cash on delivery. Prices and stock are validated when the order is placed.')}</p>
+        {product.sellerName && product.sellerSlug && <Link className="product-seller-link" to={`/shops/${product.sellerSlug}`}><Store size={15} /> {t('Sold by')} {product.sellerName}</Link>}
+        <div className="detail-accordions"><details><summary><span><BookOpen size={16} /> {t('Product details')}</span><span>+</span></summary><ul>{product.specifications.map((spec) => <li key={spec.label}><span>{t(spec.label)}</span><span>{t(spec.value)}</span></li>)}</ul></details><details><summary><span><PackageCheck size={16} /> {t('Shipping & returns')}</span><span>+</span></summary><p>{t('Delivery fee')}: {formatPKR(settings.deliveryFee)}. {t('Returns are accepted within')} {settings.returnWindowDays} {t('days of delivery through your account.')}</p><Link to="/returns">{t('Read the returns policy')}</Link></details></div>
+        <a className="product-inquiry-link" href={support} target={support.startsWith('https://') ? '_blank' : undefined} rel={support.startsWith('https://') ? 'noopener noreferrer' : undefined}><MessageCircle size={16} /> {t('Ask a question about this listing')}</a>
+      </div>
+    </div>
+  </div>
+}

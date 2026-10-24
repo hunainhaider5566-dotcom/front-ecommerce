@@ -1,0 +1,220 @@
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ExternalLink, Heart, Leaf, MessageCircle, PencilRuler, ShoppingBag } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useCart } from '../contexts/CartContext'
+import { useCatalog } from '../contexts/CatalogContext'
+import { useWishlist } from '../contexts/WishlistContext'
+import { useToast } from '../contexts/ToastContext'
+import type { Category } from '../types/category'
+import type { Product } from '../types/product'
+import { formatPKR } from '../utils/money'
+import { usePageMeta } from '../hooks/usePageMeta'
+import { useI18n } from '../i18n/LocaleContext'
+import { useScrollReveal } from '../hooks/useScrollReveal'
+import { HeroSlider } from '../components/home/HeroSlider'
+import { NewsletterSignup } from '../components/home/NewsletterSignup'
+
+const faqs = [
+  { question: 'Is Meridion a live marketplace?', answer: 'Yes. Meridion Marketplace features live products from verified sellers, accurate stock status, and structured order delivery.' },
+  { question: 'Can I place an order?', answer: 'Yes. Checkout accepts confirmed orders with cash on delivery and optional delivery location pin confirmation.' },
+  { question: 'How do I become a verified seller?', answer: 'Click "Become a Seller" in the top navigation, complete the seller registration form, and submit your business verification documents.' },
+]
+
+const valueCards = [
+  { icon: Leaf, title: 'Verified Vendors', description: 'Independent sellers apply with identity and business details before their products are listed.' },
+  { icon: Check, title: 'Quality Assurance', description: 'Products are moderated before publication, with buyer complaints and returns handled in one place.' },
+  { icon: PencilRuler, title: 'Reliable Support', description: 'Responsive customer support and order tracking from checkout to delivery.' },
+]
+
+export function HomePage() {
+  const { t } = useI18n()
+  const { products, categories, status, error } = useCatalog()
+  const homeRef = useScrollReveal<HTMLDivElement>()
+  usePageMeta(t('Meridion Marketplace — Quality Goods Worldwide'), t('Discover verified sellers, shop within your budget, and enjoy secure delivery.'))
+
+  const orderedProducts = products.filter((product) => product.isPublished).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+  const featured = orderedProducts.filter((product) => product.isFeatured)
+  const featuredProducts = (featured.length ? featured : orderedProducts).slice(0, 4)
+  const newArrivals = orderedProducts.slice(0, 4)
+
+  return (
+    <div ref={homeRef} className="home-page">
+      <HeroSlider />
+
+      <section className="home-section home-categories" aria-labelledby="home-categories-title">
+        <div className="home-section__heading">
+          <div>
+            <span className="home-eyebrow">{t('Explore Categories')}</span>
+            <h2 id="home-categories-title">{t('Curated collections.')}</h2>
+            <p>{t('Discover quality products from verified independent vendors.')}</p>
+          </div>
+          <Link className="home-text-link" to="/categories">{t('View all collections')} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="home-category-grid">
+          {categories.map((category) => <HomeCategoryCard key={category.id} category={category} />)}
+          {status === 'ready' && categories.length === 0 && <p className="home-empty-note">{t('No active categories available at the moment.')}</p>}
+        </div>
+      </section>
+
+      <section className="home-section home-products" aria-labelledby="featured-products-title">
+        <div className="home-section__heading">
+          <div>
+            <span className="home-eyebrow">{t('Featured Products')}</span>
+            <h2 id="featured-products-title">{t('Top picks from top sellers.')}</h2>
+            <p>{t('Explore popular items with confirmed pricing and stock.')}</p>
+          </div>
+          <Link className="home-text-link" to="/shop">{t('Browse marketplace')} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="home-product-grid">
+          {status === 'error' && <p className="home-empty-note" role="alert">{t(error || 'The catalog could not be loaded.')}</p>}
+          {status === 'ready' && featuredProducts.map((product) => <HomeProductCard key={product.id} product={product} />)}
+          {status === 'ready' && featuredProducts.length === 0 && <p className="home-empty-note">{t('No products have been published yet.')}</p>}
+        </div>
+      </section>
+
+      <section className="home-editorial home-editorial--sage shine-surface" aria-labelledby="study-edit-title">
+        <div className="home-editorial__media">
+          <img src="/images/study-kit.webp" alt={t('A study kit arranged on a warm desk')} loading="lazy" />
+          <span className="home-editorial__stamp">{t('Meridion Verified Marketplace')}</span>
+        </div>
+        <div className="home-editorial__copy">
+          <span className="home-eyebrow">{t('Vendor Platform')}</span>
+          <h2 id="study-edit-title">{t('Grow your business on Meridion.')}</h2>
+          <p>{t('Reach active shoppers with store management, inventory tools, and transparent order handling.')}</p>
+          <ul className="home-check-list">
+            <li><Check size={16} aria-hidden="true" /> {t('Simple business verification')}</li>
+            <li><Check size={16} aria-hidden="true" /> {t('Full control over listings & pricing')}</li>
+            <li><Check size={16} aria-hidden="true" /> {t('Secure order handling and payouts')}</li>
+          </ul>
+          <Link className="home-button home-button--dark" to="/vendor/apply">{t('Become a Seller')} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+      </section>
+
+      <section className="home-section home-arrivals" aria-labelledby="new-arrivals-title">
+        <div className="home-section__heading">
+          <div>
+            <span className="home-eyebrow">{t('New Arrivals')}</span>
+            <h2 id="new-arrivals-title">{t('Fresh additions to the store.')}</h2>
+            <p>{t('Recently added listings from our verified vendor community.')}</p>
+          </div>
+          <Link className="home-text-link" to="/shop">{t('Browse the catalog')} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="home-product-grid home-product-grid--arrivals">
+          {status === 'ready' && newArrivals.map((product) => <HomeProductCard key={product.id} product={product} />)}
+        </div>
+      </section>
+
+      <section className="home-values" aria-labelledby="values-title">
+        <div className="home-values__intro">
+          <span className="home-eyebrow">{t('Why Meridion?')}</span>
+          <h2 id="values-title">{t('A marketplace built on trust.')}</h2>
+        </div>
+        {valueCards.map(({ icon: Icon, title, description }) => (
+          <article className="home-value-card" key={title}>
+            <span className="home-value-card__icon"><Icon size={19} aria-hidden="true" /></span>
+            <h3>{t(title)}</h3>
+            <p>{t(description)}</p>
+          </article>
+        ))}
+      </section>
+
+      <NewsletterSignup />
+
+      <section className="home-support" aria-labelledby="support-title">
+        <div className="home-support__icon" aria-hidden="true"><MessageCircle size={22} /></div>
+        <div>
+          <span className="home-eyebrow">{t('Customer Support')}</span>
+          <h2 id="support-title">{t('Have questions about an order or seller?')}</h2>
+          <p>{t('Get in touch with our customer service team or visit our Help Center.')}</p>
+        </div>
+        <div className="home-support__actions">
+          <Link className="home-button home-button--dark" to="/faq">{t('Read Marketplace FAQ')} <ArrowRight size={15} aria-hidden="true" /></Link>
+          <Link className="home-text-link" to="/contact">{t('Contact Support')} <ExternalLink size={15} aria-hidden="true" /></Link>
+        </div>
+      </section>
+
+      <section className="home-faq" aria-labelledby="home-faq-title">
+        <div className="home-section__heading">
+          <div>
+            <span className="home-eyebrow">{t('Helpful Notes')}</span>
+            <h2 id="home-faq-title">{t('Frequently Asked Questions')}</h2>
+          </div>
+          <Link className="home-text-link" to="/faq">{t('View All FAQs')} <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className="home-faq__items">
+          {faqs.map((faq) => (
+            <details className="home-faq__item" key={faq.question}>
+              <summary>{t(faq.question)}<span aria-hidden="true">+</span></summary>
+              <p>{t(faq.answer)}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function HomeCategoryCard({ category }: { category: Category }) {
+  const { t } = useI18n()
+  const [failed, setFailed] = useState(false)
+  const name = t(category.name)
+  return (
+    <Link to={`/categories/${category.slug}`} className="home-category-card shine-surface">
+      <div className="home-category-card__image">
+        {failed || !category.image ? <div className="home-image-fallback" role="img" aria-label={name}><BookOpen size={28} aria-hidden="true" /><span>{name}</span></div> : <img src={category.image} alt={`${name} ${t('category collection')}`} loading="lazy" onError={() => setFailed(true)} />}
+        <span className="home-category-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span>
+      </div>
+      <span className="home-eyebrow">{t(category.eyebrow ?? 'Collection')}</span>
+      <h3>{name}</h3>
+      <p>{t(category.description)}</p>
+    </Link>
+  )
+}
+
+function HomeProductCard({ product }: { product: Product }) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const { add } = useCart()
+  const { has, toggle } = useWishlist()
+  const { push } = useToast()
+  const [failed, setFailed] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const addLock = useRef(false)
+  const name = t(product.name)
+  const saved = has(product.id)
+  const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus !== 'out-of-stock' && product.availabilityStatus !== 'unavailable' && product.availabilityStatus !== 'unknown'
+  const availability = product.availabilityStatus === 'available' ? t('In stock') : product.availabilityStatus === 'out-of-stock' ? t('Out of stock') : product.availabilityStatus === 'unknown' ? t('Availability not confirmed') : t('Unavailable')
+  const wishlistLabel = saved ? `${t('Remove from wishlist')} · ${name}` : `${t('Add to wishlist')} · ${name}`
+  function handleAdd() {
+    if (product.variants.length > 0) {
+      navigate(`/products/${product.slug}`)
+      return
+    }
+    if (addLock.current || !canAdd) return
+    addLock.current = true
+    setAdding(true)
+    if (add(product, 1)) {
+      push(t('Added to cart.'), 'success')
+      window.setTimeout(() => { addLock.current = false; setAdding(false) }, 900)
+    } else {
+      addLock.current = false
+      setAdding(false)
+    }
+  }
+
+  return (
+    <article className="home-product-card shine-surface">
+      <div className="home-product-card__image-wrap">
+        <Link to={`/products/${product.slug}`} className="home-product-card__image-link" aria-label={`${t('View')} ${name}`}>
+          {failed || !product.images[0] ? <div className="home-image-fallback" role="img" aria-label={name}><BookOpen size={30} aria-hidden="true" /><span>{name}</span></div> : <img src={product.images[0]} alt={name} loading="lazy" onError={() => setFailed(true)} />}
+        </Link>
+        <button className="home-product-card__wishlist" type="button" onClick={() => { void toggle(product.id); push(t(saved ? 'Removed from wishlist' : 'Added to wishlist'), 'success') }} aria-pressed={saved} aria-label={wishlistLabel}><Heart size={17} fill={saved ? 'currentColor' : 'none'} aria-hidden="true" /></button>
+      </div>
+      <div className="home-product-card__body">
+        <div className="home-product-card__title-row"><Link to={`/products/${product.slug}`} className="home-product-card__name">{name}</Link><span className="home-product-card__price">{formatPKR(product.price)}</span></div>
+        <p className="home-product-card__description">{t(product.shortDescription)}</p>
+        <div className="home-product-card__bottom"><span className="home-product-card__availability">{availability}</span><button type="button" className="home-product-card__add" onClick={handleAdd} disabled={!canAdd || adding} aria-busy={adding} aria-label={product.variants.length ? `${t('Choose options for')} ${name}` : `${t('Add')} ${name} ${t('to cart')}`}><ShoppingBag size={15} aria-hidden="true" /><span>{t(product.variants.length ? 'Choose options' : 'Add')}</span></button></div>
+      </div>
+    </article>
+  )
+}
