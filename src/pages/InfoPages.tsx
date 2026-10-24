@@ -1,4 +1,5 @@
-import { ArrowRight, ExternalLink, Leaf, MessageCircle, NotebookPen, ShieldCheck } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
+import { ArrowRight, ExternalLink, Leaf, MessageCircle, NotebookPen, Send, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { useWishlist } from '../contexts/WishlistContext'
@@ -29,10 +30,26 @@ export function AboutPage() {
 export function ContactPage() {
   const { t } = useI18n()
   const settings = useStoreSettings()
+  const [formMessage, setFormMessage] = useState('')
   usePageMeta(t('Contact'), t('Contact Meridion Marketplace support.'))
   const destination = supportDestination(undefined, settings.supportWhatsapp)
   const email = settings.supportEmail
   const phone = settings.supportPhone
+  function submitContact(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const subject = String(data.get('subject') ?? '').trim()
+    const message = `Name: ${String(data.get('name') ?? '').trim()}\nEmail: ${String(data.get('email') ?? '').trim()}\nTopic: ${subject}\n\n${String(data.get('message') ?? '').trim()}`
+    if (email) {
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
+      setFormMessage(t('Your email app is opening with your message ready to send.'))
+    } else if (destination.startsWith('https://')) {
+      window.open(supportDestination(message, settings.supportWhatsapp), '_blank', 'noopener,noreferrer')
+      setFormMessage(t('WhatsApp is opening with your message ready to send.'))
+    } else {
+      setFormMessage(t('Support has not published an email or WhatsApp contact yet. Please use the FAQ or account support options.'))
+    }
+  }
   return <InfoLayout eyebrow={t('Questions & notes')} title={<>{t('Let’s keep the')} <em>{t('conversation clear.')}</em></>} intro={t('Reach the marketplace support team for help with orders, delivery, returns or seller questions.')}>
     <section className="placeholder-panel contact-placeholder">
       <span className="contact-placeholder__icon"><MessageCircle size={21} /></span>
@@ -43,6 +60,18 @@ export function ContactPage() {
         {destination.startsWith('https://') && <a className="button button--dark" href={destination} target="_blank" rel="noopener noreferrer">{t('Open WhatsApp')} <ExternalLink size={15} /></a>}
         <p><Link className="text-link" to="/faq">{t('Read the FAQ')} <ArrowRight size={15} /></Link></p>
       </div>
+    </section>
+    <section className="contact-form-panel">
+      <div className="contact-form-heading"><span className="eyebrow">{t('Send a message')}</span><h2>{t('How can we help?')}</h2><p>{t('Share a few details and we will help you find the right next step.')}</p></div>
+      <form className="contact-form" onSubmit={submitContact}>
+        <div className="form-grid">
+          <div className="form-field"><label htmlFor="contact-name">{t('Your name')} <span>*</span></label><input id="contact-name" name="name" autoComplete="name" required maxLength={120} /></div>
+          <div className="form-field"><label htmlFor="contact-email">{t('Email address')} <span>*</span></label><input id="contact-email" name="email" type="email" autoComplete="email" required maxLength={254} /></div>
+          <div className="form-field form-field--wide"><label htmlFor="contact-subject">{t('What do you need help with?')} <span>*</span></label><select id="contact-subject" name="subject" required defaultValue=""><option value="" disabled>{t('Choose a topic')}</option><option>{t('Order or delivery')}</option><option>{t('Return or refund')}</option><option>{t('Seller question')}</option><option>{t('Other')}</option></select></div>
+          <div className="form-field form-field--wide"><label htmlFor="contact-message">{t('Message')} <span>*</span></label><textarea id="contact-message" name="message" rows={6} required minLength={10} maxLength={4000} placeholder={t('Include your order number if your message is about an order.')} /></div>
+        </div>
+        <div className="contact-form-submit"><button className="button button--dark" type="submit">{t('Continue to support')} <Send size={15} /></button>{formMessage && <p role="status">{formMessage}</p>}</div>
+      </form>
     </section>
   </InfoLayout>
 }

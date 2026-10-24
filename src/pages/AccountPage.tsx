@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X, XCircle } from 'lucide-react'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
 import { useAuth } from '../contexts/AuthContext'
+import { useCatalog } from '../contexts/CatalogContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { createAddress, deleteAddress, listMyAddresses, setDefaultAddress, updateAddress, type AddressInput, type SavedAddress } from '../services/account/addressService'
-import { createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
+import { cancelCustomerOrder, createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
 import type { MarketplaceCaseRecord, OrderItemRecord, OrderRecord } from '../types/order'
 import { formatPKR } from '../utils/money'
 
@@ -40,6 +41,7 @@ export function AccountPage() {
   const { t } = useI18n()
   const { configured, loading, user, isAdmin, error: authError, avatarUrl, displayName } = useAuth()
   const { push } = useToast()
+  const { refresh: refreshCatalog } = useCatalog()
   const [tab, setTab] = useState<Tab>('orders')
 
   const [orders, setOrders] = useState<OrderRecord[]>([])
@@ -47,6 +49,7 @@ export function AccountPage() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState<string | null>(null)
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
 
   const [addresses, setAddresses] = useState<SavedAddress[]>([])
   const [addressesLoading, setAddressesLoading] = useState(true)
@@ -78,6 +81,21 @@ export function AccountPage() {
       setOrdersError(cause instanceof Error ? cause.message : 'Orders could not be loaded.')
     } finally {
       setOrdersLoading(false)
+    }
+  }
+
+  async function cancelOrder(order: OrderRecord) {
+    if (!window.confirm(t('Cancel this order? You can only cancel before fulfilment starts.'))) return
+    setCancellingOrderId(order.id)
+    try {
+      await cancelCustomerOrder(order.id)
+      refreshCatalog()
+      push(t('Order cancelled. Available stock has been restored.'), 'success')
+      await loadOrders()
+    } catch (cause) {
+      push(cause instanceof Error ? cause.message : t('This order could not be cancelled.'), 'error')
+    } finally {
+      setCancellingOrderId(null)
     }
   }
 
@@ -254,6 +272,11 @@ export function AccountPage() {
         {orders.map((order) => {
           const items = itemsByOrder[order.id] ?? []
           const open = expandedOrder === order.id
+          const canCancel = ['pending', 'confirmed'].includes(order.order_status)
+            && order.payment_method === 'cod'
+            && order.payment_status === 'pending'
+            && items.length > 0
+            && items.every((item) => ['pending', 'accepted'].includes(item.vendor_fulfillment_status))
           return <article className={`order-card${open ? ' is-open' : ''}`} key={order.id}>
             <button type="button" className="order-card__summary" onClick={() => setExpandedOrder(open ? null : order.id)} aria-expanded={open}>
               <div><strong>{order.order_number}</strong><span>{new Date(order.created_at).toLocaleDateString()}</span></div>
@@ -271,7 +294,7 @@ export function AccountPage() {
                 <div><span className="eyebrow">{t('Deliver to')}</span><p>{order.customer_name} · {order.customer_phone}</p><p>{addressSummary(order.shipping_address_snapshot) || t('Address on file')}</p>{order.delivery_location_name && <p><MapPin size={13} /> {order.delivery_location_name}</p>}</div>
                 <div><span className="eyebrow">{t('Payment')}</span><p>{t('Item subtotal')}: {formatPKR(Number(order.subtotal))}</p><p>{t('Delivery fee')}: {formatPKR(Number(order.delivery_fee))}</p><p><strong>{t('Total')}: {formatPKR(Number(order.total))}</strong></p></div>
               </div>
-              <div className="order-card__actions"><Link to={`/order-confirmation/${order.order_number}`} className="text-button">{t('View confirmation')}</Link><button type="button" className="text-button" onClick={() => openCase(order, null)}>{t('Report an order issue')}</button></div>
+              <div className="order-card__actions"><Link to={`/order-confirmation/${order.order_number}`} className="text-button">{t('View confirmation')}</Link><button type="button" className="text-button" onClick={() => openCase(order, null)}>{t('Report an order issue')}</button>{canCancel && <button type="button" className="text-button text-button--danger" onClick={() => void cancelOrder(order)} disabled={cancellingOrderId === order.id}><XCircle size={14} /> {t(cancellingOrderId === order.id ? 'Cancelling…' : 'Cancel order')}</button>}</div>
             </div>}
           </article>
         })}

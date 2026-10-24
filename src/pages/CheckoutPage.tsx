@@ -49,13 +49,49 @@ export function CheckoutPage() {
 
   const [form, setForm] = useState<CheckoutFormValues>(emptyForm)
   const [addresses, setAddresses] = useState<SavedAddress[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState('')
   const [saveAddress, setSaveAddress] = useState(false)
   const [coords, setCoords] = useState<LocationCoordinates | null>(null)
-  const [pendingCoords, setPendingCoords] = useState<LocationCoordinates | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const idempotencyKey = useRef(newCheckoutKey())
+
+  function captureLocation(showSuccess = false) {
+    if (!navigator.geolocation) {
+      setGeoError(t('Location is not available in this browser. You can still place your order without a pin.'))
+      return
+    }
+    setGeoLoading(true)
+    setGeoError(null)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          lat: Number(position.coords.latitude.toFixed(7)),
+          lng: Number(position.coords.longitude.toFixed(7)),
+          name: `${form.city || 'Delivery'}, Pakistan`,
+          capturedAt: new Date().toISOString(),
+        })
+        setGeoLoading(false)
+        if (showSuccess) push(t('Delivery location found.'), 'success')
+      },
+      (failure) => {
+        setGeoLoading(false)
+        setGeoError(failure.code === failure.PERMISSION_DENIED
+          ? t('Location access is blocked. Allow it in your browser settings and try again.')
+          : failure.code === failure.POSITION_UNAVAILABLE
+            ? t('Your device location is unavailable. Check location services, or continue without a pin.')
+            : t('Finding your location took too long. You can retry or place your order without a pin.'))
+      },
+      { enableHighAccuracy: false, timeout: 20000, maximumAge: 120000 },
+    )
+  }
+
+  useEffect(() => {
+    if (user && lines.length > 0) captureLocation()
+    // Request location once when checkout opens; the pin is only included if the user places the order.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -73,6 +109,7 @@ export function CheckoutPage() {
       setAddresses(rows)
       const preferred = rows.find((row) => row.is_default) ?? rows[0]
       if (preferred) {
+        setSelectedAddressId(preferred.id)
         setForm((current) => ({
           ...current,
           fullName: current.fullName || preferred.recipient_name,
@@ -115,6 +152,7 @@ export function CheckoutPage() {
   }
 
   function applyAddress(id: string) {
+    setSelectedAddressId(id)
     const saved = addresses.find((address) => address.id === id)
     if (!saved) return
     setForm((current) => ({
@@ -125,34 +163,6 @@ export function CheckoutPage() {
       address: [saved.address_line_1, saved.address_line_2].filter(Boolean).join(', '),
       instructions: saved.delivery_instructions ?? '',
     }))
-  }
-
-  function handleGetCurrentLocation() {
-    if (!navigator.geolocation) {
-      setGeoError(t('Geolocation is not supported by this browser. You can still use the map and street address.'))
-      return
-    }
-    setGeoLoading(true)
-    setGeoError(null)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setPendingCoords({
-          lat: Number(position.coords.latitude.toFixed(7)),
-          lng: Number(position.coords.longitude.toFixed(7)),
-          name: `${form.city || 'Delivery'}, Pakistan`,
-          capturedAt: new Date().toISOString(),
-        })
-        setGeoLoading(false)
-        push(t('Location coordinates captured.'), 'success')
-      },
-      (geoFailure) => {
-        setGeoLoading(false)
-        setGeoError(geoFailure.code === geoFailure.PERMISSION_DENIED
-          ? t('Location permission was denied. You can still use the map and street address.')
-          : t('GPS coordinates could not be read. You can still use the map and street address.'))
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    )
   }
 
   function resolvedLocation(): LocationCoordinates | null {
@@ -222,10 +232,17 @@ export function CheckoutPage() {
       }
 
       clear()
+      refresh()
       push(`${t('Order')} ${placed.orderNumber} ${t('placed successfully.')}`, 'success')
       navigate(`/order-confirmation/${encodeURIComponent(placed.orderNumber)}`, { replace: true })
     } catch (cause) {
-      push(cause instanceof Error ? cause.message : t('The order could not be placed. Please try again.'), 'error')
+      const message = cause instanceof Error ? cause.message : ''
+      if (/stock|availability/i.test(message)) {
+        refresh()
+        push(t('Stock changed while you were checking out. Review your cart and try again.'), 'error')
+      } else {
+        push(message || t('The order could not be placed. Please try again.'), 'error')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -233,23 +250,20 @@ export function CheckoutPage() {
 
   return <div className="page-shell checkout-page">
     <Link to="/cart" className="back-link"><ArrowLeft size={15} /> {t('Back to cart')}</Link>
-    <div className="page-heading"><span className="eyebrow">{t('Secure checkout')}</span><h1>{t('Confirm your')} <em>{t('delivery details.')}</em></h1><p>{t('Cash on delivery. Your price, stock and delivery fee are validated by the marketplace when the order is placed.')}</p></div>
+    <div className="checkout-heading"><span className="eyebrow">{t('Checkout')}</span><h1>{t('Delivery details')}</h1></div>
 
     <div className="checkout-layout">
       <form className="checkout-form" onSubmit={submitOrder} noValidate>
-        {addresses.length > 0 && <section className="form-section">
-          <h2>{t('Saved addresses')}</h2>
-          <div className="saved-address-list">
-            {addresses.map((address) => <button type="button" key={address.id} className="saved-address" onClick={() => applyAddress(address.id)}>
-              <strong>{address.recipient_name}{address.is_default ? ` · ${t('Default')}` : ''}</strong>
-              <span>{address.address_line_1}, {address.city}</span>
-              <small>{address.phone}</small>
-            </button>)}
-          </div>
-        </section>}
+        {addresses.length > 0 && <div className="checkout-saved-address form-field">
+          <label htmlFor="saved-address">{t('Use a saved address')}</label>
+          <select id="saved-address" value={selectedAddressId} onChange={(event) => applyAddress(event.target.value)}>
+            <option value="">{t('Choose saved address')}</option>
+            {addresses.map((address) => <option key={address.id} value={address.id}>{address.recipient_name} · {address.city}{address.is_default ? ` · ${t('Default')}` : ''}</option>)}
+          </select>
+        </div>}
 
         <section className="form-section">
-          <h2>{t('01 · Recipient and contact')}</h2>
+          <h2>{t('Contact details')}</h2>
           <div className="form-grid">
             <div className="form-field"><label htmlFor="fullName">{t('Full name')} <span>*</span></label><input id="fullName" name="fullName" value={form.fullName} onChange={setField} autoComplete="name" required /></div>
             <div className="form-field"><label htmlFor="phone">{t('Mobile number')} <span>*</span></label><input id="phone" name="phone" type="tel" placeholder="03xx xxx xxxx" value={form.phone} onChange={setField} autoComplete="tel" required /></div>
@@ -258,7 +272,7 @@ export function CheckoutPage() {
         </section>
 
         <section className="form-section">
-          <h2>{t('02 · Delivery address and optional location pin')}</h2>
+          <h2>{t('Delivery address')}</h2>
           <div className="form-grid">
             <div className="form-field"><label htmlFor="city">{t('City')} <span>*</span></label><input id="city" name="city" value={form.city} onChange={setField} autoComplete="address-level2" required /></div>
             <div className="form-field"><label htmlFor="area">{t('Area / locality')}</label><input id="area" name="area" placeholder="e.g. Gulberg III" value={form.area} onChange={setField} autoComplete="address-level3" /></div>
@@ -268,17 +282,16 @@ export function CheckoutPage() {
 
           <div className="location-pin-box shine-surface">
             <div className="location-pin-header">
-              <div><h3><MapPin size={18} /> {t('Delivery location pin')}</h3><p>{t('Optional GPS coordinates help the courier find your address.')}</p></div>
-              <button type="button" className="button button--outline" onClick={handleGetCurrentLocation} disabled={geoLoading}><Navigation size={16} className={geoLoading ? 'spin' : ''} />{t(geoLoading ? 'Locating…' : 'Use my current location')}</button>
+              <div><h3><MapPin size={18} /> {t('Location pin')} <span>{t('Optional')}</span></h3></div>
+              <button type="button" className="button button--outline" onClick={() => captureLocation(true)} disabled={geoLoading}><Navigation size={16} className={geoLoading ? 'spin' : ''} />{t(geoLoading ? 'Finding location…' : coords ? 'Update my location' : 'Use my current location')}</button>
             </div>
             {geoError && <p className="field-error"><AlertCircle size={15} /> {geoError}</p>}
             {coords
               ? <div className="coords-confirmed-badge"><CheckCircle2 size={18} /><div><strong>{t('Delivery pin confirmed')}</strong><span>{coords.lat}, {coords.lng}</span><button type="button" className="text-button" onClick={() => setCoords(null)}>{t('Change pin')}</button></div></div>
-              : <p className="location-pin-note">{t('Move the map to your delivery area or use your street address. GPS is optional.')}</p>}
+              : !geoError ? <p className="location-pin-note">{t(geoLoading ? 'Finding your location…' : 'Your location will be added to your order when available.')}</p> : null}
             <div className="checkout-map-preview">
-              <iframe title={t('Map preview of selected delivery location')} src={mapEmbedUrl(pendingCoords ?? coords ?? undefined)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-              <div className="checkout-map-preview__caption"><span>{pendingCoords ? t('Review this location before confirming') : coords ? t('Confirmed delivery point') : t('Delivery area map')}</span><a href={`https://www.openstreetmap.org/?mlat=${(pendingCoords ?? coords)?.lat ?? 31.5204}&mlon=${(pendingCoords ?? coords)?.lng ?? 74.3587}#map=16/${(pendingCoords ?? coords)?.lat ?? 31.5204}/${(pendingCoords ?? coords)?.lng ?? 74.3587}`} target="_blank" rel="noreferrer">{t('Open interactive map')}</a></div>
-              {pendingCoords && <div className="checkout-map-preview__confirm"><span>{pendingCoords.lat}, {pendingCoords.lng}</span><button type="button" className="button button--dark" onClick={() => { setCoords(pendingCoords); setPendingCoords(null); setGeoError(null) }}>{t('Confirm delivery location')}</button></div>}
+              <iframe title={t('Map preview of selected delivery location')} src={mapEmbedUrl(coords ?? undefined)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+              <div className="checkout-map-preview__caption"><span>{coords ? t('Your delivery area') : t('Delivery area')}</span><a href={`https://www.openstreetmap.org/?mlat=${coords?.lat ?? 31.5204}&mlon=${coords?.lng ?? 74.3587}#map=16/${coords?.lat ?? 31.5204}/${coords?.lng ?? 74.3587}`} target="_blank" rel="noreferrer">{t('Open map')}</a></div>
               <small>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> {t('contributors')}</small>
             </div>
           </div>
@@ -291,7 +304,6 @@ export function CheckoutPage() {
         <button className="button button--dark button--full checkout-submit" type="submit" disabled={submitting || !linesAvailable || !settings.codEnabled}>
           {t(submitting ? 'Placing order…' : 'Place order · Cash on delivery')} <ArrowRight size={16} />
         </button>
-        <p className="checkout-secure-note"><ShieldCheck size={14} /> {t('Your order is created by the marketplace database, not by your browser.')}</p>
       </form>
 
       <aside className="checkout-sidebar">
@@ -302,7 +314,6 @@ export function CheckoutPage() {
             <div className="order-summary__row"><span>{t('Item subtotal')}</span><strong>{formatPKR(subtotal)}</strong></div>
             <div className="order-summary__row"><span>{t('Delivery fee')}</span><strong>{formatPKR(settings.deliveryFee)}</strong></div>
             <div className="order-summary__total"><span>{t('Total')}</span><strong>{formatPKR(total)}</strong></div>
-            <p>{t('The final charge is confirmed by the marketplace at order placement.')}</p>
           </div>
         </div>
       </aside>

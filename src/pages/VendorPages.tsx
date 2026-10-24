@@ -71,7 +71,7 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
         <Link className="text-link" to="/account">{t('Back to account')}</Link>
       </div>
     </div>
-    <VerificationDocumentSection profile={profile} onSaved={() => undefined} />
+    {!approved && <VerificationDocumentSection profile={profile} onSaved={() => undefined} />}
   </section>
 }
 

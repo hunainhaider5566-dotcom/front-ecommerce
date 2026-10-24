@@ -34,20 +34,22 @@ export function PublicShopPage() {
 
   return (
     <div className="page-shell public-shop-page">
+      <nav className="shop-breadcrumb" aria-label={t('Breadcrumb')}><Link to="/shop">{t('Marketplace')}</Link><span aria-hidden="true">/</span><span>{shop.shopName}</span></nav>
       <header className="shop-header-card shine-surface">
         <div className="shop-header-main">
           <span className="shop-avatar">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt={`${shop.shopName} shop`} /> : <Store size={32} />}</span>
-          <div>
+          <div className="shop-header-copy">
+            <span className="shop-kicker">{t('Independent seller')}</span>
             <div className="shop-title-row">
               <h1>{shop.shopName}</h1>
               <span className="vendor-status__badge vendor-status__badge--approved"><CheckCircle2 size={14} /> {t('Verified Seller')}</span>
             </div>
             <p className="shop-description">{shop.description || t('This seller has not added a shop description yet.')}</p>
-            <div className="shop-meta">
-              <span><MapPin size={14} /> {t('Verified vendor on Meridion')}</span>
-              <span><PackageSearch size={14} /> {shop.productCount} {t('published products')}</span>
-            </div>
           </div>
+        </div>
+        <div className="shop-header-footer">
+          <div className="shop-meta"><span><MapPin size={15} /> {t('Verified vendor on Meridion')}</span></div>
+          <div className="shop-product-count"><PackageSearch size={17} /><strong>{shopProducts.length}</strong><span>{t('published products')}</span></div>
         </div>
       </header>
 

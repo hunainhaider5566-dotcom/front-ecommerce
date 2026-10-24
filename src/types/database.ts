@@ -118,6 +118,7 @@ export interface Database {
       seller_resubmit_application: { Args: Record<string, never>; Returns: SellerProfileRow }
       admin_decide_marketplace_case: { Args: { p_case_id: string; p_status: string; p_decision: string }; Returns: MarketplaceCaseRow }
       admin_moderate_product: { Args: { p_product_id: string; p_status: ModerationStatus; p_reason?: string | null }; Returns: ProductRow }
+      cancel_customer_order: { Args: { p_order_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: AppRole

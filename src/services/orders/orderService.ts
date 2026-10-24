@@ -52,6 +52,12 @@ export async function listMyOrders(): Promise<OrderRecord[]> {
   return (data ?? []) as OrderRecord[]
 }
 
+export async function cancelCustomerOrder(orderId: string): Promise<void> {
+  const { data, error } = await getSupabase().rpc('cancel_customer_order', { p_order_id: orderId })
+  throwIfError(error)
+  if (!data) throw new Error('The order could not be cancelled.')
+}
+
 export async function getMyOrderByNumber(orderNumber: string): Promise<OrderRecord | null> {
   const { data, error } = await getSupabase()
     .from('orders')

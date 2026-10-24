@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ExternalLink, Heart, Leaf, MessageCircle, PencilRuler, ShoppingBag } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ExternalLink, Heart, Leaf, MessageCircle, PencilRuler, ShoppingBag, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
@@ -12,7 +12,6 @@ import { usePageMeta } from '../hooks/usePageMeta'
 import { useI18n } from '../i18n/LocaleContext'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import { HeroSlider } from '../components/home/HeroSlider'
-import { NewsletterSignup } from '../components/home/NewsletterSignup'
 import { fetchActivePromotions, type PromotionItem } from '../services/marketplace/promotionsService'
 
 const faqs = [
@@ -29,7 +28,7 @@ const valueCards = [
 
 export function HomePage() {
   const { t } = useI18n()
-  const { products, categories, status, error } = useCatalog()
+  const { products, categories, shops, status, error } = useCatalog()
   const homeRef = useScrollReveal<HTMLDivElement>()
   const [sellerBanner, setSellerBanner] = useState<PromotionItem | null>(null)
   const [sellerBannerImageIndex, setSellerBannerImageIndex] = useState(0)
@@ -83,6 +82,24 @@ export function HomePage() {
         </div>
       </section>
 
+      {shops.length > 0 && <section className="home-shop-marquee" aria-labelledby="home-shops-title">
+        <div className="home-shop-marquee__heading">
+          <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Good finds, from good people.')}</h2></div>
+          <Link className="home-text-link" to="/shop">{t('Meet our sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
+        </div>
+        <div className="home-shop-marquee__viewport">
+          <div className={`home-shop-marquee__track${shops.length === 1 ? ' home-shop-marquee__track--static' : ''}`} aria-label={t('Featured shop logos')}>
+            {(shops.length > 1 ? [0, 1] : [0]).map((copy) => <div className="home-shop-marquee__group" key={copy} aria-hidden={copy === 1}>
+              {shops.map((shop) => <Link className="home-shop-logo" to={`/shops/${shop.slug}`} key={`${copy}-${shop.id}`} tabIndex={copy === 1 ? -1 : undefined}>
+                <span className="home-shop-logo__image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={20} aria-hidden="true" />}</span>
+                <span className="home-shop-logo__name">{t(shop.shopName)}</span>
+                <span className="home-shop-logo__verified"><Check size={12} aria-hidden="true" /> {t('Verified shop')}</span>
+              </Link>)}
+            </div>)}
+          </div>
+        </div>
+      </section>}
+
       <section className="home-editorial home-editorial--sage shine-surface" aria-labelledby="study-edit-title">
         <div className="home-editorial__media">
           <img src={sellerBannerImages[sellerBannerImageIndex] || '/images/study-kit.webp'} alt={sellerBanner?.title || t('A study kit arranged on a warm desk')} loading="lazy" />
@@ -130,8 +147,6 @@ export function HomePage() {
           </article>
         ))}
       </section>
-
-      <NewsletterSignup />
 
       <section className="home-support" aria-labelledby="support-title">
         <div className="home-support__icon" aria-hidden="true"><MessageCircle size={22} /></div>
