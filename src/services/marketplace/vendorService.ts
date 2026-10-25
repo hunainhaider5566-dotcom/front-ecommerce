@@ -9,7 +9,9 @@ export type VendorOrderItem = Database['public']['Functions']['vendor_order_item
 export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
 const SELLER_BASE_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
-const SELLER_COLUMNS = `${SELLER_BASE_COLUMNS}, shop_lat, shop_lng, shop_location_label, show_shop_on_map`
+// Keep the core seller profile query compatible with the production schema.
+// The nearby-shops migration adds the optional location columns separately.
+const SELLER_COLUMNS = SELLER_BASE_COLUMNS
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
@@ -73,13 +75,8 @@ export async function getOwnSellerProfile(): Promise<SellerProfile | null> {
   const user = (await client.auth.getUser()).data.user
   if (!user) return null
   const { data, error } = await client.from('seller_profiles').select(SELLER_COLUMNS).eq('user_id', user.id).maybeSingle()
-  if (error?.code === '42703' && /shop_(lat|lng|location_label)|show_shop_on_map/.test(error.message)) {
-    const fallback = await client.from('seller_profiles').select(SELLER_BASE_COLUMNS).eq('user_id', user.id).maybeSingle()
-    assertError(fallback.error)
-    return fallback.data ? { ...fallback.data, shop_lat: null, shop_lng: null, shop_location_label: '', show_shop_on_map: false } as SellerProfile : null
-  }
   assertError(error)
-  return (data as SellerProfile | null) ?? null
+  return data ? { ...data, shop_lat: null, shop_lng: null, shop_location_label: '', show_shop_on_map: false } as SellerProfile : null
 }
 
 export async function applyAsSeller(input: VendorShopInput & { document_path?: string | null }): Promise<SellerProfile> {
@@ -172,6 +169,49 @@ export async function createVendorProduct(input: {
   assertError(error)
   if (!data) throw new Error('The product was not created.')
   return data
+}
+
+export async function uploadOwnProductImage(productId: string, file: File, altText: string): Promise<void> {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Product images must be 10 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+    throw new Error('Choose a JPG, PNG, WebP or AVIF product image.')
+  }
+
+  const client = getSupabase()
+  const user = (await client.auth.getUser()).data.user
+  if (!user) throw new Error('Sign in before uploading a product image.')
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+  const path = `${user.id}/${productId}/${crypto.randomUUID()}-${safeName}`
+  const { error: uploadError } = await client.storage.from('product-images').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type,
+  })
+  assertError(uploadError)
+
+  const { data: lastImage, error: listError } = await client.from('product_images')
+    .select('sort_order')
+    .eq('product_id', productId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (listError) {
+    await client.storage.from('product-images').remove([path])
+    throw new Error(listError.message)
+  }
+
+  const { error: imageError } = await client.from('product_images').insert({
+    product_id: productId,
+    storage_path: path,
+    alt_text: altText.slice(0, 200),
+    sort_order: (lastImage?.sort_order ?? -1) + 1,
+    is_primary: !lastImage,
+  })
+  if (imageError) {
+    await client.storage.from('product-images').remove([path])
+    throw new Error(imageError.message)
+  }
 }
 
 export async function updateVendorProduct(productId: string, input: {

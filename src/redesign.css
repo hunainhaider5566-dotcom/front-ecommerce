@@ -697,6 +697,7 @@ button { font-family: var(--font-body); }
 .vendor-order-card__tracking { margin: 0; color: var(--muted); font-size: 12px; }
 .vendor-order-card__tracking a { color: var(--terracotta-ink); font-weight: 600; }
 .vendor-form--editor { max-width: none; }
+.vendor-product-image-preview { display: block; width: min(100%, 280px); max-height: 220px; margin: 8px 0 12px; border: 1px solid #dfe4da; border-radius: 10px; object-fit: contain; background: #fff; }
 .vendor-cancel-edit { margin-top: 14px; }
 @media (max-width: 900px) { .vendor-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) {

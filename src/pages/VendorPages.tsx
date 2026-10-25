@@ -23,6 +23,7 @@ import {
   updateOwnOrderItem,
   updateOwnShop,
   updateVendorProduct,
+  uploadOwnProductImage,
   uploadVendorDocument,
   uploadVendorShopImage,
   removeVendorShopImage,
@@ -383,7 +384,17 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const { t } = useI18n()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const editing = Boolean(product)
+
+  useEffect(() => {
+    if (!imageFile) { setImagePreview(null); return }
+    const previewUrl = URL.createObjectURL(imageFile)
+    setImagePreview(previewUrl)
+    return () => URL.revokeObjectURL(previewUrl)
+  }, [imageFile])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -410,15 +421,23 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         fulfillment_expense: fulfillmentExpense,
         minimum_profit: minimumProfit,
       }
-      if (product) {
-        await updateVendorProduct(product.id, input)
-        await onSaved(t('Product changes submitted for moderation.'))
+      const wasEditing = Boolean(product || createdProductId)
+      let productId = product?.id ?? createdProductId
+      if (productId) {
+        await updateVendorProduct(productId, input)
       } else {
-        await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on' })
-        await onSaved(t('Listing submitted for moderation.'))
+        productId = await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on' })
+        setCreatedProductId(productId)
       }
+      if (imageFile && productId) {
+        await uploadOwnProductImage(productId, imageFile, input.name)
+      }
+      await onSaved(t(wasEditing ? 'Product changes submitted for moderation.' : 'Listing submitted for moderation.'))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('The listing could not be saved.'))
+      const message = cause instanceof Error ? cause.message : t('The listing could not be saved.')
+      setError(createdProductId && !product
+        ? `${t('The listing was created, but its image could not be saved. Correct the image and submit again; the listing will not be duplicated.')} ${message}`
+        : message)
     } finally {
       setSaving(false)
     }
@@ -435,6 +454,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-supplier-cost">{t('Supplier cost')} <span>{t('private')}</span></label><input id="product-supplier-cost" name="supplier_cost" type="number" min="0" step="0.01" defaultValue={product?.supplier_cost == null ? '' : String(product.supplier_cost)} /></div>
     <div className="form-field"><label htmlFor="product-fulfilment">{t('Fulfilment expense')}</label><input id="product-fulfilment" name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue={product ? String(product.fulfillment_expense) : '0'} /></div>
     <div className="form-field"><label htmlFor="product-profit">{t('Minimum profit')}</label><input id="product-profit" name="minimum_profit" type="number" min="0" step="0.01" defaultValue={product ? String(product.minimum_profit) : '0'} /></div>
+    <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. You can add another image when editing the listing.')}</p></div>
     <div className="form-field form-field--wide"><label htmlFor="product-short">{t('Short description')}</label><input id="product-short" name="short_description" maxLength={300} defaultValue={product?.short_description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-description">{t('Full description')}</label><textarea id="product-description" name="description" rows={5} defaultValue={product?.description ?? ''} /></div>
     {!editing && <label className="checkout-save-address"><input type="checkbox" name="track_inventory" defaultChecked /> {t('Track inventory for this listing')}</label>}
