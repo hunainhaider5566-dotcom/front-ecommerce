@@ -1,0 +1,4 @@
+Photo: "Young woman with shopping bags in a mall" by Vitaly Gariev
+Source: https://unsplash.com/photos/young-woman-with-shopping-bags-in-a-mall-jPzHXooEk8U
+License: https://unsplash.com/license
+Local asset: marketplace-shopper.webp (1600px wide WebP)

@@ -11,7 +11,7 @@ import { formatPKR } from '../utils/money'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useI18n } from '../i18n/LocaleContext'
 import { useScrollReveal } from '../hooks/useScrollReveal'
-import { HeroSlider } from '../components/home/HeroSlider'
+import { MarketplaceHero } from '../components/home/MarketplaceHero'
 import { fetchActivePromotions, type PromotionItem } from '../services/marketplace/promotionsService'
 
 const faqs = [
@@ -46,10 +46,12 @@ export function HomePage() {
   const featured = orderedProducts.filter((product) => product.isFeatured)
   const featuredProducts = (featured.length ? featured : orderedProducts).slice(0, 4)
   const newArrivals = orderedProducts.slice(0, 4)
+  const heroProduct = featuredProducts.find((product) => product.images[0])
+  const heroShop = shops.find((shop) => shop.shopImageUrl)
 
   return (
     <div ref={homeRef} className="home-page">
-      <HeroSlider />
+      <MarketplaceHero product={heroProduct} shop={heroShop} />
 
       <section className="home-section home-categories" aria-labelledby="home-categories-title">
         <div className="home-section__heading">
