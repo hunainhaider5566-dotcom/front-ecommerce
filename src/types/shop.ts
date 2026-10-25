@@ -6,4 +6,7 @@ export interface PublicShop {
   createdAt: string
   productCount: number
   shopImageUrl: string | null
+  shopLocationLabel: string | null
+  latitude: number | null
+  longitude: number | null
 }

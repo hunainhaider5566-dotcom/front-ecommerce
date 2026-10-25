@@ -51,6 +51,9 @@ function mapShop(row: PublicShopRow): PublicShop {
     createdAt: row.created_at,
     productCount: Number(row.product_count),
     shopImageUrl: row.shop_image_url,
+    shopLocationLabel: row.shop_location_label,
+    latitude: row.shop_lat,
+    longitude: row.shop_lng,
   }
 }
 

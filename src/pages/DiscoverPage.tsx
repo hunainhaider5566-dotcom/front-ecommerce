@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingBag, Store, ChevronLeft, ChevronRight, Sparkles, BookOpen } from 'lucide-react'
+import { Heart, ShoppingBag, Store, ChevronLeft, ChevronRight, Sparkles, BookOpen, Map as MapIcon } from 'lucide-react'
 import { useCart } from '../contexts/CartContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useWishlist } from '../contexts/WishlistContext'
@@ -10,6 +10,7 @@ import { useI18n } from '../i18n/LocaleContext'
 import { usePageMeta } from '../hooks/usePageMeta'
 import type { Product } from '../types/product'
 import { AvailabilityBadge } from '../components/products/AvailabilityBadge'
+import { NearbyShopsMap } from '../components/shops/NearbyShopsMap'
 
 interface DiscoverItem {
   product: Product
@@ -28,6 +29,7 @@ export function DiscoverPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [reducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [visibleCount, setVisibleCount] = useState(6)
+  const [view, setView] = useState<'map' | 'products'>('map')
   const trackRef = useRef<HTMLDivElement | null>(null)
   const cardRefs = useRef<Array<HTMLElement | null>>([])
   const shopsById = useMemo(() => new Map(shops.map((shop) => [shop.id, shop])), [shops])
@@ -86,24 +88,14 @@ export function DiscoverPage() {
     return <div className="page-shell"><div className="empty-state"><Sparkles size={32} /><h2>{t('The catalog is unavailable')}</h2><p>{error || t('The catalog could not be loaded.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div></div>
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="page-shell">
-        <div className="empty-state">
-          <Sparkles size={32} />
-          <h2>{t('No Discover items available')}</h2>
-          <p>{t('Check back soon as sellers publish new products.')}</p>
-          <Link to="/shop" className="button button--dark">{t('Browse Store')}</Link>
-        </div>
-      </div>
-    )
-  }
-
   const hasMore = visibleItems.length < items.length
 
   return (
     <div className="discover-page-container">
-      <header className="discover-heading"><span className="eyebrow">{t('Discover')}</span><h1>{t('Find your next')} <em>{t('favourite.')}</em></h1><p>{t('Real finds from independent marketplace shops.')}</p></header>
+      <header className="discover-heading"><span className="eyebrow">{t('Discover')}</span><h1>{t(view === 'map' ? 'Explore shops near you.' : 'Find your next favourite.')}</h1><p>{t(view === 'map' ? 'Find independent marketplace shops around your current location.' : 'Real finds from independent marketplace shops.')}</p></header>
+      <div className="discover-view-switch" role="group" aria-label={t('Explore view')}><button type="button" className={view === 'map' ? 'is-active' : ''} aria-pressed={view === 'map'} onClick={() => setView('map')}><MapIcon size={16} /> {t('Nearby shops')}</button><button type="button" className={view === 'products' ? 'is-active' : ''} aria-pressed={view === 'products'} onClick={() => setView('products')}><Sparkles size={16} /> {t('Product discovery')}</button></div>
+      {view === 'map' && <NearbyShopsMap shops={shops} />}
+      {view === 'products' && (items.length === 0 ? <div className="empty-state"><Sparkles size={32} /><h2>{t('No Discover items available')}</h2><p>{t('Check back soon as sellers publish new products.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div> : <>
       <div className="discover-nav-buttons">
         <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))} disabled={currentIndex === 0} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
         <span className="discover-counter" aria-live="polite">{currentIndex + 1} / {items.length}</span>
@@ -132,6 +124,7 @@ export function DiscoverPage() {
         })}
       </div>
       {hasMore && <button type="button" className="button button--outline discover-load-more" onClick={() => setVisibleCount((count) => Math.min(items.length, count + 6))}>{t('Load more products')}</button>}
+      </>)}
     </div>
   )
 }

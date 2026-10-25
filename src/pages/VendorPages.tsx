@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, Package, PackageSearch, Pencil, Plus, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
@@ -81,6 +81,11 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const [saving, setSaving] = useState(false)
   const [shopImage, setShopImage] = useState<File | null>(null)
   const [shopPreview, setShopPreview] = useState<string | null>(null)
+  const [shopLatitude, setShopLatitude] = useState(profile?.shop_lat?.toString() ?? '')
+  const [shopLongitude, setShopLongitude] = useState(profile?.shop_lng?.toString() ?? '')
+  const [shopLocationLabel, setShopLocationLabel] = useState(profile?.shop_location_label ?? '')
+  const [showShopOnMap, setShowShopOnMap] = useState(profile?.show_shop_on_map ?? false)
+  const [locationLoading, setLocationLoading] = useState(false)
 
   useEffect(() => {
     if (!shopImage) { setShopPreview(null); return }
@@ -88,6 +93,16 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     setShopPreview(preview)
     return () => URL.revokeObjectURL(preview)
   }, [shopImage])
+
+  function useShopLocation() {
+    if (!navigator.geolocation) { push(t('This browser cannot read your location.'), 'error'); return }
+    setLocationLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => { setShopLatitude(coords.latitude.toFixed(6)); setShopLongitude(coords.longitude.toFixed(6)); setLocationLoading(false); push(t('Shop location added. Add a public area label before saving.'), 'success') },
+      () => { setLocationLoading(false); push(t('Location could not be read. Allow location access or enter the coordinates manually.'), 'error') },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    )
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -98,10 +113,15 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     const description = String(data.get('description') ?? '').trim()
     const contactEmail = String(data.get('contact_email') ?? '').trim() || null
     const phone = String(data.get('phone') ?? '').trim() || null
+    const showLocation = mode === 'settings' && data.get('show_shop_on_map') === 'on'
+    const latitude = shopLatitude.trim() ? Number(shopLatitude) : null
+    const longitude = shopLongitude.trim() ? Number(shopLongitude) : null
+    const locationLabel = shopLocationLabel.trim()
     if (shopName.length < 2) { push(t('Enter a shop name of at least two characters.'), 'error'); return }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { push(t('Use a URL-safe slug, for example acme-traders.'), 'error'); return }
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
     if (phone && phone.replace(/\D/g, '').length < 7) { push(t('Enter a valid phone number.'), 'error'); return }
+    if (showLocation && (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || locationLabel.length < 2)) { push(t('Add valid coordinates and a public area label to show this shop on Explore.'), 'error'); return }
 
     setSaving(true)
     try {
@@ -109,7 +129,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
       let committed = false
       try {
         if (shopImage && profile) uploadedImage = await uploadVendorShopImage(shopImage)
-        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}) }
+        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}), ...(mode === 'settings' ? { shop_lat: latitude, shop_lng: longitude, shop_location_label: locationLabel, show_shop_on_map: showLocation } : {}) }
         const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
         committed = true
         if (uploadedImage && profile?.shop_image_url?.includes('/shop-images/')) {
@@ -145,6 +165,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
+    {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : 'Use this device location')}</button><div className="form-grid"><div className="form-field"><label htmlFor="shop-latitude">{t('Latitude')}</label><input id="shop-latitude" inputMode="decimal" value={shopLatitude} onChange={(event) => setShopLatitude(event.target.value)} placeholder="31.5204" /></div><div className="form-field"><label htmlFor="shop-longitude">{t('Longitude')}</label><input id="shop-longitude" inputMode="decimal" value={shopLongitude} onChange={(event) => setShopLongitude(event.target.value)} placeholder="74.3587" /></div><div className="form-field form-field--wide"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }
