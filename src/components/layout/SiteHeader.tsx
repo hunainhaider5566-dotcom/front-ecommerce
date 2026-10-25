@@ -9,7 +9,7 @@ import { useI18n } from '../../i18n/LocaleContext'
 import { useStoreSettings } from '../../hooks/useStoreSettings'
 import { UserAvatar } from '../common/UserAvatar'
 import { getOwnSellerProfile } from '../../services/marketplace/vendorService'
-import { listMyNotifications, markAllNotificationsRead, markNotificationRead } from '../../services/account/notificationService'
+import { listMyNotifications, markAllNotificationsRead, markNotificationRead, type NotificationAudience } from '../../services/account/notificationService'
 import type { SellerStatus } from '../../types/database'
 import type { NotificationRecord } from '../../types/order'
 
@@ -66,6 +66,7 @@ export function SiteHeader() {
   const settings = useStoreSettings()
   const [sellerStatus, setSellerStatus] = useState<SellerStatus | null>(null)
   const location = useLocation()
+  const notificationAudience: NotificationAudience = location.pathname.startsWith('/admin') ? 'admin' : location.pathname.startsWith('/vendor') ? 'vendor' : 'customer'
   useEffect(() => { setMenuOpen(false); setNotificationsOpen(false) }, [location.pathname])
   useEffect(() => {
     let active = true
@@ -79,13 +80,13 @@ export function SiteHeader() {
     setNotificationsLoading(true)
     setNotificationsError(null)
     try {
-      setNotifications(await listMyNotifications())
+      setNotifications(await listMyNotifications(notificationAudience))
     } catch (cause) {
       setNotificationsError(cause instanceof Error ? cause.message : 'Notifications could not be loaded.')
     } finally {
       setNotificationsLoading(false)
     }
-  }, [user])
+  }, [user, notificationAudience])
 
   useEffect(() => { void loadNotifications() }, [loadNotifications])
 
@@ -100,7 +101,7 @@ export function SiteHeader() {
 
   async function handleMarkAll() {
     try {
-      await markAllNotificationsRead()
+      await markAllNotificationsRead(notificationAudience)
       setNotifications((current) => current.map((item) => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })))
     } catch (cause) {
       setNotificationsError(cause instanceof Error ? cause.message : 'Notifications could not be updated.')
@@ -110,7 +111,7 @@ export function SiteHeader() {
   async function handleMarkOne(id: string) {
     if (notifications.find((item) => item.id === id)?.read_at) return
     try {
-      await markNotificationRead(id)
+      await markNotificationRead(id, notificationAudience)
       setNotifications((current) => current.map((item) => item.id === id ? { ...item, read_at: new Date().toISOString() } : item))
     } catch (cause) {
       setNotificationsError(cause instanceof Error ? cause.message : 'The notification could not be updated.')

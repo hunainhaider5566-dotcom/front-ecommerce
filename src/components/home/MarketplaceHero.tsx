@@ -71,7 +71,7 @@ export function MarketplaceHero({ product, shop }: MarketplaceHeroProps) {
   const primaryLabel = activeHero?.cta_text?.trim() || t('Start Shopping')
 
   return (
-    <section className="marketplace-hero" aria-labelledby="marketplace-hero-title" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }}>
+    <section className="marketplace-hero" aria-roledescription={t('carousel')} aria-label={t('Homepage highlights')} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false) }}>
       <div className="marketplace-hero__copy">
         <span className="marketplace-hero__eyebrow"><span aria-hidden="true" />{t('One marketplace, more possibilities')}</span>
         <h1 id="marketplace-hero-title">{activeHero ? titleParts.map((part, index) => <span key={`${activeHero.id}-${index}`}>{index > 0 && <br />}{t(part)}</span>) : <>{t('Everything You Need,')}<br />{t('All in One Place')}</>}</h1>
@@ -83,7 +83,8 @@ export function MarketplaceHero({ product, shop }: MarketplaceHeroProps) {
         <div className="marketplace-hero__trust"><span className="marketplace-hero__trust-icon"><Check size={15} aria-hidden="true" /></span><span>{t('Trusted by buyers and sellers')}</span></div>
         {heroes.length > 1 && <div className="marketplace-hero__controls" role="group" aria-label={t('Hero slide controls')}>
           <button type="button" onClick={() => setActiveHeroIndex((index) => (index - 1 + heroes.length) % heroes.length)} aria-label={t('Previous slide')}><ChevronLeft size={16} /></button>
-          <span>{String(activeHeroIndex + 1).padStart(2, '0')} / {String(heroes.length).padStart(2, '0')}</span>
+          <span className="marketplace-hero__count">{String(activeHeroIndex + 1).padStart(2, '0')} / {String(heroes.length).padStart(2, '0')}</span>
+          <span className="marketplace-hero__dots">{heroes.map((hero, index) => <button key={hero.id} type="button" className={index === activeHeroIndex ? 'is-active' : ''} onClick={() => setActiveHeroIndex(index)} aria-label={`${t('Show slide')} ${index + 1}`} aria-pressed={index === activeHeroIndex} />)}</span>
           <button type="button" onClick={() => setActiveHeroIndex((index) => (index + 1) % heroes.length)} aria-label={t('Next slide')}><ChevronRight size={16} /></button>
         </div>}
       </div>

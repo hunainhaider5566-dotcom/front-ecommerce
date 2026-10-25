@@ -25,6 +25,7 @@ import {
   updateVendorProduct,
   uploadOwnProductImage,
   uploadVendorDocument,
+  removeVendorDocument,
   uploadVendorShopImage,
   removeVendorShopImage,
   listOwnSupportTickets,
@@ -82,12 +83,15 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const { push } = useToast()
   const [saving, setSaving] = useState(false)
   const [shopImage, setShopImage] = useState<File | null>(null)
+  const [verificationDocument, setVerificationDocument] = useState<File | null>(null)
   const [shopPreview, setShopPreview] = useState<string | null>(null)
   const [shopLatitude, setShopLatitude] = useState(profile?.shop_lat?.toString() ?? '')
   const [shopLongitude, setShopLongitude] = useState(profile?.shop_lng?.toString() ?? '')
   const [shopLocationLabel, setShopLocationLabel] = useState(profile?.shop_location_label ?? '')
   const [showShopOnMap, setShowShopOnMap] = useState(profile?.show_shop_on_map ?? false)
   const [locationLoading, setLocationLoading] = useState(false)
+  const mapLatitude = shopLatitude || '31.5204'
+  const mapLongitude = shopLongitude || '74.3587'
 
   useEffect(() => {
     if (!shopImage) { setShopPreview(null); return }
@@ -101,7 +105,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     setLocationLoading(true)
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => { setShopLatitude(coords.latitude.toFixed(6)); setShopLongitude(coords.longitude.toFixed(6)); setLocationLoading(false); push(t('Shop location added. Add a public area label before saving.'), 'success') },
-      () => { setLocationLoading(false); push(t('Location could not be read. Allow location access or enter the coordinates manually.'), 'error') },
+      () => { setLocationLoading(false); push(t('Location could not be read. Allow location access and try again.'), 'error') },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     )
   }
@@ -123,15 +127,19 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { push(t('Use a URL-safe slug, for example acme-traders.'), 'error'); return }
     if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
     if (phone && phone.replace(/\D/g, '').length < 7) { push(t('Enter a valid phone number.'), 'error'); return }
+    if (!profile && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
+    if (profile && !profile.document_path && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
     if (showLocation && (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || locationLabel.length < 2)) { push(t('Add valid coordinates and a public area label to show this shop on Explore.'), 'error'); return }
 
     setSaving(true)
     try {
       let uploadedImage: { path: string; url: string } | null = null
+      let uploadedDocument: string | null = null
       let committed = false
       try {
         if (shopImage && profile) uploadedImage = await uploadVendorShopImage(shopImage)
-        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}), ...(mode === 'settings' ? { shop_lat: latitude, shop_lng: longitude, shop_location_label: locationLabel, show_shop_on_map: showLocation } : {}) }
+        if (verificationDocument) uploadedDocument = await uploadVendorDocument(verificationDocument)
+        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}), ...(uploadedDocument ? { document_path: uploadedDocument } : {}), ...(mode === 'settings' ? { shop_lat: latitude, shop_lng: longitude, shop_location_label: locationLabel, show_shop_on_map: showLocation } : {}) }
         const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
         committed = true
         if (uploadedImage && profile?.shop_image_url?.includes('/shop-images/')) {
@@ -147,10 +155,12 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
         }
       } catch (cause) {
         if (uploadedImage && !committed) await removeVendorShopImage(uploadedImage.path).catch(() => undefined)
+        if (uploadedDocument && !committed) await removeVendorDocument(uploadedDocument).catch(() => undefined)
         throw cause
       }
       form.reset()
       setShopImage(null)
+      setVerificationDocument(null)
     } catch (cause) {
       push(cause instanceof Error ? cause.message : t('The shop details could not be saved.'), 'error')
     } finally {
@@ -167,7 +177,8 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
-    {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : 'Use this device location')}</button><div className="form-grid"><div className="form-field"><label htmlFor="shop-latitude">{t('Latitude')}</label><input id="shop-latitude" inputMode="decimal" value={shopLatitude} onChange={(event) => setShopLatitude(event.target.value)} placeholder="31.5204" /></div><div className="form-field"><label htmlFor="shop-longitude">{t('Longitude')}</label><input id="shop-longitude" inputMode="decimal" value={shopLongitude} onChange={(event) => setShopLongitude(event.target.value)} placeholder="74.3587" /></div><div className="form-field form-field--wide"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
+    {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><div className="checkout-map-preview vendor-map-preview"><iframe title={t('Map preview of your shop location')} src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(mapLongitude) - 0.025}%2C${Number(mapLatitude) - 0.015}%2C${Number(mapLongitude) + 0.025}%2C${Number(mapLatitude) + 0.015}&layer=mapnik&marker=${mapLatitude}%2C${mapLongitude}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /><div className="checkout-map-preview__caption"><span>{t(shopLatitude && shopLongitude ? 'Your shop area' : 'Map preview')}</span><a href={`https://www.openstreetmap.org/?mlat=${mapLatitude}&mlon=${mapLongitude}#map=15/${mapLatitude}/${mapLongitude}`} target="_blank" rel="noreferrer">{t('Open map')}</a></div><small>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> {t('contributors')}</small></div><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
+    {(!profile || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }

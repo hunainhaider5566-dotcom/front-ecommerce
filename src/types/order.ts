@@ -97,4 +97,5 @@ export interface NotificationRecord {
   related_order_id: string | null
   read_at: string | null
   created_at: string
+  audience?: 'customer' | 'vendor' | 'admin'
 }

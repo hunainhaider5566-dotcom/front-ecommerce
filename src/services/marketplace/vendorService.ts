@@ -8,10 +8,7 @@ export type MarketplaceCase = Database['public']['Tables']['marketplace_cases'][
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
 export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
-const SELLER_BASE_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
-// Keep the core seller profile query compatible with the production schema.
-// The nearby-shops migration adds the optional location columns separately.
-const SELLER_COLUMNS = SELLER_BASE_COLUMNS
+const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
@@ -41,6 +38,11 @@ export async function uploadVendorShopImage(file: File): Promise<{ path: string;
 
 export async function removeVendorShopImage(path: string): Promise<void> {
   const { error } = await getSupabase().storage.from('shop-images').remove([path])
+  assertError(error)
+}
+
+export async function removeVendorDocument(path: string): Promise<void> {
+  const { error } = await getSupabase().storage.from('vendor-documents').remove([path])
   assertError(error)
 }
 
@@ -76,7 +78,7 @@ export async function getOwnSellerProfile(): Promise<SellerProfile | null> {
   if (!user) return null
   const { data, error } = await client.from('seller_profiles').select(SELLER_COLUMNS).eq('user_id', user.id).maybeSingle()
   assertError(error)
-  return data ? { ...data, shop_lat: null, shop_lng: null, shop_location_label: '', show_shop_on_map: false } as SellerProfile : null
+  return data as SellerProfile | null
 }
 
 export async function applyAsSeller(input: VendorShopInput & { document_path?: string | null }): Promise<SellerProfile> {
@@ -210,6 +212,9 @@ export async function uploadOwnProductImage(productId: string, file: File, altTe
   })
   if (imageError) {
     await client.storage.from('product-images').remove([path])
+    if (imageError.code === '42501') {
+      throw new Error('The image uploaded, but Supabase blocked attaching it to this seller listing. The vendor product-image permissions must be applied first.')
+    }
     throw new Error(imageError.message)
   }
 }
