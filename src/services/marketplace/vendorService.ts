@@ -8,7 +8,8 @@ export type MarketplaceCase = Database['public']['Tables']['marketplace_cases'][
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
 export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
-const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
+const SELLER_BASE_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
+const SELLER_COLUMNS = `${SELLER_BASE_COLUMNS}, shop_lat, shop_lng, shop_location_label, show_shop_on_map`
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
@@ -72,6 +73,11 @@ export async function getOwnSellerProfile(): Promise<SellerProfile | null> {
   const user = (await client.auth.getUser()).data.user
   if (!user) return null
   const { data, error } = await client.from('seller_profiles').select(SELLER_COLUMNS).eq('user_id', user.id).maybeSingle()
+  if (error?.code === '42703' && /shop_(lat|lng|location_label)|show_shop_on_map/.test(error.message)) {
+    const fallback = await client.from('seller_profiles').select(SELLER_BASE_COLUMNS).eq('user_id', user.id).maybeSingle()
+    assertError(fallback.error)
+    return fallback.data ? { ...fallback.data, shop_lat: null, shop_lng: null, shop_location_label: '', show_shop_on_map: false } as SellerProfile : null
+  }
   assertError(error)
   return (data as SellerProfile | null) ?? null
 }

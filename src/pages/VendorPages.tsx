@@ -221,6 +221,7 @@ export function VendorApplicationPage() {
   if (!user) return <SignInForVendor />
   if (loading) return <LoadingState label="Loading seller application…" />
 
+  if (profile?.status === 'approved') return <Navigate to="/vendor" replace />
   if (profile && !editing) {
     return <VendorGate><VendorStatusCard profile={profile} onEdit={() => setEditing(true)} /></VendorGate>
   }
@@ -237,6 +238,7 @@ type DashboardTab = 'overview' | 'listings' | 'inventory' | 'orders' | 'cases' |
 
 export function VendorDashboardPage() {
   const { t } = useI18n()
+  const { user, loading: authLoading } = useAuth()
   const { push } = useToast()
   const { categories } = useCatalog()
   const [profile, setProfile] = useState<SellerProfile | null>(null)
@@ -277,10 +279,16 @@ export function VendorDashboardPage() {
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) { setLoading(false); return }
+    void load()
+  }, [authLoading, user?.id])
 
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories])
 
+  if (authLoading) return <LoadingState label="Checking your account…" />
+  if (!user) return <SignInForVendor />
   if (loading) return <LoadingState label="Loading vendor dashboard…" />
   if (!profile) return <VendorGate><section className="page-shell"><div className="placeholder-panel vendor-status"><h2>{t('No seller application yet')}</h2><p>{t('Apply for a seller account to manage listings and orders.')}</p><Link className="button button--dark" to="/vendor/apply">{t('Apply to sell')}</Link></div></section></VendorGate>
   if (profile.status !== 'approved') return <VendorGate><VendorStatusCard profile={profile} /></VendorGate>
