@@ -265,7 +265,7 @@ export function AccountPage() {
 
     {tab === 'orders' && <section className="account-panel" aria-labelledby="account-orders-title">
       <div className="account-panel__heading"><div><h2 id="account-orders-title">{t('Order history')}</h2><p>{t('Track delivery and open a return or complaint from an order.')}</p></div><button type="button" className="button button--outline" onClick={() => void loadOrders()} disabled={ordersLoading}><RefreshCw size={15} className={ordersLoading ? 'spin' : ''} /> {t('Refresh')}</button></div>
-      {ordersLoading && <LoadingState label={t('Loading your orders…')} />}
+      {ordersLoading && <LoadingState label={t('Loading your orders…')} centered={false} />}
       {ordersError && <><ErrorState message={ordersError} /><button type="button" className="button button--outline" onClick={() => void loadOrders()}>{t('Try again')}</button></>}
       {!ordersLoading && !ordersError && orders.length === 0 && <EmptyState title={t('No orders yet')} description={t('Your placed orders will appear here with their delivery and case status.')} actionLabel={t('Browse the catalog')} actionHref="/shop" />}
       {!ordersLoading && !ordersError && orders.length > 0 && <div className="order-list">
@@ -303,7 +303,7 @@ export function AccountPage() {
 
     {tab === 'addresses' && <section className="account-panel" aria-labelledby="account-addresses-title">
       <div className="account-panel__heading"><div><h2 id="account-addresses-title">{t('Delivery addresses')}</h2><p>{t('Save addresses to speed up checkout.')}</p></div>{!addressForm && <button type="button" className="button button--dark" onClick={startNewAddress}><Plus size={15} /> {t('Add address')}</button>}</div>
-      {addressesLoading && <LoadingState label={t('Loading addresses…')} />}
+      {addressesLoading && <LoadingState label={t('Loading addresses…')} centered={false} />}
       {addressesError && <><ErrorState message={addressesError} /><button type="button" className="button button--outline" onClick={() => void loadAddresses()}>{t('Try again')}</button></>}
       {!addressesLoading && !addressesError && addresses.length === 0 && !addressForm && <EmptyState title={t('No saved addresses')} description={t('Add an address here or save one during checkout.')} actionLabel={t('Add address')} onAction={startNewAddress} />}
       {!addressesLoading && addresses.length > 0 && <div className="address-grid">
@@ -348,7 +348,7 @@ export function AccountPage() {
         </div>
         <div className="address-form__actions"><button type="submit" className="button button--dark" disabled={submittingCase}>{submittingCase ? t('Submitting…') : t('Submit case')}</button><button type="button" className="button button--outline" onClick={() => setCaseTarget(null)}>{t('Cancel')}</button></div>
       </form>}
-      {casesLoading && <LoadingState label={t('Loading your cases…')} />}
+      {casesLoading && <LoadingState label={t('Loading your cases…')} centered={false} />}
       {casesError && <><ErrorState message={casesError} /><button type="button" className="button button--outline" onClick={() => void loadCases()}>{t('Try again')}</button></>}
       {!casesLoading && !casesError && cases.length === 0 && <EmptyState title={t('No returns or complaints')} description={t('Open a case from a delivered or shipped order item if something is wrong.')} actionLabel={t('View your orders')} onAction={() => setTab('orders')} />}
       {!casesLoading && !casesError && cases.length > 0 && <div className="case-list">

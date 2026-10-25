@@ -11,6 +11,7 @@ import { usePageMeta } from '../hooks/usePageMeta'
 import type { Product } from '../types/product'
 import { AvailabilityBadge } from '../components/products/AvailabilityBadge'
 import { NearbyShopsMap } from '../components/shops/NearbyShopsMap'
+import { LoadingState } from '../components/common/States'
 
 interface DiscoverItem {
   product: Product
@@ -76,12 +77,7 @@ export function DiscoverPage() {
   }
 
   if (status === 'loading') {
-    return (
-      <div className="discover-screen discover-screen--loading">
-        <Sparkles size={32} className="spin" />
-        <p>{t('Loading Discover Feed…')}</p>
-      </div>
-    )
+    return <LoadingState label="Loading Discover Feed…" />
   }
 
   if (status === 'error') {

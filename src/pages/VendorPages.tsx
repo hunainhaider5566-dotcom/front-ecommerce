@@ -6,6 +6,7 @@ import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { LoadingState } from '../components/common/States'
 import { formatPKR } from '../utils/money'
 import {
   adjustOwnInventory,
@@ -43,7 +44,7 @@ function SignInForVendor() {
 
 function VendorGate({ children }: { children: React.ReactNode }) {
   const { user, loading, configured } = useAuth()
-  if (loading) return <section className="page-shell"><div className="placeholder-panel"><RefreshCw className="spin" size={18} /> Loading your seller account…</div></section>
+  if (loading) return <LoadingState label="Loading your seller account…" />
   if (!configured || !user) return <SignInForVendor />
   return <>{children}</>
 }
@@ -217,7 +218,7 @@ export function VendorApplicationPage() {
   }, [user])
 
   if (!user) return <SignInForVendor />
-  if (loading) return <section className="page-shell"><div className="placeholder-panel">{t('Loading seller application…')}</div></section>
+  if (loading) return <LoadingState label="Loading seller application…" />
 
   if (profile && !editing) {
     return <VendorGate><VendorStatusCard profile={profile} onEdit={() => setEditing(true)} /></VendorGate>
@@ -279,7 +280,7 @@ export function VendorDashboardPage() {
 
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories])
 
-  if (loading) return <section className="page-shell"><div className="placeholder-panel"><RefreshCw className="spin" size={18} /> Loading vendor dashboard…</div></section>
+  if (loading) return <LoadingState label="Loading vendor dashboard…" />
   if (!profile) return <VendorGate><section className="page-shell"><div className="placeholder-panel vendor-status"><h2>{t('No seller application yet')}</h2><p>{t('Apply for a seller account to manage listings and orders.')}</p><Link className="button button--dark" to="/vendor/apply">{t('Apply to sell')}</Link></div></section></VendorGate>
   if (profile.status !== 'approved') return <VendorGate><VendorStatusCard profile={profile} /></VendorGate>
 

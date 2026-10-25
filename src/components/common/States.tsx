@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CircleAlert } from 'lucide-react'
+import { ArrowRight, BookOpen, CircleAlert, LoaderCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../i18n/LocaleContext'
 
@@ -17,9 +17,9 @@ export function EmptyState({ title, description, actionLabel = 'Explore the coll
   )
 }
 
-export function LoadingState({ label = 'Loading the collection…' }: { label?: string }) {
+export function LoadingState({ label = 'Loading the collection…', centered = true }: { label?: string; centered?: boolean }) {
   const { t } = useI18n()
-  return <div className="state-message" role="status"><span className="loading-dot" />{t(label)}</div>
+  return <div className={`loading-state${centered ? ' loading-state--centered' : ''}`} role="status" aria-live="polite"><LoaderCircle className="loading-state__icon" size={30} aria-hidden="true" /><span>{t(label)}</span></div>
 }
 
 export function ErrorState({ message }: { message: string }) {

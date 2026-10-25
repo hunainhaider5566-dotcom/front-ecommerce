@@ -13,6 +13,7 @@ export const COMMON_URDU: Record<string, string> = {
   'English': 'انگریزی',
   'Urdu': 'اردو',
   'Support': 'مدد',
+  'Discover': 'دریافت کریں',
   'Contact': 'رابطہ',
   'FAQ': 'اکثر پوچھے گئے سوالات',
   'FAQ & help': 'عمومی سوالات اور مدد',
