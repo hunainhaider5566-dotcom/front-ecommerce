@@ -1,9 +1,10 @@
 import { useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Info, KeyRound, LockKeyhole, LogOut, Mail, ShieldCheck } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { authService } from '../services/auth/authService'
+import { LoadingState } from '../components/common/States'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
 type FieldErrors = Record<string, string>
 
@@ -100,6 +101,7 @@ function AuthLinks({ mode }: { mode: 'login' | 'register' }) {
 
 export function LoginPage() {
   const { t } = useI18n()
+  const { user, loading: authLoading } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const redirectTarget = getSafeAuthRedirect(location.search, location.state)
@@ -133,6 +135,8 @@ export function LoginPage() {
     try { throwIfAuthError(await authService.signInWithGoogle(redirectTarget)); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
     catch (error) { setStatus('error'); setMessage(describeError(error)) }
   }
+  if (authLoading) return <LoadingState label="Checking your account…" />
+  if (user) return <Navigate to={redirectTarget} replace />
   return <AuthLayout eyebrow="Authentication" title="Sign in to your account" intro="Sign in securely to manage your orders, wishlist, and account preferences."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><ProviderButton onClick={google} disabled={status === 'loading'} /><Divider /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="current-password" /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Signing in…') : t('Log in')}<ArrowRight size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__forgot" to="/forgot-password">{t('Forgot password?')}</Link><Link className="auth-link auth-form__forgot" to="/verify-email">{t('Resend verification email')}</Link></form><AuthLinks mode="login" /></AuthLayout>
 }
 

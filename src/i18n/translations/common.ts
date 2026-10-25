@@ -14,6 +14,7 @@ export const COMMON_URDU: Record<string, string> = {
   'Urdu': 'اردو',
   'Support': 'مدد',
   'Discover': 'دریافت کریں',
+  'Checking your account…': 'آپ کا اکاؤنٹ چیک ہو رہا ہے…',
   'Contact': 'رابطہ',
   'FAQ': 'اکثر پوچھے گئے سوالات',
   'FAQ & help': 'عمومی سوالات اور مدد',

@@ -201,7 +201,7 @@ function VerificationDocumentSection({ profile, onSaved }: { profile: SellerProf
 
 export function VendorApplicationPage() {
   const { t } = useI18n()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<SellerProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -217,6 +217,7 @@ export function VendorApplicationPage() {
     return () => { cancelled = true }
   }, [user])
 
+  if (authLoading) return <LoadingState label="Checking your account…" />
   if (!user) return <SignInForVendor />
   if (loading) return <LoadingState label="Loading seller application…" />
 
