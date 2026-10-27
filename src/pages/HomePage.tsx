@@ -84,21 +84,16 @@ export function HomePage() {
         </div>
       </section>
 
-      {shops.length > 0 && <section className="home-shop-marquee" aria-labelledby="home-shops-title">
-        <div className="home-shop-marquee__heading">
-          <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Good finds, from good people.')}</h2></div>
-          <Link className="home-text-link" to="/shop">{t('Meet our sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
+      {shops.length > 0 && <section className="home-shop-showcase" aria-labelledby="home-shops-title">
+        <div className="home-shop-showcase__heading">
+          <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Shop from independent stores.')}</h2><p>{t('Explore trusted sellers, their story and the products they bring to Meridion.')}</p></div>
+          <Link className="home-text-link" to="/shop">{t('Meet all sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
-        <div className="home-shop-marquee__viewport">
-          <div className={`home-shop-marquee__track${shops.length === 1 ? ' home-shop-marquee__track--static' : ''}`} aria-label={t('Featured shop logos')}>
-            {(shops.length > 1 ? [0, 1] : [0]).map((copy) => <div className="home-shop-marquee__group" key={copy} aria-hidden={copy === 1}>
-              {shops.map((shop) => <Link className="home-shop-logo" to={`/shops/${shop.slug}`} key={`${copy}-${shop.id}`} tabIndex={copy === 1 ? -1 : undefined}>
-                <span className="home-shop-logo__image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={20} aria-hidden="true" />}</span>
-                <span className="home-shop-logo__name">{t(shop.shopName)}</span>
-                <span className="home-shop-logo__verified"><Check size={12} aria-hidden="true" /> {t('Verified shop')}</span>
-              </Link>)}
-            </div>)}
-          </div>
+        <div className="home-shop-showcase__grid">
+          {shops.slice(0, 3).map((shop, index) => <Link className={`home-shop-card home-shop-card--${index + 1}`} to={`/shops/${shop.slug}`} key={shop.id}>
+            <div className="home-shop-card__cover">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <div className="home-shop-card__fallback"><Store size={42} aria-hidden="true" /><span>{t(shop.shopName)}</span></div>}<span className="home-shop-card__verified"><Check size={13} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></div>
+            <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description || 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
+          </Link>)}
         </div>
       </section>}
 

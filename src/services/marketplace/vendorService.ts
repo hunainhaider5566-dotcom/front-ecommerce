@@ -308,10 +308,17 @@ export async function getCaseEvidenceUrl(path: string): Promise<string | null> {
   return data.signedUrl
 }
 
-export async function listOwnOrderItems(): Promise<VendorOrderItem[]> {
-  const { data, error } = await getSupabase().rpc('vendor_order_items')
+export async function listOwnOrderItems(options: { page?: number; pageSize?: number; search?: string; status?: string } = {}): Promise<VendorOrderItem[]> {
+  const pageSize = Math.max(1, Math.min(15, options.pageSize ?? 12))
+  const page = Math.max(0, options.page ?? 0)
+  const { data, error } = await getSupabase().rpc('vendor_order_items_page', {
+    p_limit: pageSize,
+    p_offset: page * pageSize,
+    p_search: options.search?.trim() || null,
+    p_status: options.status && options.status !== 'all' ? options.status : null,
+  })
   assertError(error)
-  return data ?? []
+  return (data ?? []) as VendorOrderItem[]
 }
 
 export async function updateOwnOrderItem(id: string, status: string, trackingNumber: string | null, trackingUrl: string | null, note: string | null): Promise<void> {

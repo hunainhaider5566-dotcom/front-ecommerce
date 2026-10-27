@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Search, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
@@ -368,7 +368,7 @@ export function VendorDashboardPage() {
       {inventory.length === 0 ? <div className="empty-state"><Boxes size={28} /><h2>{t('No stock records')}</h2><p>{t('Stock records appear when a listing with inventory tracking is created.')}</p></div> : <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Variant')}</th><th>{t('Quantity')}</th><th>{t('Updated')}</th><th>{t('Adjust')}</th></tr></thead><tbody>{inventory.map((item) => <InventoryRow key={item.id} item={item} onSaved={async (message) => { push(message, 'success'); await load() }} onError={(message) => push(message, 'error')} />)}</tbody></table></div>}
     </section>}
 
-    {tab === 'orders' && <VendorOrdersPanel items={orderItems} onUpdated={load} onError={(message) => push(message, 'error')} />}
+    {tab === 'orders' && <VendorOrdersPanel items={orderItems} onError={(message) => push(message, 'error')} />}
 
     {tab === 'cases' && <section className="account-panel">
       <div className="account-panel__heading"><div><h2>{t('Support & cases')}</h2><p>{t('Create a support ticket or respond to customer returns and complaints.')}</p></div><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div>
@@ -497,14 +497,36 @@ function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSav
   </tr>
 }
 
-function VendorOrdersPanel({ items, onUpdated, onError }: { items: VendorOrderItem[]; onUpdated: () => Promise<void>; onError: (message: string) => void }) {
+function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onError: (message: string) => void }) {
   const { t } = useI18n()
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null)
+  const [pageItems, setPageItems] = useState(items)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('all')
+  const [page, setPage] = useState(0)
+  const [fetching, setFetching] = useState(false)
+  const pageSize = 12
+  const totalOrders = Number(pageItems[0]?.total_orders ?? 0)
+  const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize))
   const orderGroups = useMemo(() => {
     const groups = new Map<string, VendorOrderItem[]>()
-    for (const item of items) groups.set(item.order_id, [...(groups.get(item.order_id) ?? []), item])
+    for (const item of pageItems) groups.set(item.order_id, [...(groups.get(item.order_id) ?? []), item])
     return [...groups.entries()].map(([id, orderItems]) => ({ id, items: orderItems }))
-  }, [items])
+  }, [pageItems])
+
+  async function reloadPage() {
+    setFetching(true)
+    try {
+      const rows = await listOwnOrderItems({ page, pageSize, search, status })
+      setPageItems(rows)
+    } catch (cause) { onError(cause instanceof Error ? cause.message : t('Fulfilment orders could not be loaded.')) }
+    finally { setFetching(false) }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void reloadPage() }, 250)
+    return () => window.clearTimeout(timer)
+  }, [search, status, page])
 
   useEffect(() => {
     if (!printingOrderId) return
@@ -519,12 +541,14 @@ function VendorOrdersPanel({ items, onUpdated, onError }: { items: VendorOrderIt
   }, [])
 
   return <section className="account-panel">
-    <div className="account-panel__heading"><div><h2>{t('Fulfilment')}</h2><p>{t('Advance each item as you process and ship it. Print a private packing slip with the delivery details your shop needs.')}</p></div></div>
-    {items.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{t('No order items')}</h2><p>{t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className="vendor-list">{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
+    <div className="account-panel__heading"><div><h2>{t('Fulfilment')}</h2><p>{t('Fulfilment is your shop’s order work queue. Each order card groups your items from one customer order; update each item separately as you accept, prepare, ship and deliver it. Other shops’ items stay private.')}</p></div></div>
+    <div className="vendor-order-filters"><label className="vendor-order-search"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder={t('Search order, product or customer')} /></label><label><span>{t('Filter status')}</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(0) }}><option value="all">{t('All fulfilment statuses')}</option>{['pending','accepted','processing','shipped','delivered','cancelled'].map((value) => <option key={value} value={value}>{t(value)}</option>)}</select></label></div>
+    {pageItems.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{search || status !== 'all' ? t('No matching orders') : t('No order items')}</h2><p>{search || status !== 'all' ? t('Clear the search or choose another status to see more orders.') : t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className={`vendor-list${fetching ? ' is-loading' : ''}`} aria-busy={fetching}>{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
       <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print order slip')}</button></header>
-      {orderItems.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={onUpdated} onError={onError} />)}
+      {orderItems.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={reloadPage} onError={onError} />)}
       {printingOrderId === id && <VendorOrderSlip items={orderItems} />}
     </section>)}</div>}
+    <div className="vendor-api-pagination"><span>{totalOrders ? `${page * pageSize + 1}–${Math.min(totalOrders, (page + 1) * pageSize)} ${t('of')} ${totalOrders} ${t('orders')}` : t('No orders')}</span><div><button type="button" className="button button--outline" disabled={page === 0 || fetching} onClick={() => setPage((value) => Math.max(0, value - 1))}>{t('Previous')}</button><span>{page + 1} / {totalPages}</span><button type="button" className="button button--outline" disabled={page + 1 >= totalPages || fetching} onClick={() => setPage((value) => value + 1)}>{t('Next')}</button></div></div>
   </section>
 }
 
