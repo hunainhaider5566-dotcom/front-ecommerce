@@ -89,11 +89,15 @@ export function HomePage() {
           <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Shop from independent stores.')}</h2><p>{t('Explore trusted sellers, their story and the products they bring to Meridion.')}</p></div>
           <Link className="home-text-link" to="/shop">{t('Meet all sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
-        <div className="home-shop-showcase__grid">
-          {shops.slice(0, 3).map((shop, index) => <Link className={`home-shop-card home-shop-card--${index + 1}`} to={`/shops/${shop.slug}`} key={shop.id}>
-            <div className="home-shop-card__cover">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <div className="home-shop-card__fallback"><Store size={42} aria-hidden="true" /><span>{t(shop.shopName)}</span></div>}<span className="home-shop-card__verified"><Check size={13} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={19} aria-hidden="true" /></span></div>
-            <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description || 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
-          </Link>)}
+        <div className="home-shop-showcase__viewport" aria-label={t('Featured independent shops')}>
+          <div className="home-shop-showcase__track">
+            {[0, 1].map((copy) => <div className="home-shop-showcase__group" key={copy} aria-hidden={copy === 1 ? 'true' : undefined}>
+              {shops.slice(0, 8).map((shop) => <Link className="home-shop-card" to={`/shops/${shop.slug}`} key={`${copy}-${shop.id}`} tabIndex={copy === 1 ? -1 : undefined}>
+                <div className="home-shop-card__cover">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <div className="home-shop-card__fallback"><Store size={34} aria-hidden="true" /><span>{t(shop.shopName)}</span></div>}<span className="home-shop-card__verified"><Check size={12} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={17} aria-hidden="true" /></span></div>
+                <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description || 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
+              </Link>)}
+            </div>)}
+          </div>
         </div>
       </section>}
 
