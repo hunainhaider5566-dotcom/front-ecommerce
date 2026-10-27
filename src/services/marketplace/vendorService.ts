@@ -1,5 +1,6 @@
 import { getSupabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import { notifySupportEmail } from '../account/supportService'
 
 export type SellerProfile = Database['public']['Tables']['seller_profiles']['Row']
 export type VendorProduct = Database['public']['Tables']['products']['Row']
@@ -294,12 +295,14 @@ export async function listOwnSupportTickets(): Promise<VendorSupportTicket[]> {
   return data ?? []
 }
 
-export async function createOwnSupportTicket(sellerId: string, subject: string, message: string): Promise<void> {
+export async function createOwnSupportTicket(sellerId: string, subject: string, message: string): Promise<boolean> {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before creating a support ticket.')
-  const { error } = await client.from('support_tickets').insert({ seller_id: sellerId, created_by: user.id, subject: subject.trim(), message: message.trim() })
+  const { data, error } = await client.from('support_tickets').insert({ seller_id: sellerId, created_by: user.id, subject: subject.trim(), message: message.trim() }).select('id').single()
   assertError(error)
+  if (!data) throw new Error('Support ticket could not be confirmed.')
+  return notifySupportEmail(data.id, 'seller', 'created')
 }
 
 export async function getCaseEvidenceUrl(path: string): Promise<string | null> {

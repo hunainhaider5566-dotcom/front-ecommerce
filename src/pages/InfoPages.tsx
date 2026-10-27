@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, ExternalLink, Leaf, MessageCircle, NotebookPen, Send, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
@@ -8,6 +8,8 @@ import { useStoreSettings } from '../hooks/useStoreSettings'
 import { supportDestination } from '../utils/support'
 import { useI18n } from '../i18n/LocaleContext'
 import { formatPKR } from '../utils/money'
+import { useAuth } from '../contexts/AuthContext'
+import { createCustomerSupportTicket, listMyCustomerSupportTickets, notifySupportEmail, type CustomerSupportTicket } from '../services/account/supportService'
 
 function InfoLayout({ eyebrow, title, intro, children }: { eyebrow: string; title: React.ReactNode; intro: string; children: React.ReactNode }) {
   return <div className="page-shell info-page"><header className="info-page__heading"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{intro}</p></header>{children}</div>
@@ -30,15 +32,32 @@ export function AboutPage() {
 export function ContactPage() {
   const { t } = useI18n()
   const settings = useStoreSettings()
+  const { user } = useAuth()
   const [formMessage, setFormMessage] = useState('')
+  const [tickets, setTickets] = useState<CustomerSupportTicket[]>([])
+  const [sending, setSending] = useState(false)
+  useEffect(() => { if (!user) { setTickets([]); return }; void listMyCustomerSupportTickets().then(setTickets).catch(() => {}) }, [user?.id])
   usePageMeta(t('Contact'), t('Contact Meridion Marketplace support.'))
   const destination = supportDestination(undefined, settings.supportWhatsapp)
   const email = settings.supportEmail
   const phone = settings.supportPhone
-  function submitContact(event: FormEvent<HTMLFormElement>) {
+  async function submitContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
+    const form = event.currentTarget
+    const data = new FormData(form)
     const subject = String(data.get('subject') ?? '').trim()
+    if (user) {
+      setSending(true)
+      try {
+        const ticket = await createCustomerSupportTicket(subject, String(data.get('message') ?? '').trim())
+        const emailed = await notifySupportEmail(ticket.id, 'customer', 'created')
+        setTickets((current) => [ticket, ...current])
+        form.reset()
+        setFormMessage(emailed ? 'Support request sent. We will reply here and by email.' : 'Support request saved. Email notifications are not configured yet.')
+      } catch (cause) { setFormMessage(cause instanceof Error ? cause.message : 'Support request could not be sent.') }
+      finally { setSending(false) }
+      return
+    }
     const message = `Name: ${String(data.get('name') ?? '').trim()}\nEmail: ${String(data.get('email') ?? '').trim()}\nTopic: ${subject}\n\n${String(data.get('message') ?? '').trim()}`
     if (email) {
       window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`
@@ -65,14 +84,15 @@ export function ContactPage() {
       <div className="contact-form-heading"><span className="eyebrow">{t('Send a message')}</span><h2>{t('How can we help?')}</h2><p>{t('Share a few details and we will help you find the right next step.')}</p></div>
       <form className="contact-form" onSubmit={submitContact}>
         <div className="form-grid">
-          <div className="form-field"><label htmlFor="contact-name">{t('Your name')} <span>*</span></label><input id="contact-name" name="name" autoComplete="name" required maxLength={120} /></div>
-          <div className="form-field"><label htmlFor="contact-email">{t('Email address')} <span>*</span></label><input id="contact-email" name="email" type="email" autoComplete="email" required maxLength={254} /></div>
+          {!user && <><div className="form-field"><label htmlFor="contact-name">{t('Your name')} <span>*</span></label><input id="contact-name" name="name" autoComplete="name" required maxLength={120} /></div>
+          <div className="form-field"><label htmlFor="contact-email">{t('Email address')} <span>*</span></label><input id="contact-email" name="email" type="email" autoComplete="email" required maxLength={254} /></div></>}
           <div className="form-field form-field--wide"><label htmlFor="contact-subject">{t('What do you need help with?')} <span>*</span></label><select id="contact-subject" name="subject" required defaultValue=""><option value="" disabled>{t('Choose a topic')}</option><option>{t('Order or delivery')}</option><option>{t('Return or refund')}</option><option>{t('Seller question')}</option><option>{t('Other')}</option></select></div>
           <div className="form-field form-field--wide"><label htmlFor="contact-message">{t('Message')} <span>*</span></label><textarea id="contact-message" name="message" rows={6} required minLength={10} maxLength={4000} placeholder={t('Include your order number if your message is about an order.')} /></div>
         </div>
-        <div className="contact-form-submit"><button className="button button--dark" type="submit">{t('Continue to support')} <Send size={15} /></button>{formMessage && <p role="status">{formMessage}</p>}</div>
+        <div className="contact-form-submit"><button className="button button--dark" type="submit" disabled={sending}>{sending ? 'Sending…' : user ? 'Send support request' : t('Continue to support')} <Send size={15} /></button>{formMessage && <p role="status">{formMessage}</p>}</div>
       </form>
     </section>
+    {user && tickets.length > 0 && <section className="placeholder-panel"><span className="eyebrow">Your requests</span><h2>Support history</h2>{tickets.map((ticket) => <article key={ticket.id} className="faq-item"><strong>{ticket.subject}</strong><p>{ticket.message}</p><small>{ticket.status.replace('_', ' ')} · {new Date(ticket.created_at).toLocaleDateString()}</small>{ticket.admin_response && <p><strong>Marketplace reply:</strong> {ticket.admin_response}</p>}</article>)}</section>}
   </InfoLayout>
 }
 

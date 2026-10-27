@@ -660,7 +660,7 @@ function VendorSupportDesk({ sellerId, onError }: { sellerId: string; onError: (
     const subject = String(data.get('subject') ?? '').trim()
     const message = String(data.get('message') ?? '').trim()
     setSaving(true)
-    try { await createOwnSupportTicket(sellerId, subject, message); form.reset(); push(t('Support ticket sent to the marketplace team.'), 'success'); setRefresh((value) => value + 1) }
+    try { const emailed = await createOwnSupportTicket(sellerId, subject, message); form.reset(); push(emailed ? t('Support ticket sent to the marketplace team.') : 'Ticket saved. Email notifications are not configured yet.', 'success'); setRefresh((value) => value + 1) }
     catch (cause) { onError(cause instanceof Error ? cause.message : t('Support ticket could not be created.')) }
     finally { setSaving(false) }
   }
