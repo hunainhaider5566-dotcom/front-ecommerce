@@ -1,5 +1,6 @@
 import { getSupabase } from '../../lib/supabase'
 import type { Json } from '../../types/database'
+import { sendCommerceEmail } from '../account/commerceEmailService'
 import type {
   MarketplaceCaseRecord,
   OrderItemRecord,
@@ -33,6 +34,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
   throwIfError(error)
   const row = data?.[0]
   if (!row) throw new Error('The order was not created. Please try again.')
+  await sendCommerceEmail({ event: 'order_placed', order_id: row.order_id })
   return {
     orderId: row.order_id,
     orderNumber: row.order_number,

@@ -25,6 +25,14 @@ Deno.serve(async (request) => {
   if (adminError || adminResult !== true) return json({ error: 'Administrator access is required.' }, 403)
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+  const asyncEmail = async (subject: string, message: string) => {
+    const apiKey = Deno.env.get('RESEND_API_KEY')
+    const from = Deno.env.get('SUPPORT_FROM_EMAIL')
+    const email = authUser.user?.email
+    if (!apiKey || !from || !email) return false
+    const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [email], subject, html: `<main style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20251f"><h2>${subject}</h2><p>${message.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)}</p><p>Meridion Marketplace</p></main>` }) })
+    return response.ok
+  }
   let input: { user_id?: string; action?: string; reason?: string }
   try { input = await request.json() } catch { return json({ error: 'Invalid request body.' }, 400) }
   const userId = input.user_id
@@ -49,7 +57,8 @@ Deno.serve(async (request) => {
     }
     await adminClient.from('notifications').insert({ user_id: userId, kind: 'account', audience: 'customer', title: 'Account suspended', body: reason })
     await adminClient.from('admin_audit_logs').insert({ actor_id: callerResult.user.id, action: 'UPDATE', entity: 'account_suspensions', entity_id: userId, details: { action: 'suspend', reason } })
-    return json({ ok: true, user_id: userId, suspended: true })
+    const email_sent = await asyncEmail('Your Meridion account has been suspended', `Your marketplace account has been suspended. Reason: ${reason}`)
+    return json({ ok: true, user_id: userId, suspended: true, email_sent })
   }
 
   const { error: unbanError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
@@ -58,5 +67,6 @@ Deno.serve(async (request) => {
   if (removeError) return json({ error: 'Account is unbanned, but the suspension record could not be cleared.' }, 500)
   await adminClient.from('notifications').insert({ user_id: userId, kind: 'account', audience: 'customer', title: 'Account restored', body: 'Your marketplace account access has been restored.' })
   await adminClient.from('admin_audit_logs').insert({ actor_id: callerResult.user.id, action: 'UPDATE', entity: 'account_suspensions', entity_id: userId, details: { action: 'restore' } })
-  return json({ ok: true, user_id: userId, suspended: false })
+  const email_sent = await asyncEmail('Your Meridion account has been restored', 'Your marketplace account access has been restored. You can sign in and use your customer and seller features again.')
+  return json({ ok: true, user_id: userId, suspended: false, email_sent })
 })

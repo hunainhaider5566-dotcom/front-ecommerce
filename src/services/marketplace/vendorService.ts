@@ -1,6 +1,7 @@
 import { getSupabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { notifySupportEmail } from '../account/supportService'
+import { sendCommerceEmail } from '../account/commerceEmailService'
 
 export type SellerProfile = Database['public']['Tables']['seller_profiles']['Row']
 export type VendorProduct = Database['public']['Tables']['products']['Row']
@@ -334,4 +335,7 @@ export async function updateOwnOrderItem(id: string, status: string, trackingNum
     p_vendor_note: note,
   })
   assertError(error)
+  if (['accepted', 'shipped', 'delivered'].includes(status)) {
+    await sendCommerceEmail({ event: 'vendor_fulfillment', order_item_id: id, status })
+  }
 }
