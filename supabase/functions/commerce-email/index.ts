@@ -102,7 +102,43 @@ Deno.serve(async (request) => {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [recipient], subject, html: `<main style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20251f"><h2>${escapeHtml(subject)}</h2><p>${escapeHtml(body)}</p><p style="color:#687268">Meridion Marketplace</p></main>` }),
+      body: JSON.stringify({ from, to: [recipient], subject, html: (() => {
+        const status = eventType.startsWith('order_') ? eventType.replace('order_', '').replace(/_/g, ' ') : eventType.replace(/_/g, ' ')
+        const statusColors: Record<string, { bg: string; fg: string }> = {
+          placed: { bg: '#fff4db', fg: '#8a5a00' },
+          confirmed: { bg: '#e8f7ee', fg: '#176b3a' },
+          shipped: { bg: '#eaf2ff', fg: '#2456a6' },
+          delivered: { bg: '#e8f7ee', fg: '#176b3a' },
+        }
+        const tone = statusColors[status] ?? { bg: '#eef2f7', fg: '#344054' }
+        const orderNumber = body.match(/(?:order|Order)\\s+([A-Z0-9-]+)/)?.[1] ?? ''
+        return `<!doctype html><html><body style="margin:0;padding:0;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#182230">
+          <div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(body)}</div>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f8;padding:32px 12px"><tr><td align="center">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e6eaf0;border-radius:16px;overflow:hidden">
+              <tr><td style="padding:26px 32px;background:#172b4d;color:#ffffff">
+                <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#cbd5e1">MERIDION</div>
+                <div style="font-size:22px;font-weight:700;letter-spacing:-.4px;margin-top:5px">Marketplace</div>
+              </td></tr>
+              <tr><td style="padding:32px">
+                <div style="display:inline-block;padding:7px 11px;border-radius:20px;background:${tone.bg};color:${tone.fg};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">${escapeHtml(status)}</div>
+                <h1 style="font-size:25px;line-height:1.3;margin:18px 0 10px;color:#172b4d">${escapeHtml(subject)}</h1>
+                <p style="font-size:15px;line-height:1.7;color:#526071;margin:0 0 24px">${escapeHtml(body)}</p>
+                <div style="border:1px solid #e6eaf0;border-radius:12px;padding:18px 20px;background:#fafbfc">
+                  <div style="font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:1px">Order reference</div>
+                  <div style="font-size:17px;font-weight:700;color:#172b4d;margin-top:7px;word-break:break-word">${escapeHtml(orderNumber || entityId)}</div>
+                </div>
+                <p style="font-size:13px;line-height:1.6;color:#667085;margin:24px 0 0">Thank you for shopping with Meridion Marketplace. We’ll keep you updated as your order progresses.</p>
+              </td></tr>
+              <tr><td style="padding:20px 32px;border-top:1px solid #edf0f4;background:#fafbfc">
+                <div style="font-size:13px;font-weight:700;color:#344054">Meridion Marketplace</div>
+                <div style="font-size:12px;line-height:1.6;color:#98a2b3;margin-top:5px">Order updates and notifications</div>
+              </td></tr>
+            </table>
+            <div style="font-size:11px;color:#98a2b3;padding:18px 8px">This is an automated notification about your marketplace order.</div>
+          </td></tr></table>
+        </body></html>`
+      })() }),
     })
     if (response.ok) {
       sent++
