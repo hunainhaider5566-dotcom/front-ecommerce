@@ -999,6 +999,46 @@ button { font-family: var(--font-body); }
 .vendor-map-settings h3{display:flex;align-items:center;gap:7px;margin:0;color:#40583d;font-size:14px}
 .vendor-map-settings>p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
 .vendor-map-settings>.button{justify-self:start}
+.vendor-order-group{display:grid;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+.vendor-order-group__head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.vendor-order-group__head>div{display:grid;gap:4px;min-width:0}
+.vendor-order-group__head strong{color:var(--ink);font-size:14px}
+.vendor-order-group__head small{color:var(--muted);font-size:11px}
+.vendor-order-slip-action{flex:none}
+.vendor-print-slip{display:none}
+.shop-location-picker-wrap{display:grid;gap:8px;width:100%}
+.shop-location-picker__hint{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.shop-location-picker{position:relative;width:100%;height:280px;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#e9eee7;touch-action:none;cursor:grab;user-select:none}
+.shop-location-picker:active{cursor:grabbing}
+.shop-location-picker__tile{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
+.shop-location-picker__marker{position:absolute;z-index:2;display:grid;place-items:center;padding:0;border:0;color:var(--terracotta-ink);background:transparent;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));transform:translate(-50%,-100%);cursor:grab;touch-action:none}
+.shop-location-picker__marker:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.shop-location-picker__controls{position:absolute;z-index:3;top:10px;right:10px;display:grid;overflow:hidden;border:1px solid #d9ddd5;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.14)}
+.shop-location-picker__controls button{display:grid;place-items:center;width:36px;height:36px;border:0;color:var(--ink);background:#fff;cursor:pointer}
+.shop-location-picker__controls button+button{border-top:1px solid #e5e8e2}
+.shop-location-picker__controls button:disabled{color:#a7aaa2;cursor:not-allowed}
+.shop-location-picker__attribution{position:absolute;z-index:3;right:0;bottom:0;padding:3px 6px;color:#31573c;background:rgba(255,255,255,.9);font-size:10px;text-decoration:none}
+@media(max-width:600px){.shop-location-picker{height:220px}.shop-location-picker__hint{font-size:11px}}
+@media print{
+  @page{size:A4;margin:14mm}
+  body *{visibility:hidden!important}
+  .vendor-print-slip[data-active="true"],.vendor-print-slip[data-active="true"] *{visibility:visible!important}
+  .vendor-print-slip[data-active="true"]{position:absolute;inset:0 auto auto 0;display:block!important;width:100%;padding:0;color:#161815;background:#fff;font-family:Arial,sans-serif;font-size:12px}
+  .vendor-print-slip__header{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:2px solid #252a24}
+  .vendor-print-slip__header>div{display:grid;align-content:start;gap:5px}
+  .vendor-print-slip__header>div:last-child{text-align:right}
+  .vendor-print-slip__header span{font-size:11px;text-transform:uppercase;letter-spacing:.12em}
+  .vendor-print-slip__header h1{margin:0;font-size:23px}
+  .vendor-print-slip__header small{font-size:10px}
+  .vendor-print-slip__address{display:grid;gap:5px;margin:22px 0}
+  .vendor-print-slip__address h2{margin:0 0 4px;font-size:14px}
+  .vendor-print-slip__address p{margin:4px 0}
+  .vendor-print-slip table{width:100%;border-collapse:collapse}
+  .vendor-print-slip th,.vendor-print-slip td{padding:9px 7px;border:1px solid #cfd2ca;text-align:left;vertical-align:top}
+  .vendor-print-slip th{background:#f0f1ed}
+  .vendor-print-slip th:last-child,.vendor-print-slip td:last-child{text-align:center}
+  .vendor-print-slip footer{margin-top:22px;padding-top:10px;border-top:1px solid #cfd2ca;color:#555;font-size:10px}
+}
 .vendor-map-opt-in{display:flex;align-items:flex-start;gap:9px;color:var(--ink);font-size:12px;font-weight:650;line-height:1.5}
 .vendor-map-opt-in input{width:17px;height:17px;flex:0 0 auto;margin-top:1px;accent-color:#496747}
 @media(max-width:760px){.contact-form-panel{grid-template-columns:1fr;gap:16px}.home-support__actions{min-width:0}}

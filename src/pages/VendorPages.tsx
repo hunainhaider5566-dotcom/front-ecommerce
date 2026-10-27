@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { LoadingState } from '../components/common/States'
+import { ShopLocationPicker } from '../components/shops/ShopLocationPicker'
 import { formatPKR } from '../utils/money'
 import {
   adjustOwnInventory,
@@ -90,8 +91,6 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   const [shopLocationLabel, setShopLocationLabel] = useState(profile?.shop_location_label ?? '')
   const [showShopOnMap, setShowShopOnMap] = useState(profile?.show_shop_on_map ?? false)
   const [locationLoading, setLocationLoading] = useState(false)
-  const mapLatitude = shopLatitude || '31.5204'
-  const mapLongitude = shopLongitude || '74.3587'
 
   useEffect(() => {
     if (!shopImage) { setShopPreview(null); return }
@@ -177,7 +176,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} placeholder="+92 300 0000000" /></div>
     <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
-    {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><div className="checkout-map-preview vendor-map-preview"><iframe title={t('Map preview of your shop location')} src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(mapLongitude) - 0.025}%2C${Number(mapLatitude) - 0.015}%2C${Number(mapLongitude) + 0.025}%2C${Number(mapLatitude) + 0.015}&layer=mapnik&marker=${mapLatitude}%2C${mapLongitude}`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /><div className="checkout-map-preview__caption"><span>{t(shopLatitude && shopLongitude ? 'Your shop area' : 'Map preview')}</span><a href={`https://www.openstreetmap.org/?mlat=${mapLatitude}&mlon=${mapLongitude}#map=15/${mapLatitude}/${mapLongitude}`} target="_blank" rel="noreferrer">{t('Open map')}</a></div><small>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> {t('contributors')}</small></div><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
+    {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><ShopLocationPicker point={shopLatitude && shopLongitude ? { latitude: Number(shopLatitude), longitude: Number(shopLongitude) } : null} onChange={({ latitude, longitude }) => { setShopLatitude(latitude.toFixed(6)); setShopLongitude(longitude.toFixed(6)) }} /><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
     {(!profile || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
@@ -500,10 +499,53 @@ function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSav
 
 function VendorOrdersPanel({ items, onUpdated, onError }: { items: VendorOrderItem[]; onUpdated: () => Promise<void>; onError: (message: string) => void }) {
   const { t } = useI18n()
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null)
+  const orderGroups = useMemo(() => {
+    const groups = new Map<string, VendorOrderItem[]>()
+    for (const item of items) groups.set(item.order_id, [...(groups.get(item.order_id) ?? []), item])
+    return [...groups.entries()].map(([id, orderItems]) => ({ id, items: orderItems }))
+  }, [items])
+
+  useEffect(() => {
+    if (!printingOrderId) return
+    const frame = window.requestAnimationFrame(() => window.print())
+    return () => window.cancelAnimationFrame(frame)
+  }, [printingOrderId])
+
+  useEffect(() => {
+    const clearPrint = () => setPrintingOrderId(null)
+    window.addEventListener('afterprint', clearPrint)
+    return () => window.removeEventListener('afterprint', clearPrint)
+  }, [])
+
   return <section className="account-panel">
-    <div className="account-panel__heading"><div><h2>{t('Fulfilment')}</h2><p>{t('Advance each item as you process and ship it. Buyer contact details are intentionally excluded.')}</p></div></div>
-    {items.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{t('No order items')}</h2><p>{t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className="vendor-list">{items.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={onUpdated} onError={onError} />)}</div>}
+    <div className="account-panel__heading"><div><h2>{t('Fulfilment')}</h2><p>{t('Advance each item as you process and ship it. Print a private packing slip with the delivery details your shop needs.')}</p></div></div>
+    {items.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{t('No order items')}</h2><p>{t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className="vendor-list">{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
+      <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print order slip')}</button></header>
+      {orderItems.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={onUpdated} onError={onError} />)}
+      {printingOrderId === id && <VendorOrderSlip items={orderItems} />}
+    </section>)}</div>}
   </section>
+}
+
+function VendorOrderSlip({ items }: { items: VendorOrderItem[] }) {
+  const { t } = useI18n()
+  const order = items[0]
+  const address = order.shipping_address_snapshot && typeof order.shipping_address_snapshot === 'object' && !Array.isArray(order.shipping_address_snapshot)
+    ? order.shipping_address_snapshot as Record<string, unknown>
+    : {}
+  const addressLines = [address.address_line_1, address.address_line_2, address.city, address.province, address.postal_code]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+  const variantLabel = (variant: unknown) => {
+    if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return '—'
+    return Object.entries(variant as Record<string, unknown>).map(([key, value]) => `${key}: ${String(value)}`).join(' · ') || '—'
+  }
+  return <article className="vendor-print-slip" data-active="true">
+    <header className="vendor-print-slip__header"><div><span>{t('Packing slip')}</span><h1>{order.shop_name}</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
+    <section className="vendor-print-slip__address"><h2>{t('Ship to')}</h2><strong>{order.customer_name}</strong><span>{order.customer_phone}</span>{addressLines.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}{typeof address.delivery_instructions === 'string' && address.delivery_instructions.trim() && <p><strong>{t('Delivery instructions')}:</strong> {address.delivery_instructions}</p>}{order.delivery_location_name && <small>{t('Delivery pin')}: {order.delivery_location_name}</small>}</section>
+    <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{variantLabel(item.variant_snapshot)}</td><td>{item.quantity}</td></tr>)}</tbody></table>
+    <footer>{t('Please verify the items and quantity before packing. This slip is for fulfilment and does not show payment information.')}</footer>
+  </article>
 }
 
 function OrderItemRow({ item, onUpdated, onError }: { item: VendorOrderItem; onUpdated: () => Promise<void>; onError: (message: string) => void }) {

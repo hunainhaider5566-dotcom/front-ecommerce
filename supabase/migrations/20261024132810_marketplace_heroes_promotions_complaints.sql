@@ -1,4 +1,4 @@
--- Migration: 20261024100000_marketplace_heroes_promotions_complaints.sql
+-- Migration: 20261024132810_marketplace_heroes_promotions_complaints.sql
 -- Description: Adds homepage heroes, promotional campaigns, buyer complaints, delivery coordinates, and private storage policies for vendor verification and evidence.
 
 -- 1. Homepage Heroes Table

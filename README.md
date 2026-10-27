@@ -43,7 +43,7 @@ Never put a service-role key in a Vite environment variable or browser code. RLS
 
 The canonical migrations live in [`supabase/migrations`](supabase/migrations) and must be applied in ascending filename order. The admin dashboard does not keep a second migration chain; it uses this directory.
 
-The latest migration, `20261025090000_marketplace_checkout_security.sql`, adds the checkout RPC, store settings, newsletter subscriptions, public shop directory, admin/vendor product RPCs, complaint evidence policies and private storage buckets. Without it, checkout, store settings and some seller/admin screens will report that the database function or table is unavailable. The app does not hide that state with demo data.
+The checkout/security migration is `20261024170714_marketplace_checkout_security.sql`; seller location, document, notification, image-upload and packing-slip migrations follow it in the canonical chain. These migrations are tracked by the same versions as the connected Supabase project.
 
 The repository cannot apply migrations to the remote project without the project owner's Supabase credentials. Verify the remote schema and policies after applying the files. See [`supabase/README.md`](supabase/README.md) for the security model and remote verification checklist.
 

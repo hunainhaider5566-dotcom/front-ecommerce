@@ -1,0 +1,3 @@
+-- This remote re-application is retained in migration history for alignment.
+-- The canonical checkout migration at 20261024170714 already contains its
+-- final, re-applied definitions, so no additional DDL is required here.

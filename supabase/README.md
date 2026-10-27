@@ -15,12 +15,16 @@ The migration chain creates:
 - homepage heroes, promotions, newsletter subscribers and store settings;
 - public-safe catalog/shop RPCs and the authenticated checkout RPC.
 
-The latest two files are:
+The latest migrations and their live project versions are:
 
-- `20261025085000_admin_inventory_adjustment.sql` — canonical inventory-adjustment function and grants.
-- `20261025090000_marketplace_checkout_security.sql` — checkout, store settings, newsletter, public shops, admin/vendor product RPCs, case evidence and storage hardening.
+- `20261025102744_discover_nearby_shops.sql` — shop coordinates, map opt-in and rounded public locations.
+- `20261025102827_seller_documents_and_notification_audiences.sql` — required seller verification documents and role-specific notifications.
+- `20261027121004_vendor_product_image_upload.sql` — seller-owned product image and Storage insert/delete policies.
+- `20261027122251_vendor_order_slips.sql` — secure seller order data for printable packing slips.
 
-`20261025090000_marketplace_checkout_security.sql` is additive and idempotent where PostgreSQL permits. It adds `orders.idempotency_key`, seller `phone`/`document_path`, `store_settings`, `newsletter_subscribers`, and the following public functions:
+Migration filenames use the versions recorded by the connected Supabase project. Keep them aligned with `supabase migration list` before applying future changes.
+
+`20261024170714_marketplace_checkout_security.sql` is additive and idempotent where PostgreSQL permits. It adds `orders.idempotency_key`, seller `phone`/`document_path`, `store_settings`, `newsletter_subscribers`, and the following public functions:
 
 | Function | Caller | Purpose |
 | --- | --- | --- |
@@ -78,7 +82,7 @@ The frontend uses Supabase Auth password, verification/OTP, recovery and OAuth f
 
 ## Remote verification checklist
 
-The newest migrations are not confirmed applied to the remote project from this workspace. After applying them with owner credentials, verify:
+The latest seller-location, document/notification, image-permission and order-slip migrations have been applied to the connected project. Before a production release, verify:
 
 1. `supabase migration list` shows every file in this directory as applied.
 2. `store_settings` contains exactly one row and public `SELECT` succeeds while anonymous updates fail.

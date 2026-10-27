@@ -1,0 +1,3 @@
+-- This remote correction is retained in migration history for alignment.
+-- The canonical checkout migration at 20261024170714 already defines
+-- admin_customer_summary() with its final return types.
