@@ -30,6 +30,7 @@ export function HomePage() {
   const { t } = useI18n()
   const { products, categories, shops, status, error } = useCatalog()
   const homeRef = useScrollReveal<HTMLDivElement>()
+  const shopRailRef = useRef<HTMLDivElement>(null)
   const [sellerBanner, setSellerBanner] = useState<PromotionItem | null>(null)
   const [sellerBannerImageIndex, setSellerBannerImageIndex] = useState(0)
   usePageMeta(t('Meridion Marketplace — Quality Goods Worldwide'), t('Discover verified sellers, shop within your budget, and enjoy secure delivery.'))
@@ -41,6 +42,24 @@ export function HomePage() {
     const timer = window.setInterval(() => setSellerBannerImageIndex((index) => (index + 1) % sellerBannerImages.length), 5000)
     return () => window.clearInterval(timer)
   }, [sellerBanner?.id, sellerBannerImages.length])
+  useEffect(() => {
+    const rail = shopRailRef.current
+    if (!rail || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let direction = 1
+    const timer = window.setInterval(() => {
+      if (rail.matches(':hover') || rail.contains(document.activeElement)) return
+      const card = rail.querySelector<HTMLElement>('.home-shop-card')
+      const group = rail.querySelector<HTMLElement>('.home-shop-showcase__group')
+      if (!card || !group) return
+      const step = card.getBoundingClientRect().width + Number.parseFloat(getComputedStyle(group).gap || '0')
+      const maxScroll = rail.scrollWidth - rail.clientWidth
+      if (maxScroll <= step / 2) return
+      if (direction > 0 && rail.scrollLeft >= maxScroll - step / 2) direction = -1
+      else if (direction < 0 && rail.scrollLeft <= step / 2) direction = 1
+      rail.scrollBy({ left: direction * step, behavior: 'smooth' })
+    }, 4200)
+    return () => window.clearInterval(timer)
+  }, [shops.length])
 
   const orderedProducts = products.filter((product) => product.isPublished).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
   const featured = orderedProducts.filter((product) => product.isFeatured)
@@ -89,14 +108,14 @@ export function HomePage() {
           <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Shop from independent stores.')}</h2><p>{t('Explore trusted sellers, their story and the products they bring to Meridion.')}</p></div>
           <Link className="home-text-link" to="/shop">{t('Meet all sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
-        <div className="home-shop-showcase__viewport" aria-label={t('Featured independent shops')}>
+        <div ref={shopRailRef} className="home-shop-showcase__viewport" aria-label={t('Featured independent shops')}>
           <div className="home-shop-showcase__track">
-            {[0, 1].map((copy) => <div className="home-shop-showcase__group" key={copy} aria-hidden={copy === 1 ? 'true' : undefined}>
-              {Array.from({ length: Math.max(1, Math.ceil(8 / Math.min(shops.length, 8))) }, () => shops.slice(0, 8)).flat().slice(0, 8).map((shop, index) => <Link className="home-shop-card" to={`/shops/${shop.slug}`} key={`${copy}-${shop.id}-${index}`} tabIndex={copy === 1 || index >= shops.length ? -1 : undefined} aria-hidden={index >= shops.length ? 'true' : undefined}>
-                <div className="home-shop-card__cover">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <div className="home-shop-card__fallback"><Store size={30} aria-hidden="true" /><span>{t(shop.shopName)}</span></div>}<span className="home-shop-card__verified"><Check size={11} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={16} aria-hidden="true" /></span></div>
+            <div className="home-shop-showcase__group">
+              {shops.slice(0, 8).map((shop) => <Link className="home-shop-card" to={`/shops/${shop.slug}`} key={shop.id}>
+                <div className="home-shop-card__cover"><span className="home-shop-card__seller-image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={25} aria-hidden="true" />}</span><span className="home-shop-card__verified"><Check size={11} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={16} aria-hidden="true" /></span></div>
                 <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description || 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
               </Link>)}
-            </div>)}
+            </div>
           </div>
         </div>
       </section>}
