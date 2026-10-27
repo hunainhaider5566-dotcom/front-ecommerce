@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/LocaleContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { createAddress, deleteAddress, listMyAddresses, setDefaultAddress, updateAddress, type AddressInput, type SavedAddress } from '../services/account/addressService'
+import { hasRememberedAccountSuspension } from '../services/auth/accountAccessNotice'
 import { cancelCustomerOrder, createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
 import type { MarketplaceCaseRecord, OrderItemRecord, OrderRecord } from '../types/order'
 import { formatPKR } from '../utils/money'
@@ -43,6 +44,7 @@ export function AccountPage() {
   const { push } = useToast()
   const { refresh: refreshCatalog } = useCatalog()
   const [tab, setTab] = useState<Tab>('orders')
+  const [knownSuspendedAccount] = useState(hasRememberedAccountSuspension)
 
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemRecord[]>>({})
@@ -127,7 +129,7 @@ export function AccountPage() {
   if (loading) return <section className="account-page"><div className="account-page__inner"><span className="auth-eyebrow">{t('Account')}</span><h1>{t('Restoring your session')}</h1><p role="status">{t('Verifying your session…')}</p></div></section>
 
   if (!configured || !user) {
-    return <section className="account-page"><div className="account-page__inner"><div className="account-page__icon" aria-hidden="true"><UserRound size={28} /></div><span className="auth-eyebrow">{t('Account')}</span><h1>{t(configured ? 'Sign in to view your account' : 'Account access is not configured')}</h1><p>{t(configured ? 'You are not currently signed in.' : 'Account access is currently unavailable.')}</p>{authError && <p className="account-page__note" role="alert">{t(authError)}</p>}<div className="account-page__actions"><Link className="account-page__primary" to="/login">{t('Sign in')}<ArrowRight size={16} aria-hidden="true" /></Link><Link className="account-page__secondary" to="/register">{t('Create account')}</Link></div></div></section>
+    return <section className="account-page"><div className="account-page__inner"><div className="account-page__icon" aria-hidden="true"><UserRound size={28} /></div><span className="auth-eyebrow">{t('Account')}</span><h1>{t(knownSuspendedAccount ? 'Account suspended' : configured ? 'Sign in to view your account' : 'Account access is not configured')}</h1><p className={knownSuspendedAccount ? 'account-page__note' : undefined} role={knownSuspendedAccount ? 'alert' : undefined}>{t(knownSuspendedAccount ? 'This account was suspended by marketplace administration. Sign-in is disabled. Contact support if you believe this is a mistake.' : configured ? 'You are not currently signed in.' : 'Account access is currently unavailable.')}</p>{authError && !knownSuspendedAccount && <p className="account-page__note" role="alert">{t(authError)}</p>}<div className="account-page__actions"><Link className="account-page__primary" to="/login">{t('Sign in')}<ArrowRight size={16} aria-hidden="true" /></Link>{knownSuspendedAccount ? <Link className="account-page__secondary" to="/contact">{t('Contact marketplace support')}</Link> : <Link className="account-page__secondary" to="/register">{t('Create account')}</Link>}</div></div></section>
   }
 
   function setAddressField(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {

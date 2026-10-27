@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { authService } from '../services/auth/authService'
+import { clearRememberedAccountSuspension, rememberAccountSuspension } from '../services/auth/accountAccessNotice'
 import { LoadingState } from '../components/common/States'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
 type FieldErrors = Record<string, string>
@@ -15,6 +16,12 @@ const emptyRegistration = { name: '', email: '', password: '', confirmation: '',
 function describeError(error: unknown) {
   if (error instanceof Error) return error.message
   return 'The authentication request could not be completed. Please try again.'
+}
+
+function isSuspendedAccountError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const authError = error as { code?: unknown; message?: unknown }
+  return authError.code === 'user_banned' || (typeof authError.message === 'string' && /\b(user|account) (is|has been) (banned|suspended)\b/i.test(authError.message))
 }
 
 function throwIfAuthError<T extends { error: { message: string } | null }>(response: T) {
@@ -118,6 +125,7 @@ export function LoginPage() {
     if (!form.password) next.password = 'Password is required.'
     setErrors(next)
     if (Object.keys(next).length) return
+    clearRememberedAccountSuspension()
     setStatus('loading'); setMessage('')
     try {
       const response = throwIfAuthError(await authService.signInWithPassword(form.email.trim(), form.password))
@@ -125,15 +133,23 @@ export function LoginPage() {
         setStatus('success'); setMessage('Email verification may be required. Check your inbox or request another verification email.')
         return
       }
+      clearRememberedAccountSuspension()
       navigate(redirectTarget, { replace: true })
     } catch (error) {
+      const suspended = isSuspendedAccountError(error)
+      if (suspended) {
+        rememberAccountSuspension()
+        navigate('/account?access=suspended', { replace: true })
+        return
+      }
       setStatus('error'); setMessage(describeError(error))
     }
   }
   const google = async () => {
+    clearRememberedAccountSuspension()
     setStatus('loading'); setMessage('')
-    try { throwIfAuthError(await authService.signInWithGoogle(redirectTarget)); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
-    catch (error) { setStatus('error'); setMessage(describeError(error)) }
+    try { throwIfAuthError(await authService.signInWithGoogle(redirectTarget)); clearRememberedAccountSuspension(); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
+    catch (error) { const suspended = isSuspendedAccountError(error); if (suspended) { rememberAccountSuspension(); navigate('/account?access=suspended', { replace: true }); return } setStatus('error'); setMessage(describeError(error)) }
   }
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (user) return <Navigate to={redirectTarget} replace />

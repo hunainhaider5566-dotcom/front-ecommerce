@@ -1,5 +1,6 @@
 export const AUTH_URDU: Record<string, string> = {
   'Account': 'اکاؤنٹ',
+  'Account suspended': 'اکاؤنٹ معطل ہے',
   'Account access is not connected': 'اکاؤنٹ تک رسائی منسلک نہیں ہے',
   'Account actions are disabled in this preview.': 'اس پیش نظارہ میں اکاؤنٹ کے اعمال غیر فعال ہیں۔',
   'Already have an account?': 'پہلے سے اکاؤنٹ ہے؟',
@@ -86,6 +87,8 @@ export const AUTH_URDU: Record<string, string> = {
   'The preview never sends or saves account details.': 'یہ پیش نظارہ اکاؤنٹ کی تفصیلات کبھی بھیجتا یا محفوظ نہیں کرتا۔',
   'This code cannot be verified in the preview. No code was sent and no verification occurred.': 'اس پیش نظارہ میں یہ کوڈ تصدیق نہیں ہو سکتا۔ کوئی کوڈ نہیں بھیجا گیا اور تصدیق نہیں ہوئی۔',
   'This button is enabled only to show the unavailable-provider state.': 'یہ بٹن صرف غیر دستیاب فراہم کنندہ کی حالت دکھانے کے لیے فعال ہے۔',
+  'This account has been suspended. Sign-in is disabled. Contact marketplace support if you need help.': 'یہ اکاؤنٹ معطل کر دیا گیا ہے۔ سائن اِن بند ہے۔ مدد کے لیے مارکیٹ پلیس سپورٹ سے رابطہ کریں۔',
+  'This account was suspended by marketplace administration. Sign-in is disabled. Contact support if you believe this is a mistake.': 'مارکیٹ پلیس انتظامیہ نے یہ اکاؤنٹ معطل کیا ہے۔ سائن اِن بند ہے۔ اگر آپ کو لگتا ہے کہ یہ غلطی ہے تو سپورٹ سے رابطہ کریں۔',
   'Use a test value only': 'صرف ٹیسٹ قدر استعمال کریں',
   'Verification code': 'تصدیقی کوڈ',
   'Verification email': 'تصدیقی ای میل',
