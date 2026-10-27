@@ -18,6 +18,16 @@ export async function listMyNotifications(audience: NotificationAudience): Promi
   return (data ?? []) as NotificationRecord[]
 }
 
+export async function getMyAccountSuspensionReason(): Promise<string | null> {
+  const client = getSupabase()
+  const { data: { user } } = await client.auth.getUser().catch(() => ({ data: { user: null }, error: null }))
+  const activeAuthBan = Boolean(user?.banned_until && Date.parse(user.banned_until) > Date.now())
+  const notices = await listMyNotifications('customer').catch(() => [])
+  const suspensionState = notices.find((notice) => notice.kind === 'account' && ['Account suspended', 'Account restored'].includes(notice.title))
+  if (suspensionState?.title === 'Account restored') return null
+  return (suspensionState?.title === 'Account suspended' ? suspensionState.body.trim() : '') || (activeAuthBan ? 'Your account is suspended by marketplace administration.' : null)
+}
+
 export async function markNotificationRead(id: string, audience: NotificationAudience): Promise<void> {
   const { error } = await getSupabase()
     .from('notifications')

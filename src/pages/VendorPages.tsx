@@ -6,6 +6,7 @@ import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { getMyAccountSuspensionReason } from '../services/account/notificationService'
 import { LoadingState } from '../components/common/States'
 import { ShopLocationPicker } from '../components/shops/ShopLocationPicker'
 import { formatPKR } from '../utils/money'
@@ -77,6 +78,11 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
     </div>
     {!approved && <VerificationDocumentSection profile={profile} onSaved={() => undefined} />}
   </section>
+}
+
+function AccountSuspensionNotice({ reason }: { reason: string | null }) {
+  const { t } = useI18n()
+  return <section className="page-shell"><div className="placeholder-panel vendor-status vendor-suspension-notice" role="status"><span className="vendor-status__badge vendor-status__badge--suspended">{t('Account suspended')}</span><h2>{t('Seller access is suspended')}</h2><p>{t('Your account is suspended, so seller applications and vendor tools are unavailable.')}</p>{reason && <p><strong>{t('Reason')}:</strong> {reason}</p>}<Link className="text-link" to="/contact">{t('Contact marketplace support')} <ArrowRight size={15} /></Link></div></section>
 }
 
 function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile | null; onSaved: (profile: SellerProfile) => void; mode?: 'apply' | 'settings' }) {
@@ -214,6 +220,7 @@ export function VendorApplicationPage() {
   const { t } = useI18n()
   const { user, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<SellerProfile | null>(null)
+  const [accountSuspensionReason, setAccountSuspensionReason] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   usePageMeta(t('Seller application'), t('Apply to sell on Meridion Marketplace.'))
@@ -221,9 +228,14 @@ export function VendorApplicationPage() {
   useEffect(() => {
     let cancelled = false
     if (!user) { setLoading(false); return }
-    getOwnSellerProfile()
-      .then((next) => { if (!cancelled) { setProfile(next); setEditing(!next) } })
-      .catch(() => { if (!cancelled) setProfile(null) })
+    void Promise.allSettled([getOwnSellerProfile(), getMyAccountSuspensionReason()])
+      .then(([profileResult, suspensionResult]) => {
+        if (cancelled) return
+        const nextProfile = profileResult.status === 'fulfilled' ? profileResult.value : null
+        setProfile(nextProfile)
+        setAccountSuspensionReason(suspensionResult.status === 'fulfilled' ? suspensionResult.value : null)
+        setEditing(!nextProfile)
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [user])
@@ -231,6 +243,8 @@ export function VendorApplicationPage() {
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (!user) return <SignInForVendor />
   if (loading) return <LoadingState label="Loading seller application…" />
+  if (accountSuspensionReason) return <VendorGate><AccountSuspensionNotice reason={accountSuspensionReason} /></VendorGate>
+  if (profile?.status === 'suspended') return <VendorGate><AccountSuspensionNotice reason={profile.rejection_reason} /></VendorGate>
 
   if (profile?.status === 'approved') return <Navigate to="/vendor" replace />
   if (profile && !editing) {
@@ -253,6 +267,7 @@ export function VendorDashboardPage() {
   const { push } = useToast()
   const { categories } = useCatalog()
   const [profile, setProfile] = useState<SellerProfile | null>(null)
+  const [accountSuspensionReason, setAccountSuspensionReason] = useState<string | null>(null)
   const [products, setProducts] = useState<VendorProduct[]>([])
   const [inventory, setInventory] = useState<VendorInventory[]>([])
   const [cases, setCases] = useState<MarketplaceCase[]>([])
@@ -268,6 +283,9 @@ export function VendorDashboardPage() {
     setLoading(true)
     setError(null)
     try {
+      const suspensionReason = await getMyAccountSuspensionReason().catch(() => null)
+      setAccountSuspensionReason(suspensionReason)
+      if (suspensionReason) { setProfile(null); return }
       const nextProfile = await getOwnSellerProfile()
       setProfile(nextProfile)
       if (nextProfile?.status === 'approved') {
@@ -301,7 +319,9 @@ export function VendorDashboardPage() {
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (!user) return <SignInForVendor />
   if (loading) return <LoadingState label="Loading vendor dashboard…" />
+  if (accountSuspensionReason) return <VendorGate><AccountSuspensionNotice reason={accountSuspensionReason} /></VendorGate>
   if (!profile) return <VendorGate><section className="page-shell"><div className="placeholder-panel vendor-status"><h2>{t('No seller application yet')}</h2><p>{t('Apply for a seller account to manage listings and orders.')}</p><Link className="button button--dark" to="/vendor/apply">{t('Apply to sell')}</Link></div></section></VendorGate>
+  if (profile.status === 'suspended') return <VendorGate><AccountSuspensionNotice reason={profile.rejection_reason} /></VendorGate>
   if (profile.status !== 'approved') return <VendorGate><VendorStatusCard profile={profile} /></VendorGate>
 
   const openCases = cases.filter((item) => !['resolved', 'rejected', 'approved'].includes(item.status)).length

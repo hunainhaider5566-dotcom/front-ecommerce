@@ -56,6 +56,7 @@ Deno.serve(async (request) => {
   if (unbanError) return json({ error: `Account could not be restored: ${unbanError.message}` }, 500)
   const { error: removeError } = await adminClient.from('account_suspensions').delete().eq('user_id', userId)
   if (removeError) return json({ error: 'Account is unbanned, but the suspension record could not be cleared.' }, 500)
+  await adminClient.from('notifications').insert({ user_id: userId, kind: 'account', audience: 'customer', title: 'Account restored', body: 'Your marketplace account access has been restored.' })
   await adminClient.from('admin_audit_logs').insert({ actor_id: callerResult.user.id, action: 'UPDATE', entity: 'account_suspensions', entity_id: userId, details: { action: 'restore' } })
   return json({ ok: true, user_id: userId, suspended: false })
 })

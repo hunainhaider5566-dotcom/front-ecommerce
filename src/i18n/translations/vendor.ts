@@ -1,5 +1,6 @@
 export const VENDOR_URDU: Record<string, string> = {
   'Account settings': 'اکاؤنٹ کی ترتیبات',
+  'Account suspended': 'اکاؤنٹ معطل ہے',
   'Actions': 'اقدامات',
   'A private verification document is on file.': 'نجی تصدیقی دستاویز موجود ہے۔',
   'Upload an identity or business document before submitting your application.': 'درخواست جمع کرانے سے پہلے شناختی یا کاروباری دستاویز اپ لوڈ کریں۔',
@@ -13,6 +14,9 @@ export const VENDOR_URDU: Record<string, string> = {
   'Apply to open a': 'دکان کھولنے کی درخواست دیں',
   'Apply to sell on Meridion Marketplace.': 'میریڈین مارکیٹ پلیس پر فروخت کے لیے درخواست دیں۔',
   'Apply to sell': 'فروخت کے لیے درخواست دیں',
+  'Seller access is suspended': 'فروخت کنندہ کی رسائی معطل ہے',
+  'Your account is suspended, so seller applications and vendor tools are unavailable.': 'آپ کا اکاؤنٹ معطل ہے، اس لیے فروخت کنندہ کی درخواست اور دکاندار کے ٹولز دستیاب نہیں ہیں۔',
+  'Contact marketplace support': 'مارکیٹ پلیس سپورٹ سے رابطہ کریں',
   'Choose a verification document first.': 'پہلے تصدیقی دستاویز منتخب کریں۔',
   'Click the map to place your shop pin, or use the device location button above.': 'دکان کا پن لگانے کے لیے نقشے پر کلک کریں یا اوپر موجود موجودہ مقام کا بٹن استعمال کریں۔',
   'Back to account': 'اکاؤنٹ پر واپس جائیں',
