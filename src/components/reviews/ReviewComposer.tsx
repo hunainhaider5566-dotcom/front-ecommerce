@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Star, Send } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
@@ -43,7 +43,7 @@ export function ReviewComposer({ kind, targetId }: Props) {
 
   useEffect(() => { void refresh() }, [targetId, kind, user?.id])
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!orderId || saving) return
     setSaving(true)
