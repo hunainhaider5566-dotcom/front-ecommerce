@@ -29,7 +29,6 @@ export function DiscoverPage() {
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [reducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-  const [visibleCount, setVisibleCount] = useState(6)
   const [view, setView] = useState<'map' | 'products'>('map')
   const trackRef = useRef<HTMLDivElement | null>(null)
   const cardRefs = useRef<Array<HTMLElement | null>>([])
@@ -41,7 +40,7 @@ export function DiscoverPage() {
       const shop = product.sellerId ? shopsById.get(product.sellerId) : undefined
       return { product, sellerName: product.sellerName ?? shop?.shopName ?? null, sellerSlug: product.sellerSlug ?? shop?.slug ?? null }
     }), [products, shopsById])
-  const visibleItems = items.slice(0, visibleCount)
+  const visibleItems = items
 
   useEffect(() => {
     if (currentIndex > visibleItems.length - 1) setCurrentIndex(Math.max(0, visibleItems.length - 1))
@@ -52,9 +51,8 @@ export function DiscoverPage() {
   }, [currentIndex, reducedMotion])
 
   useEffect(() => {
-    if (reducedMotion || window.matchMedia('(max-width: 760px)').matches || items.length < 2) return
+    if (reducedMotion || items.length < 2) return
     const timer = window.setInterval(() => {
-      setVisibleCount((count) => Math.min(items.length, Math.max(count, currentIndex + 2)))
       setCurrentIndex((index) => index >= items.length - 1 ? 0 : index + 1)
     }, 6500)
     return () => window.clearInterval(timer)
@@ -84,7 +82,6 @@ export function DiscoverPage() {
     return <div className="page-shell"><div className="empty-state"><Sparkles size={32} /><h2>{t('The catalog is unavailable')}</h2><p>{error || t('The catalog could not be loaded.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div></div>
   }
 
-  const hasMore = visibleItems.length < items.length
 
   return (
     <div className="discover-page-container">
@@ -93,9 +90,9 @@ export function DiscoverPage() {
       {view === 'map' && <NearbyShopsMap shops={shops} />}
       {view === 'products' && (items.length === 0 ? <div className="empty-state"><Sparkles size={32} /><h2>{t('No Discover items available')}</h2><p>{t('Check back soon as sellers publish new products.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div> : <>
       <div className="discover-nav-buttons">
-        <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))} disabled={currentIndex === 0} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
+        <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => index <= 0 ? items.length - 1 : index - 1)} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
         <span className="discover-counter" aria-live="polite">{currentIndex + 1} / {items.length}</span>
-        <button type="button" className="discover-nav-btn" onClick={() => { if (currentIndex < visibleItems.length - 1) setCurrentIndex((index) => index + 1); else if (hasMore) { const next = Math.min(items.length, visibleCount + 6); setVisibleCount(next); setCurrentIndex((index) => Math.min(next - 1, index + 1)) } }} disabled={currentIndex === items.length - 1} aria-label={t('Next product')}><ChevronRight size={22} /></button>
+        <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => index >= items.length - 1 ? 0 : index + 1)} aria-label={t('Next product')}><ChevronRight size={22} /></button>
       </div>
       <div className="discover-track" ref={trackRef} onScroll={handleTrackScroll} aria-label={t('Discover products')}>
         {visibleItems.map((item, index) => {
@@ -119,7 +116,6 @@ export function DiscoverPage() {
           </article>
         })}
       </div>
-      {hasMore && <button type="button" className="button button--outline discover-load-more" onClick={() => setVisibleCount((count) => Math.min(items.length, count + 6))}>{t('Load more products')}</button>}
       </>)}
     </div>
   )
