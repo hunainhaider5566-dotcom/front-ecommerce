@@ -116,12 +116,13 @@ export async function getSellerReviews(sellerId: string): Promise<SellerReview[]
 /** Returns a delivered order ID only when the signed-in customer bought the product or from the seller. */
 export async function getReviewableOrderId(userId: string, productId?: string, sellerId?: string): Promise<string | null> {
   const client = getSupabase()
-  const { data: orders, error: orderError } = await client
-    .from('orders')
-    .select('id')
-    .eq('customer_id', userId)
-    .eq('order_status', 'delivered')
-    .order('created_at', { ascending: false })
+  const { data: authResult } = await client.auth.getUser()
+  const email = authResult.user?.email
+  let orderQuery = client.from('orders').select('id').eq('order_status', 'delivered')
+  orderQuery = email
+    ? orderQuery.or(`customer_id.eq.${userId},customer_email.eq.${email}`)
+    : orderQuery.eq('customer_id', userId)
+  const { data: orders, error: orderError } = await orderQuery.order('created_at', { ascending: false })
   if (orderError || !orders?.length) return null
 
   let query = client.from('order_items').select('order_id').in('order_id', orders.map((order) => order.id))
