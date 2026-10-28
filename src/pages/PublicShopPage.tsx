@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { Store, MapPin, CheckCircle2, ShieldAlert, PackageSearch } from 'lucide-react'
+import { ReviewComposer } from '../components/reviews/ReviewComposer'
 import { useCatalog } from '../contexts/CatalogContext'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useI18n } from '../i18n/LocaleContext'
@@ -52,6 +53,8 @@ export function PublicShopPage() {
           <div className="shop-product-count"><PackageSearch size={17} /><strong>{shopProducts.length}</strong><span>{t('published products')}</span></div>
         </div>
       </header>
+
+      <ReviewComposer kind="seller" targetId={shop.id} />
 
       <section className="shop-products-section">
         <div className="page-heading">
