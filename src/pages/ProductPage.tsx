@@ -1,4 +1,3 @@
-import { Star } from 'lucide-react'
 import { ArrowLeft, ArrowRight, BookOpen, Check, MessageCircle, PackageCheck, ShieldCheck, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
