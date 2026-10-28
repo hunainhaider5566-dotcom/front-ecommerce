@@ -31,6 +31,13 @@ export async function submitProductReview(input: {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in to leave a review.')
+  const eligibleOrderId = await getReviewableOrderId(user.id, input.productId)
+  if (!eligibleOrderId || eligibleOrderId !== input.orderId) throw new Error('You can review this product after a delivered order containing it.')
+  const { data: ownListing } = await client.from('products').select('seller_id').eq('id', input.productId).maybeSingle()
+  if (ownListing?.seller_id) {
+    const { data: ownShop } = await client.from('seller_profiles').select('user_id').eq('id', ownListing.seller_id).maybeSingle()
+    if (ownShop?.user_id === user.id) throw new Error('You cannot review your own product.')
+  }
 
   const { data, error } = await client
     .from('product_reviews')
@@ -59,6 +66,10 @@ export async function submitSellerReview(input: {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in to leave a review.')
+  const { data: shop } = await client.from('seller_profiles').select('user_id').eq('id', input.sellerId).maybeSingle()
+  if (shop?.user_id === user.id) throw new Error('You cannot review your own seller account.')
+  const eligibleOrderId = await getReviewableOrderId(user.id, undefined, input.sellerId)
+  if (!eligibleOrderId || eligibleOrderId !== input.orderId) throw new Error('You can review this seller after a delivered order from this shop.')
 
   const { data, error } = await client
     .from('seller_reviews')
@@ -99,4 +110,25 @@ export async function getSellerReviews(sellerId: string): Promise<SellerReview[]
 
   if (error || !data) return []
   return data as SellerReview[]
+}
+
+
+/** Returns a delivered order ID only when the signed-in customer bought the product or from the seller. */
+export async function getReviewableOrderId(userId: string, productId?: string, sellerId?: string): Promise<string | null> {
+  const client = getSupabase()
+  const { data: orders, error: orderError } = await client
+    .from('orders')
+    .select('id')
+    .eq('customer_id', userId)
+    .eq('order_status', 'delivered')
+    .order('created_at', { ascending: false })
+  if (orderError || !orders?.length) return null
+
+  let query = client.from('order_items').select('order_id').in('order_id', orders.map((order) => order.id))
+  if (productId) query = query.eq('product_id', productId)
+  if (sellerId) query = query.eq('seller_id', sellerId)
+  const { data: items, error: itemsError } = await query.limit(100)
+  if (itemsError || !items?.length) return null
+  const eligibleIds = new Set(items.map((item) => item.order_id))
+  return orders.find((order) => eligibleIds.has(order.id))?.id ?? null
 }
