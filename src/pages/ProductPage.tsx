@@ -1,9 +1,9 @@
-import { getProductReviews, type ProductReview } from '../services/products/reviewService'
 import { Star } from 'lucide-react'
 import { ArrowLeft, ArrowRight, BookOpen, Check, MessageCircle, PackageCheck, ShieldCheck, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AvailabilityBadge } from '../components/products/AvailabilityBadge'
+import { ReviewComposer } from '../components/reviews/ReviewComposer'
 import { QuantitySelector } from '../components/products/QuantitySelector'
 import { WishlistButton } from '../components/products/WishlistButton'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
@@ -28,13 +28,6 @@ export function ProductPage() {
   const [imageIndex, setImageIndex] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
   const [added, setAdded] = useState(false)
-  const [reviews, setReviews] = useState<ProductReview[]>([])
-
-  useEffect(() => {
-    if (product?.id) {
-      getProductReviews(product.id).then(setReviews).catch(() => setReviews([]))
-    }
-  }, [product?.id])
   const addLock = useRef(false)
   const { add } = useCart()
   const { push } = useToast()
@@ -75,7 +68,6 @@ export function ProductPage() {
   const categoryName = t(categories.find((item) => item.id === product.categoryId)?.name ?? 'Collection')
   const images = product.images
   const activeImage = images[imageIndex]
-  const avgRating = reviews.length ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : null
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
   const price = selectedVariant?.price ?? product.price
   const support = supportDestination(productInquiryMessage(productName, product.slug), settings.supportWhatsapp)
@@ -115,7 +107,6 @@ export function ProductPage() {
         <div className="product-price-row">
           <strong>{formatPKR(price)}</strong>
           <AvailabilityBadge status={availability} />
-          {avgRating && <span className="product-rating-badge" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "14px", color: "#b96e52", fontWeight: 700 }}><Star size={16} fill="currentColor" /> {avgRating} ({reviews.length} {t("reviews")})</span>}
         </div>
         <p className="product-price-caption">{t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
         {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
@@ -123,25 +114,7 @@ export function ProductPage() {
         <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
         <p className="product-detail__reassurance"><ShieldCheck size={15} /> {t(settings.codEnabled ? 'Cash on delivery. Prices and stock are validated when the order is placed.' : 'Prices and stock are validated when an order is placed.')}</p>
         {product.sellerName && product.sellerSlug && <Link className="product-seller-link" to={`/shops/${product.sellerSlug}`}><Store size={15} /> {t('Sold by')} {product.sellerName}</Link>}
-                {reviews.length > 0 && (
-          <div className="product-reviews-section" style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid #e7e3dc" }}>
-            <h3 style={{ fontSize: "18px", marginBottom: "12px" }}>{t("Customer Reviews")} ({reviews.length})</h3>
-            <div className="product-reviews-list" style={{ display: "grid", gap: "12px" }}>
-              {reviews.map((r) => (
-                <div key={r.id} className="product-review-card" style={{ padding: "12px", border: "1px solid #eeeae3", borderRadius: "4px", background: "#fff" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#b96e52", marginBottom: "4px" }}>
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} />
-                    ))}
-                    <strong style={{ fontSize: "12px", color: "#20231f" }}>{r.rating}/5</strong>
-                  </div>
-                  {r.title && <strong style={{ display: "block", fontSize: "14px", marginBottom: "2px" }}>{r.title}</strong>}
-                  {r.comment && <p style={{ fontSize: "13px", color: "#555b51", margin: 0 }}>{r.comment}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ReviewComposer kind="product" targetId={product.id} />
         <div className="detail-accordions"><details><summary><span><BookOpen size={16} /> {t('Product details')}</span><span>+</span></summary><ul>{product.specifications.map((spec) => <li key={spec.label}><span>{t(spec.label)}</span><span>{t(spec.value)}</span></li>)}</ul></details><details><summary><span><PackageCheck size={16} /> {t('Shipping & returns')}</span><span>+</span></summary><p>{t('Delivery fee')}: {formatPKR(settings.deliveryFee)}. {t('Returns are accepted within')} {settings.returnWindowDays} {t('days of delivery through your account.')}</p><Link to="/returns">{t('Read the returns policy')}</Link></details></div>
         <a className="product-inquiry-link" href={support} target={support.startsWith('https://') ? '_blank' : undefined} rel={support.startsWith('https://') ? 'noopener noreferrer' : undefined}><MessageCircle size={16} /> {t('Ask a question about this listing')}</a>
       </div>
