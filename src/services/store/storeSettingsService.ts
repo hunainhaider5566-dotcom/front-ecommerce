@@ -1,5 +1,5 @@
 import { getSupabase } from '../../lib/supabase'
-import { STORE_NAME } from '../../config/store'
+import { DEFAULT_SUPPORT_EMAIL, STORE_NAME } from '../../config/store'
 
 export interface StoreSettings {
   storeName: string
@@ -13,7 +13,7 @@ export interface StoreSettings {
 
 export const FALLBACK_STORE_SETTINGS: StoreSettings = {
   storeName: STORE_NAME,
-  supportEmail: null,
+  supportEmail: DEFAULT_SUPPORT_EMAIL,
   supportPhone: null,
   supportWhatsapp: null,
   deliveryFee: 250,
@@ -32,7 +32,7 @@ async function fetchStoreSettings(): Promise<StoreSettings> {
   if (error || !data) return FALLBACK_STORE_SETTINGS
   return {
     storeName: data.store_name || STORE_NAME,
-    supportEmail: data.support_email,
+    supportEmail: data.support_email || DEFAULT_SUPPORT_EMAIL,
     supportPhone: data.support_phone,
     supportWhatsapp: data.support_whatsapp,
     deliveryFee: Number(data.delivery_fee ?? FALLBACK_STORE_SETTINGS.deliveryFee),
