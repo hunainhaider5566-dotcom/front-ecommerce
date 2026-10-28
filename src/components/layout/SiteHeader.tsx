@@ -125,7 +125,7 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="site-header__inner">
         <button className="icon-button menu-toggle" aria-label={t(menuOpen ? 'Close main menu' : 'Open main menu')} aria-expanded={menuOpen} aria-controls="mobile-menu" onClick={() => setMenuOpen((open) => !open)} type="button">{menuOpen ? <X /> : <Menu />}</button>
-        <Link className="wordmark" to="/" aria-label={`${settings.storeName} · ${t('Home')}`} onClick={() => setMenuOpen(false)}><span className="wordmark-mark" aria-hidden="true"><span /></span><span>{settings.storeName.split(' ')[0].toLowerCase()}<span className="wordmark-period">.</span></span></Link>
+        <Link className="wordmark" to="/" aria-label={`${settings.storeName} · ${t('Home')}`} onClick={() => setMenuOpen(false)}><img className="brand-logo" src="/jtbazar-logo.webp" alt="JTBazar home" /></Link>
         <nav className="desktop-nav" aria-label={t('Main navigation')}>{primaryLinks.map((link) => <NavLink key={link.to} to={link.to} className={({ isActive }) => isActive ? 'is-active' : ''}>{t(link.label)}</NavLink>)}<NavLink className="seller-entry" to={sellerLink.to}>{t(sellerLink.label)}</NavLink></nav>
         <div className="header-actions">
           <Link to="/search" aria-label={t('Search')} className="icon-button"><Search size={19} /></Link>

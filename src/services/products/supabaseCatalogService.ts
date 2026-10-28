@@ -39,6 +39,8 @@ function mapCategory(row: CategoryRow): Category {
     image: row.image_url ?? undefined,
     isActive: row.is_active,
     sortOrder: row.sort_order,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
   }
 }
 
@@ -121,6 +123,8 @@ function mapProduct(
     sellerName: shop?.shopName,
     sellerSlug: shop?.slug,
     createdAt: row.created_at,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
   }
 }
 
@@ -128,7 +132,7 @@ async function loadSupabaseCatalog() {
   const client = getSupabase()
   const [productResult, categoryResult, shopResult] = await Promise.all([
     client.from('products')
-      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, created_at')
+      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
       .eq('publication_status', 'published')
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false }),

@@ -13,7 +13,7 @@ export function PublicShopPage() {
   const shop = findShopBySlug(slug)
   const shopProducts = shop ? products.filter((product) => product.sellerId === shop.id && product.isPublished) : []
 
-  usePageMeta(shop ? shop.shopName : t('Vendor Shop'), shop ? `Shop ${shop.shopName} on Meridion Marketplace.` : t('Vendor shop details.'))
+  usePageMeta(shop ? shop.shopName : t('Vendor Shop'), shop ? `Shop ${shop.shopName} on JTBazar.` : t('Vendor shop details.'), { noIndex: status === 'ready' && (!shop || shop.productCount === 0) })
 
   if (status === 'loading') return <div className="page-shell"><LoadingState label="Loading shop profile…" /></div>
   if (status === 'error') return <div className="page-shell"><ErrorState message={error || t('The shop directory could not be loaded.')} /><Link to="/shop" className="back-link">{t('Return to Marketplace')}</Link></div>
@@ -48,7 +48,7 @@ export function PublicShopPage() {
           </div>
         </div>
         <div className="shop-header-footer">
-          <div className="shop-meta"><span><MapPin size={15} /> {t('Verified vendor on Meridion')}</span></div>
+          <div className="shop-meta"><span><MapPin size={15} /> {t('Verified vendor on JTBazar')}</span></div>
           <div className="shop-product-count"><PackageSearch size={17} /><strong>{shopProducts.length}</strong><span>{t('published products')}</span></div>
         </div>
       </header>

@@ -1,2 +1,17 @@
 User-agent: *
 Allow: /
+Disallow: /account
+Disallow: /cart
+Disallow: /checkout
+Disallow: /wishlist
+Disallow: /vendor
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /verify-otp
+Disallow: /order-confirmation
+Disallow: /search
+
+Sitemap: https://front-ecommerce-gamma.vercel.app/sitemap.xml

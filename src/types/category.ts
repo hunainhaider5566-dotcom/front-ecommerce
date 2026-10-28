@@ -7,4 +7,6 @@ export interface Category {
   eyebrow?: string
   isActive?: boolean
   sortOrder?: number
+  seoTitle?: string | null
+  seoDescription?: string | null
 }

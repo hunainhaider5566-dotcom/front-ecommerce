@@ -17,7 +17,7 @@ export function NewsletterSignup() {
     try {
       await subscribeToNewsletter(email)
       setStatus('success')
-      setMessage(t('You are subscribed. Look out for the next note from Meridion.'))
+      setMessage(t('You are subscribed. Look out for the next note from JTBazar.'))
       setEmail('')
     } catch (cause) {
       setStatus('error')

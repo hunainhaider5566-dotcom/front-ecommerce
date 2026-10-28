@@ -12,7 +12,7 @@ export const VENDOR_URDU: Record<string, string> = {
   'Advance each item as you process and ship it. Buyer contact details are intentionally excluded.': 'ہر آئٹم کو تیاری اور روانگی کے مراحل میں آگے بڑھائیں۔ خریدار کی رابطہ معلومات یہاں شامل نہیں۔',
   'Apply for a seller account to manage listings and orders.': 'لسٹنگز اور آرڈرز سنبھالنے کے لیے فروخت کنندہ اکاؤنٹ کی درخواست دیں۔',
   'Apply to open a': 'دکان کھولنے کی درخواست دیں',
-  'Apply to sell on Meridion Marketplace.': 'میریڈین مارکیٹ پلیس پر فروخت کے لیے درخواست دیں۔',
+  'Apply to sell on JTBazar.': 'میریڈین مارکیٹ پلیس پر فروخت کے لیے درخواست دیں۔',
   'Apply to sell': 'فروخت کے لیے درخواست دیں',
   'Seller access is suspended': 'فروخت کنندہ کی رسائی معطل ہے',
   'Your account is suspended, so seller applications and vendor tools are unavailable.': 'آپ کا اکاؤنٹ معطل ہے، اس لیے فروخت کنندہ کی درخواست اور دکاندار کے ٹولز دستیاب نہیں ہیں۔',

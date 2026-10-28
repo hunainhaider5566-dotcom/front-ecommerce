@@ -11,6 +11,7 @@ import { useCart } from '../contexts/CartContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { SITE_URL } from '../config/store'
 import { useStoreSettings } from '../hooks/useStoreSettings'
 import { useI18n } from '../i18n/LocaleContext'
 import { formatPKR } from '../utils/money'
@@ -47,7 +48,24 @@ export function ProductPage() {
     addLock.current = false
   }, [product?.id])
 
-  usePageMeta(product ? t(product.name) : t('Product not found'), product ? t(product.shortDescription) : t('This catalog product could not be found.'))
+  const productSchema = product ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.shortDescription || product.description,
+    image: product.images,
+    sku: product.variants.find((variant) => variant.id === variantId)?.sku,
+    brand: { '@type': 'Brand', name: 'JTBazar' },
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_URL}/products/${product.slug}`,
+      priceCurrency: product.currency || 'PKR',
+      price: product.variants.find((variant) => variant.id === variantId)?.price ?? product.price,
+      availability: product.availabilityStatus === 'available' ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    },
+  } : null
+  usePageMeta(product ? t(product.seoTitle || product.name) : t('Product not found'), product ? t(product.seoDescription || product.shortDescription || product.description) : t('This catalog product could not be found.'), { image: product?.images[0], type: 'product', structuredData: productSchema, noIndex: status === 'ready' && !product })
   if (status === 'loading') return <div className="page-shell"><LoadingState label="Loading product details…" /></div>
   if (status === 'error') return <div className="page-shell"><ErrorState message={error || 'The catalog could not be loaded.'} /></div>
   if (status === 'unconfigured') return <div className="page-shell"><ErrorState message="The product catalog is temporarily unavailable." /></div>

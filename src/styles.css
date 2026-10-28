@@ -46,6 +46,7 @@ img { display: block; max-width: 100%; }
 .wordmark-mark { position: relative; width: 25px; height: 27px; border: 1.5px solid var(--forest); border-radius: 3px 7px 3px 3px; transform: rotate(-5deg); }
 .wordmark-mark::before { content: ""; position: absolute; top: -1px; right: -1px; width: 9px; height: 9px; background: #faf9f5; border-left: 1.5px solid var(--forest); border-bottom: 1.5px solid var(--forest); border-radius: 0 5px 0 2px; }
 .wordmark-mark span { position: absolute; bottom: 6px; left: 5px; width: 12px; height: 1.5px; background: var(--sage); box-shadow: 0 -4px 0 var(--sage); }
+.brand-logo { display: block; width: 150px; height: auto; max-height: 54px; object-fit: contain; }
 .desktop-nav { display: flex; align-items: center; gap: clamp(22px, 4vw, 54px); margin-left: auto; }
 .desktop-nav a, .mobile-menu a { position: relative; padding: 10px 0; color: #676c64; font-size: 13px; transition: color .18s ease; }
 .desktop-nav a:hover, .desktop-nav a.is-active { color: var(--forest); }
@@ -384,6 +385,7 @@ img { display: block; max-width: 100%; }
 .site-footer { padding: 55px max(32px, calc((100% - 1240px)/2)) 24px; color: #f6f4e9; background: #202f23; }
 .footer-main { display: grid; grid-template-columns: 1.45fr .8fr .9fr 1.1fr; gap: 44px; max-width: 1240px; margin: 0 auto; padding-bottom: 43px; }
 .wordmark--footer { color: #faf8ee; }
+.wordmark--footer .brand-logo { padding: 4px 7px; border-radius: 6px; background: #fff; }
 .wordmark--footer .wordmark-mark { border-color: #f7f3e9; }
 .wordmark--footer .wordmark-mark::before { border-color: #f7f3e9; background: #202f23; }
 .footer-brand > p, .footer-note p { max-width: 245px; color: rgba(246,244,233,.63); font-size: 10px; line-height: 1.8; }
@@ -626,4 +628,9 @@ img { display: block; max-width: 100%; }
 @media (max-width: 760px) {
   .product-gallery__controls { margin-top: 9px; }
   .product-gallery__thumbnail { flex-basis: 58px; width: 58px; height: 62px; }
+}
+
+@media (max-width: 760px) {
+  .site-header .brand-logo { width: 128px; max-height: 46px; }
+  .wordmark--footer .brand-logo { width: 138px; }
 }

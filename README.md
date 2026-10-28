@@ -1,6 +1,6 @@
-# Meridion Marketplace storefront
+# JTBazar storefront
 
-A responsive React + TypeScript + Vite storefront for Meridion Marketplace. The application uses the shared Supabase project `xrrhbnnzjqkqnqdvayjw` for authentication, catalog, shops, stock availability, orders, addresses, wishlists, notifications, returns/complaints and store settings.
+A responsive React + TypeScript + Vite storefront for JTBazar. The application uses the shared Supabase project `xrrhbnnzjqkqnqdvayjw` for authentication, catalog, shops, stock availability, orders, addresses, wishlists, notifications, returns/complaints and store settings.
 
 This is a real-data application. There is no demo catalog, mock checkout, fabricated order history or sample revenue. Empty tables render honest empty states, and failed Supabase calls render an error instead of falling back to local mock data.
 

@@ -5,7 +5,7 @@ import { useI18n } from '../i18n/LocaleContext'
 
 export function ConfirmationPage() {
   const { t } = useI18n()
-  usePageMeta(t('Order Confirmed'), t('Your order has been successfully placed on Meridion Marketplace.'))
+  usePageMeta(t('Order Confirmed'), t('Your order has been successfully placed on JTBazar.'))
   const { orderNumber = 'ORD-SUCCESS' } = useParams()
 
   return (

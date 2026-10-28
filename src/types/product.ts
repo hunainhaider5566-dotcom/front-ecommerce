@@ -35,4 +35,6 @@ export interface Product {
   sellerName?: string
   sellerSlug?: string
   createdAt?: string
+  seoTitle?: string | null
+  seoDescription?: string | null
 }

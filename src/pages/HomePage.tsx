@@ -15,7 +15,7 @@ import { MarketplaceHero } from '../components/home/MarketplaceHero'
 import { fetchActivePromotions, type PromotionItem } from '../services/marketplace/promotionsService'
 
 const faqs = [
-  { question: 'Is Meridion a live marketplace?', answer: 'Yes. Meridion Marketplace features live products from verified sellers, accurate stock status, and structured order delivery.' },
+  { question: 'Is JTBazar a live marketplace?', answer: 'Yes. JTBazar features live products from verified sellers, accurate stock status, and structured order delivery.' },
   { question: 'Can I place an order?', answer: 'Yes. Checkout accepts confirmed orders with cash on delivery and optional delivery location pin confirmation.' },
   { question: 'How do I become a verified seller?', answer: 'Click "Become a Seller" in the top navigation, complete the seller registration form, and submit your business verification documents.' },
 ]
@@ -33,7 +33,7 @@ export function HomePage() {
   const shopRailRef = useRef<HTMLDivElement>(null)
   const [sellerBanner, setSellerBanner] = useState<PromotionItem | null>(null)
   const [sellerBannerImageIndex, setSellerBannerImageIndex] = useState(0)
-  usePageMeta(t('Meridion Marketplace — Quality Goods Worldwide'), t('Discover verified sellers, shop within your budget, and enjoy secure delivery.'))
+  usePageMeta(t('Online Shopping in Pakistan | Home, Kitchen, Bags & More'), t('Shop home and living, kitchen, stationery, bags and everyday essentials from trusted Pakistani sellers. Browse JTBazar and enjoy secure cash-on-delivery shopping.'))
   useEffect(() => { let active = true; void fetchActivePromotions('seller_banner').then((items) => { if (active) setSellerBanner(items[0] ?? null) }); return () => { active = false } }, [])
   const sellerBannerImages = sellerBanner?.banner_image_urls?.length ? sellerBanner.banner_image_urls : sellerBanner?.banner_image_url ? [sellerBanner.banner_image_url] : []
   useEffect(() => {
@@ -105,7 +105,7 @@ export function HomePage() {
 
       {shops.length > 0 && <section className="home-shop-showcase" aria-labelledby="home-shops-title">
         <div className="home-shop-showcase__heading">
-          <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Shop from independent stores.')}</h2><p>{t('Explore trusted sellers, their story and the products they bring to Meridion.')}</p></div>
+          <div><span className="home-eyebrow">{t('Independent sellers')}</span><h2 id="home-shops-title">{t('Shop from independent stores.')}</h2><p>{t('Explore trusted sellers, their story and the products they bring to JTBazar.')}</p></div>
           <Link className="home-text-link" to="/shop">{t('Meet all sellers')} <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
         <div ref={shopRailRef} className="home-shop-showcase__viewport" aria-label={t('Featured independent shops')}>
@@ -124,11 +124,11 @@ export function HomePage() {
         <div className="home-editorial__media">
           <img src={sellerBannerImages[sellerBannerImageIndex] || '/images/study-kit.webp'} alt={sellerBanner?.title || t('A study kit arranged on a warm desk')} loading="lazy" />
           {sellerBannerImages.length > 1 && <div className="home-editorial__image-dots" aria-label={`Banner image ${sellerBannerImageIndex + 1} of ${sellerBannerImages.length}`}>{sellerBannerImages.map((image, index) => <button key={`${image}-${index}`} type="button" aria-label={`Show banner image ${index + 1}`} aria-current={index === sellerBannerImageIndex} onClick={() => setSellerBannerImageIndex(index)} />)}</div>}
-          <span className="home-editorial__stamp">{t('Meridion Verified Marketplace')}</span>
+          <span className="home-editorial__stamp">{t('JTBazar Verified Marketplace')}</span>
         </div>
         <div className="home-editorial__copy">
           <span className="home-eyebrow">{t('Vendor Platform')}</span>
-          <h2 id="study-edit-title">{sellerBanner?.title || t('Grow your business on Meridion.')}</h2>
+          <h2 id="study-edit-title">{sellerBanner?.title || t('Grow your business on JTBazar.')}</h2>
           <p>{sellerBanner?.description || t('Reach active shoppers with store management, inventory tools, and transparent order handling.')}</p>
           <ul className="home-check-list">
             <li><Check size={16} aria-hidden="true" /> {t('Simple business verification')}</li>
@@ -156,7 +156,7 @@ export function HomePage() {
 
       <section className="home-values" aria-labelledby="values-title">
         <div className="home-values__intro">
-          <span className="home-eyebrow">{t('Why Meridion?')}</span>
+          <span className="home-eyebrow">{t('Why JTBazar?')}</span>
           <h2 id="values-title">{t('A marketplace built on trust.')}</h2>
         </div>
         {valueCards.map(({ icon: Icon, title, description }) => (

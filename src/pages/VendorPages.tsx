@@ -223,7 +223,7 @@ export function VendorApplicationPage() {
   const [accountSuspensionReason, setAccountSuspensionReason] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  usePageMeta(t('Seller application'), t('Apply to sell on Meridion Marketplace.'))
+  usePageMeta(t('Seller application'), t('Apply to sell on JTBazar.'))
 
   useEffect(() => {
     let cancelled = false
@@ -252,7 +252,7 @@ export function VendorApplicationPage() {
   }
 
   return <VendorGate><section className="page-shell info-page">
-    {!profile && <header className="info-page__heading"><span className="eyebrow">Meridion Marketplace</span><h1>{t('Apply to open a')} <em>{t('shop.')}</em></h1><p>{t('Submit your seller details for platform review. Approval is required before listings, inventory and fulfilment tools are enabled.')}</p></header>}
+    {!profile && <header className="info-page__heading"><span className="eyebrow">JTBazar</span><h1>{t('Apply to open a')} <em>{t('shop.')}</em></h1><p>{t('Submit your seller details for platform review. Approval is required before listings, inventory and fulfilment tools are enabled.')}</p></header>}
     {profile && <header className="info-page__heading"><span className="eyebrow">{t('Seller application')}</span><h1>{t('Update your')} <em>{t('shop details.')}</em></h1><p>{t('Update the details below. A rejected application is sent back for review when you save.')}</p></header>}
     <ShopForm profile={profile} mode={profile ? 'settings' : 'apply'} onSaved={(saved) => { setProfile(saved); setEditing(false) }} />
     {profile && <button type="button" className="text-button vendor-cancel-edit" onClick={() => setEditing(false)}><X size={14} /> {t('Cancel')}</button>}

@@ -18,7 +18,7 @@ function InfoLayout({ eyebrow, title, intro, children }: { eyebrow: string; titl
 export function AboutPage() {
   const { t } = useI18n()
   const settings = useStoreSettings()
-  usePageMeta(t('About Meridion'), t('A multi-vendor marketplace for thoughtful goods across everyday routines.'))
+  usePageMeta(t('About JTBazar'), t('A multi-vendor marketplace for thoughtful goods across everyday routines.'))
   return <InfoLayout eyebrow={t('A little about us')} title={<>{t('Space for the')} <em>{t('everyday idea.')}</em></>} intro={t(`${settings.storeName} is a multi-vendor marketplace connecting independent sellers with buyers across Pakistan.`)}>
     <div className="info-feature-grid">
       <article><span><Leaf size={19} /></span><h2>{t('Thoughtful by design')}</h2><p>{t('A quiet visual language for considered goods, creative routines and everyday moments.')}</p></article>
@@ -37,7 +37,7 @@ export function ContactPage() {
   const [tickets, setTickets] = useState<CustomerSupportTicket[]>([])
   const [sending, setSending] = useState(false)
   useEffect(() => { if (!user) { setTickets([]); return }; void listMyCustomerSupportTickets().then(setTickets).catch(() => {}) }, [user?.id])
-  usePageMeta(t('Contact'), t('Contact Meridion Marketplace support.'))
+  usePageMeta(t('Contact'), t('Contact JTBazar support.'))
   const destination = supportDestination(undefined, settings.supportWhatsapp)
   const email = settings.supportEmail
   const phone = settings.supportPhone
@@ -101,7 +101,7 @@ export function FAQPage() {
   const settings = useStoreSettings()
   usePageMeta(t('Frequently asked questions'), t('Answers about ordering, delivery, returns and seller verification.'))
   const faqItems = [
-    { question: 'Is Meridion accepting orders?', answer: settings.codEnabled ? 'Yes. Signed-in customers can place cash-on-delivery orders from published products. The marketplace validates price, stock and delivery fee when the order is created.' : 'Cash on delivery is currently paused, so checkout is unavailable. Published products and their stock status can still be browsed.' },
+    { question: 'Is JTBazar accepting orders?', answer: settings.codEnabled ? 'Yes. Signed-in customers can place cash-on-delivery orders from published products. The marketplace validates price, stock and delivery fee when the order is created.' : 'Cash on delivery is currently paused, so checkout is unavailable. Published products and their stock status can still be browsed.' },
     { question: 'Is cash on delivery available?', answer: settings.codEnabled ? `Yes. Cash on delivery is available, with a delivery fee of ${formatPKR(settings.deliveryFee)} per order.` : 'Cash on delivery is currently paused. Please contact support before ordering.' },
     { question: 'How is stock confirmed?', answer: 'Availability is shown from the published catalog and checked again by the database when you place an order. If an item sells out first, the order is rejected safely.' },
     { question: 'What is the delivery timeline?', answer: 'Delivery timing depends on the seller and courier. You can track order and vendor fulfilment status from your account after placing an order.' },
@@ -116,7 +116,7 @@ export function PrivacyPage() {
   const { t } = useI18n()
   const cart = useCart()
   const wishlist = useWishlist()
-  usePageMeta(t('Privacy'), t('How Meridion Marketplace stores account, order and cart information.'))
+  usePageMeta(t('Privacy'), t('How JTBazar stores account, order and cart information.'))
   return <InfoLayout eyebrow={t('Privacy')} title={<>{t('A careful note on')} <em>{t('your details.')}</em></>} intro={t('This page explains what the marketplace stores and why. It is not legal advice.')}>
     <article className="policy-copy">
       <h2>{t('Account and order information')}</h2><p>{t('When you create an account, your name, email and (optionally) phone number are stored to identify you and secure your account. When you place an order, your recipient name, phone, delivery address and optional location pin are stored against that order so it can be fulfilled and supported.')}</p>

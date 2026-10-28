@@ -12,10 +12,10 @@ export function normalizedWhatsAppNumber(value?: string | null): string | null {
 export function supportDestination(message?: string, whatsappNumber?: string | null): string {
   const number = normalizedWhatsAppNumber(whatsappNumber)
   if (!number) return '/contact'
-  const text = message || 'Hello, I have a question about Meridion Marketplace.'
+  const text = message || 'Hello, I have a question about JTBazar.'
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`
 }
 
 export function productInquiryMessage(name: string, slug: string): string {
-  return `Hello, I have a question about the product "${name}" (${slug}) on Meridion Marketplace.`
+  return `Hello, I have a question about the product "${name}" (${slug}) on JTBazar.`
 }

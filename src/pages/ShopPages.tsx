@@ -52,15 +52,15 @@ export function ShopPage() {
   const { t } = useI18n()
   const { products, categories, status, error } = useCatalog()
   const catalog = useCatalogFilters(products)
-  usePageMeta(t('Shop the collection'), t('Explore the currently published Meridion catalog.'))
+  usePageMeta(t('Shop the collection'), t('Explore the currently published JTBazar catalog.'))
   const catalogEmpty = products.length === 0
-  return <div className="page-shell"><div className="page-heading page-heading--with-search"><div><span className="eyebrow">{t('The Meridion collection')}</span><h1>{t('Good things,')} <em>{t('well chosen.')}</em></h1><p>{t('Browse published products across the active Meridion categories.')}</p></div><CatalogSearch t={t} /></div><CatalogFilters category={catalog.category} onCategory={catalog.setCategory} sort={catalog.sort} onSort={catalog.setSort} count={catalog.items.length} categories={categories} t={t} /><CatalogState status={status} error={error} />{status === 'ready' && <ProductGrid products={catalog.items} emptyTitle={t(catalogEmpty ? 'No products are published yet' : 'Nothing on this page yet')} emptyDescription={t(catalogEmpty ? 'New listings will appear after sellers add products and they pass moderation.' : 'Try another category or clear your filters.')} />}</div>
+  return <div className="page-shell"><div className="page-heading page-heading--with-search"><div><span className="eyebrow">{t('The JTBazar collection')}</span><h1>{t('Good things,')} <em>{t('well chosen.')}</em></h1><p>{t('Browse published products across the active JTBazar categories.')}</p></div><CatalogSearch t={t} /></div><CatalogFilters category={catalog.category} onCategory={catalog.setCategory} sort={catalog.sort} onSort={catalog.setSort} count={catalog.items.length} categories={categories} t={t} /><CatalogState status={status} error={error} />{status === 'ready' && <ProductGrid products={catalog.items} emptyTitle={t(catalogEmpty ? 'No products are published yet' : 'Nothing on this page yet')} emptyDescription={t(catalogEmpty ? 'New listings will appear after sellers add products and they pass moderation.' : 'Try another category or clear your filters.')} />}</div>
 }
 
 export function CategoriesPage() {
   const { t } = useI18n()
   const { categories, status, error } = useCatalog()
-  usePageMeta(t('Browse categories'), t('Browse active product categories in the Meridion store.'))
+  usePageMeta(t('Browse categories'), t('Browse active product categories in the JTBazar store.'))
   return <div className="page-shell"><Link to="/shop" className="back-link"><ArrowLeft size={15} /> {t('Shop all')}</Link><div className="page-heading"><span className="eyebrow">{t('A place for every page')}</span><h1>{t('Browse the')} <em>{t('collections.')}</em></h1><p>{t('Choose an active category to explore published products.')}</p></div><CatalogState status={status} error={error} />{status === 'ready' && (categories.length ? <div className="category-grid category-grid--large">{categories.map((category) => <CategoryCard key={category.id} category={category} />)}</div> : <EmptyState title="No categories are published yet" description="Active categories will appear here after they are configured in the store." actionLabel="Browse the collection" actionHref="/shop" />)}</div>
 }
 
@@ -78,7 +78,7 @@ export function CategoryPage() {
     if (catalog.sort === 'featured') result.sort((a, b) => Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured)))
     return result
   }, [products, category?.id, catalog.sort])
-  usePageMeta(category ? t(category.name) : t('Collection not found'), category ? t(`Explore published products in ${category.name}.`) : t('This collection could not be found.'))
+  usePageMeta(category ? t(category.seoTitle || category.name) : t('Collection not found'), category ? t(category.seoDescription || `Explore published ${category.name} products on JTBazar in Pakistan.`) : t('This collection could not be found.'), { noIndex: status === 'ready' && !category })
   if (status !== 'ready') return <div className="page-shell"><CatalogState status={status} error={error} /></div>
   if (!category) return <div className="page-shell"><EmptyState title="That collection isn't here" description="Try another active category or browse the full catalog." actionLabel="Browse the collection" /></div>
   return <div className="page-shell"><Link to="/categories" className="back-link"><ArrowLeft size={15} /> {t('All collections')}</Link><div className="category-hero"><div><span className="eyebrow">{t(category.eyebrow ?? 'Collection')}</span><h1>{t(category.name)}, <em>{t('considered.')}</em></h1><p>{t(category.description)}</p></div>{category.image && <img src={category.image} alt={t(category.name)} />}</div><CatalogFilters category={category.id} onCategory={(id) => navigate(id === 'all' ? '/shop' : `/categories/${categories.find((item) => item.id === id)?.slug ?? ''}`)} sort={catalog.sort} onSort={catalog.setSort} count={categoryProducts.length} categories={categories} t={t} /><ProductGrid products={categoryProducts} emptyTitle={t('Nothing on this page yet')} emptyDescription={t('Try another category or clear your filters.')} /></div>
@@ -91,7 +91,7 @@ export function SearchPage() {
   const [query, setQuery] = useState(initial)
   const { products, categories, status, error } = useCatalog()
   useEffect(() => setQuery(initial), [initial])
-  usePageMeta(t('Search the catalog'), t('Search currently published Meridion products and active categories.'))
+  usePageMeta(t('Search the catalog'), t('Search currently published JTBazar products and active categories.'))
   const results = useMemo(() => {
     const term = query.trim().toLocaleLowerCase()
     if (!term) return []
