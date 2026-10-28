@@ -31,10 +31,22 @@ export function ReviewComposer({ kind, targetId }: Props) {
       } else {
         setOrderId(null)
       }
-      if (user && kind === 'seller') {
+      if (user) {
         const { getSupabase } = await import('../../lib/supabase')
-        const { data } = await getSupabase().from('seller_profiles').select('user_id').eq('id', targetId).maybeSingle()
-        setOwnShop(data?.user_id === user.id)
+        const client = getSupabase()
+        let sellerId = kind === 'seller' ? targetId : null
+        if (kind === 'product') {
+          const { data: product } = await client.from('products').select('seller_id').eq('id', targetId).maybeSingle()
+          sellerId = product?.seller_id ?? null
+        }
+        if (sellerId) {
+          const { data: shop } = await client.from('seller_profiles').select('user_id').eq('id', sellerId).maybeSingle()
+          setOwnShop(shop?.user_id === user.id)
+        } else {
+          setOwnShop(false)
+        }
+      } else {
+        setOwnShop(false)
       }
     } finally {
       setLoading(false)
