@@ -6,6 +6,7 @@ export interface Category {
   image?: string
   eyebrow?: string
   isActive?: boolean
+  isComingSoon?: boolean
   sortOrder?: number
   seoTitle?: string | null
   seoDescription?: string | null
