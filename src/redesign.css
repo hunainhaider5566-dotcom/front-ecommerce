@@ -1506,3 +1506,18 @@ button { font-family: var(--font-body); }
 .vendor-print-slip__address>span{display:block;margin-top:4px;line-height:1.45}
 .vendor-print-slip__address>p{margin-top:8px;line-height:1.5}
 .vendor-print-slip__address>small{display:block;margin-top:6px}
+
+
+/* Mobile seller rail: show full cards and allow deliberate horizontal scrolling. */
+@media(max-width:600px){
+  .home-shop-showcase__viewport{overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;mask-image:none;padding-inline:14px}
+  .home-shop-showcase__track{animation:none;transform:none;will-change:auto}
+  .home-shop-showcase__group{gap:12px}
+  .home-shop-card{flex:0 0 min(82vw,320px);scroll-snap-align:start}
+  .home-shop-card__body h3{font-size:17px}
+  .home-shop-card__body p{font-size:11px;min-height:34px}
+  .home-shop-card__meta{font-size:9px}
+}
+.category-card.is-coming-soon{cursor:not-allowed;opacity:.68;filter:saturate(.55)}
+.category-card.is-coming-soon .category-card__caption small{font-weight:700;color:#b96e52}
+.category-chip.is-coming-soon{opacity:.6;cursor:not-allowed}
