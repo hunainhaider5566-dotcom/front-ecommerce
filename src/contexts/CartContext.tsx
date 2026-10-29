@@ -18,9 +18,6 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
-function rowVariantMatches(line: { variant_id: string | null }, variantId?: string) {
-  return variantId ? line.variant_id === variantId : line.variant_id === null
-}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
