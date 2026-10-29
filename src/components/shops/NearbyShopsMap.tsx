@@ -38,7 +38,8 @@ export function NearbyShopsMap({ shops }: { shops: PublicShop[] }) {
 
   const center = location ?? (mappedShops.length
     ? { latitude: mappedShops.reduce((sum, row) => sum + row.coordinates.latitude, 0) / mappedShops.length, longitude: mappedShops.reduce((sum, row) => sum + row.coordinates.longitude, 0) / mappedShops.length }
-    : LAHORE)
+    : { latitude: 24.8607, longitude: 67.0011 })
+  const listedShops = mappedShops.length ? mappedShops : shops.map((shop) => ({ shop, coordinates: null, distance: null }))
   const longitudeSpan = 0.16 * 2 ** (13 - zoom)
   const latitudeSpan = longitudeSpan * 0.62
   const bounds = { west: center.longitude - longitudeSpan / 2, east: center.longitude + longitudeSpan / 2, south: center.latitude - latitudeSpan / 2, north: center.latitude + latitudeSpan / 2 }
@@ -58,8 +59,8 @@ export function NearbyShopsMap({ shops }: { shops: PublicShop[] }) {
         {location && <span className="nearby-shops__you"><span />{t('You are here')}</span>}
         <span className="nearby-shops__attribution">© OpenStreetMap</span>
       </div>
-      <div className="nearby-shops__results"><div className="nearby-shops__results-heading"><div><span className="eyebrow">{t('Local sellers')}</span><h3>{t(location ? 'Closest shops' : 'Shops on the map')}</h3></div><span>{mappedShops.length}</span></div>
-        {mappedShops.length === 0 ? <div className="nearby-shops__empty"><Store size={23} /><strong>{t('No shops have shared a map location yet')}</strong><p>{t('Sellers can opt in from Shop Settings. You can still browse every shop below.')}</p><Link to="/shop" className="text-link">{t('Browse all shops')} <Navigation size={14} /></Link></div> : <div className="nearby-shops__list">{mappedShops.slice(0, 12).map(({ shop, distance }) => <article className="nearby-shop-card" key={shop.id}><Link to={`/shops/${shop.slug}`} className="nearby-shop-card__image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={18} />}</Link><div className="nearby-shop-card__details"><Link to={`/shops/${shop.slug}`}><strong>{shop.shopName}</strong></Link><span><MapPin size={12} /> {shop.shopLocationLabel}</span></div>{distance !== null && <span className="nearby-shop-card__distance">{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}</span>}</article>)}</div>}
+      <div className="nearby-shops__results"><div className="nearby-shops__results-heading"><div><span className="eyebrow">{t('Local sellers')}</span><h3>{t(location && mappedShops.length ? 'Closest shops' : 'Marketplace shops')}</h3></div><span>{shops.length}</span></div>
+        {shops.length === 0 ? <div className="nearby-shops__empty"><Store size={23} /><strong>{t('No shops are available yet')}</strong><p>{t('New marketplace shops will appear here when sellers open their stores.')}</p><Link to="/shop" className="text-link">{t('Browse marketplace')} <Navigation size={14} /></Link></div> : <div className="nearby-shops__list">{listedShops.slice(0, 12).map(({ shop, distance }) => <article className="nearby-shop-card" key={shop.id}><Link to={`/shops/${shop.slug}`} className="nearby-shop-card__image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={18} />}</Link><div className="nearby-shop-card__details"><Link to={`/shops/${shop.slug}`}><strong>{shop.shopName}</strong></Link><span><MapPin size={12} /> {shop.shopLocationLabel}</span></div>{distance !== null && <span className="nearby-shop-card__distance">{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}</span>}</article>)}</div>}
       </div>
     </div>
   </section>
