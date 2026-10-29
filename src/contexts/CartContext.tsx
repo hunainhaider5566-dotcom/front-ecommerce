@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { useCatalog } from './CatalogContext'
 import { getSupabase } from '../lib/supabase'
@@ -28,6 +28,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const guestLinesRef = useRef<CartLine[]>([])
+  const previousUserIdRef = useRef<string | null>(null)
 
   const loadCart = useCallback(async (userId: string) => {
     const client = getSupabase()
@@ -48,16 +50,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     let active = true
     if (authLoading) return () => { active = false }
     if (!user) {
-      setLines((current) => current)
+      if (previousUserIdRef.current) {
+        setLines([])
+        guestLinesRef.current = []
+      }
+      previousUserIdRef.current = null
       setLoading(false)
       return () => { active = false }
     }
 
+    previousUserIdRef.current = user.id
     setLoading(true)
     void (async () => {
       try {
         const client = getSupabase()
-        const guestLines = lines
+        const guestLines = guestLinesRef.current
         if (guestLines.length) {
           const { data: existingRows, error: readError } = await client.from('cart_items')
             .select('product_id, variant_id, quantity')
@@ -85,6 +92,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const saved = await loadCart(user.id)
         if (!active) return
         setLines(saved)
+        guestLinesRef.current = []
         setMessage('')
       } catch (cause) {
         if (!active) return
@@ -94,8 +102,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     })()
     return () => { active = false }
-  // Intentionally load/merge only when the signed-in identity changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authLoading, loadCart])
 
   const add = useCallback<CartContextValue['add']>(async (product, requested, variantId, variantLabel) => {
@@ -118,11 +124,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const newLine: CartLine = { productId: product.id, quantity, ...(variantId ? { variantId } : {}), ...(variantLabel ? { variantLabel } : {}) }
 
     if (!user) {
-      setLines((current) => {
-        const existing = current.find((line) => line.productId === product.id && line.variantId === variantId)
-        if (existing) return current.map((line) => line === existing ? { ...line, quantity: Math.min(99, line.quantity + quantity) } : line)
-        return [...current, newLine]
-      })
+      const current = guestLinesRef.current
+      const existing = current.find((line) => line.productId === product.id && line.variantId === variantId)
+      const next = existing
+        ? current.map((line) => line === existing ? { ...line, quantity: Math.min(99, line.quantity + quantity) } : line)
+        : [...current, newLine]
+      guestLinesRef.current = next
+      setLines(next)
       setMessage('Guest cart is temporary. Sign in to save it to your account.')
       return true
     }
@@ -150,11 +158,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setQuantity = useCallback<CartContextValue['setQuantity']>(async (productId, variantId, quantity) => {
     if (!user) {
       if (quantity <= 0) {
-        setLines((current) => current.filter((line) => !(line.productId === productId && line.variantId === variantId)))
+        const next = guestLinesRef.current.filter((line) => !(line.productId === productId && line.variantId === variantId))
+        guestLinesRef.current = next
+        setLines(next)
         return
       }
       const safeQuantity = Math.max(1, Math.min(99, Math.floor(quantity)))
-      setLines((current) => current.map((line) => line.productId === productId && line.variantId === variantId ? { ...line, quantity: safeQuantity } : line))
+      const next = guestLinesRef.current.map((line) => line.productId === productId && line.variantId === variantId ? { ...line, quantity: safeQuantity } : line)
+      guestLinesRef.current = next
+      setLines(next)
       return
     }
     try {
@@ -180,7 +192,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback<CartContextValue['remove']>(async (productId, variantId) => {
     if (!user) {
-      setLines((current) => current.filter((line) => !(line.productId === productId && line.variantId === variantId)))
+      const next = guestLinesRef.current.filter((line) => !(line.productId === productId && line.variantId === variantId))
+      guestLinesRef.current = next
+      setLines(next)
       setMessage('Item removed from your temporary cart.')
       return
     }
@@ -199,6 +213,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback<CartContextValue['clear']>(async () => {
     if (!user) {
+      guestLinesRef.current = []
       setLines([])
       setMessage('Your temporary cart is clear.')
       return
