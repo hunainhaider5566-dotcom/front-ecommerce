@@ -1,7 +1,6 @@
 import { getSupabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import { notifySupportEmail } from '../account/supportService'
-import { sendCommerceEmail } from '../account/commerceEmailService'
 
 export type SellerProfile = Database['public']['Tables']['seller_profiles']['Row']
 export type VendorProduct = Database['public']['Tables']['products']['Row']
@@ -325,17 +324,4 @@ export async function listOwnOrderItems(options: { page?: number; pageSize?: num
   return (data ?? []) as VendorOrderItem[]
 }
 
-export async function updateOwnOrderItem(id: string, status: string, trackingNumber: string | null, trackingUrl: string | null, note: string | null): Promise<void> {
-  if (trackingUrl && !/^https:\/\//i.test(trackingUrl)) throw new Error('Tracking links must start with https://')
-  const { error } = await getSupabase().rpc('vendor_update_order_item', {
-    p_item_id: id,
-    p_status: status,
-    p_tracking_number: trackingNumber,
-    p_tracking_url: trackingUrl,
-    p_vendor_note: note,
-  })
-  assertError(error)
-  if (['accepted', 'shipped', 'delivered'].includes(status)) {
-    await sendCommerceEmail({ event: 'vendor_fulfillment', order_item_id: id, status })
-  }
-}
+
