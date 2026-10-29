@@ -47,6 +47,8 @@ AS $$
     AND seller.status = 'approved';
 $$;
 
+DROP FUNCTION IF EXISTS public.vendor_order_items_page(integer, integer, text, text);
+
 CREATE OR REPLACE FUNCTION public.vendor_order_items_page(
   p_limit integer DEFAULT 12,
   p_offset integer DEFAULT 0,
@@ -61,6 +63,8 @@ RETURNS TABLE (
   customer_name text,
   customer_phone text,
   shipping_address_snapshot jsonb,
+  delivery_lat numeric,
+  delivery_lng numeric,
   delivery_location_name text,
   payment_method text,
   order_created_at timestamptz,
@@ -135,7 +139,7 @@ BEGIN
   )
   SELECT
     oi.id, oi.order_id, o.order_number, seller.shop_name,
-    NULL::text, NULL::text, NULL::jsonb, NULL::text, NULL::text,
+    NULL::text, NULL::text, NULL::jsonb, NULL::numeric, NULL::numeric, NULL::text, NULL::text,
     o.created_at, oi.product_name_snapshot, oi.sku_snapshot, oi.variant_snapshot,
     oi.quantity, oi.unit_price, oi.line_total,
     o.order_status::text,
