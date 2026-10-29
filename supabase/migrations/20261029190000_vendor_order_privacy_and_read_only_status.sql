@@ -38,7 +38,12 @@ AS $$
     NULL::text, NULL::text, NULL::jsonb, NULL::text, NULL::text,
     o.created_at, oi.product_name_snapshot, oi.sku_snapshot, oi.variant_snapshot,
     oi.quantity, oi.unit_price, oi.line_total,
-    o.order_status::text,
+    CASE
+      WHEN o.order_status::text IN ('pending', 'confirmed') THEN 'pending'
+      WHEN o.order_status::text = 'delivered' THEN 'delivered'
+      WHEN o.order_status::text = 'cancelled' THEN 'cancelled'
+      ELSE 'processing'
+    END,
     NULL::text, NULL::text, NULL::text, oi.vendor_updated_at, oi.created_at
   FROM public.order_items AS oi
   JOIN public.orders AS o ON o.id = oi.order_id
@@ -142,7 +147,12 @@ BEGIN
     NULL::text, NULL::text, NULL::jsonb, NULL::numeric, NULL::numeric, NULL::text, NULL::text,
     o.created_at, oi.product_name_snapshot, oi.sku_snapshot, oi.variant_snapshot,
     oi.quantity, oi.unit_price, oi.line_total,
-    o.order_status::text,
+    CASE
+      WHEN o.order_status::text IN ('pending', 'confirmed') THEN 'pending'
+      WHEN o.order_status::text = 'delivered' THEN 'delivered'
+      WHEN o.order_status::text = 'cancelled' THEN 'cancelled'
+      ELSE 'processing'
+    END,
     NULL::text, NULL::text, NULL::text, oi.vendor_updated_at, oi.created_at,
     paged.total_orders
   FROM paged_orders AS paged
