@@ -1521,3 +1521,17 @@ button { font-family: var(--font-body); }
 .category-card.is-coming-soon{cursor:not-allowed;opacity:.68;filter:saturate(.55)}
 .category-card.is-coming-soon .category-card__caption small{font-weight:700;color:#b96e52}
 .category-chip.is-coming-soon{opacity:.6;cursor:not-allowed}
+
+
+/* Final mobile storefront override: keep seller cards inside the viewport and swipe horizontally. */
+@media(max-width:600px){
+  .home-shop-showcase{width:100%;max-width:100%;overflow:visible}
+  .home-shop-showcase__viewport{display:block;width:100%;max-width:100vw;box-sizing:border-box;overflow-x:auto!important;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:16px;mask-image:none!important;padding:8px 16px 18px!important;margin-inline:0!important}
+  .home-shop-showcase__track{display:flex!important;width:max-content!important;max-width:none!important;animation:none!important;transform:none!important;translate:none!important;will-change:auto!important}
+  .home-shop-showcase__group{display:flex;flex:0 0 auto;gap:12px;padding-right:16px}
+  .home-shop-card{box-sizing:border-box;flex:0 0 min(82vw,330px)!important;width:min(82vw,330px);max-width:none;min-width:0;scroll-snap-align:start;overflow:hidden}
+  .home-shop-card__cover{width:100%;aspect-ratio:1.7!important;min-width:0}
+  .home-shop-card__body{min-width:0;box-sizing:border-box;padding:12px!important}
+  .home-shop-card__body h3,.home-shop-card__body p{overflow-wrap:anywhere}
+  .home-shop-card__meta{display:flex;flex-wrap:wrap;gap:6px 10px}
+}
