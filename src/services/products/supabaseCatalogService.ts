@@ -38,6 +38,7 @@ function mapCategory(row: CategoryRow): Category {
     eyebrow: row.eyebrow ?? 'Collection',
     image: row.image_url ?? undefined,
     isActive: row.is_active,
+    isComingSoon: row.is_coming_soon,
     sortOrder: row.sort_order,
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
@@ -137,7 +138,7 @@ async function loadSupabaseCatalog() {
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false }),
     client.from('categories')
-      .select('id, parent_id, name, slug, description, eyebrow, image_url, is_active, sort_order, seo_title, seo_description, created_at, updated_at')
+      .select('id, parent_id, name, slug, description, eyebrow, image_url, is_active, is_coming_soon, sort_order, seo_title, seo_description, created_at, updated_at')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
