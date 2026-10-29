@@ -79,6 +79,7 @@ RETURNS TABLE (
   payment_method text,
   order_created_at timestamptz,
   product_name_snapshot text,
+  product_image_url text,
   sku_snapshot text,
   variant_snapshot jsonb,
   quantity integer,
