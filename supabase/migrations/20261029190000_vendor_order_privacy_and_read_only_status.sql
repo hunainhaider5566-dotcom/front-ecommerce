@@ -3,6 +3,8 @@ BEGIN;
 -- Vendor order views expose only the vendor's own product lines.
 -- Keep the legacy return signature stable, but never return buyer contact,
 -- address, location, payment, tracking, or free-text note fields to vendors.
+DROP FUNCTION IF EXISTS public.vendor_order_items();
+
 CREATE OR REPLACE FUNCTION public.vendor_order_items()
 RETURNS TABLE (
   id uuid,
@@ -16,6 +18,7 @@ RETURNS TABLE (
   payment_method text,
   order_created_at timestamptz,
   product_name_snapshot text,
+  product_image_url text,
   sku_snapshot text,
   variant_snapshot jsonb,
   quantity integer,
@@ -36,7 +39,9 @@ AS $$
   SELECT
     oi.id, oi.order_id, o.order_number, seller.shop_name,
     NULL::text, NULL::text, NULL::jsonb, NULL::text, NULL::text,
-    o.created_at, oi.product_name_snapshot, oi.sku_snapshot, oi.variant_snapshot,
+    o.created_at, oi.product_name_snapshot,
+    (SELECT pi.image_url FROM public.product_images AS pi WHERE pi.product_id = oi.product_id ORDER BY pi.is_primary DESC, pi.sort_order ASC, pi.created_at ASC LIMIT 1),
+    oi.sku_snapshot, oi.variant_snapshot,
     oi.quantity, oi.unit_price, oi.line_total,
     CASE
       WHEN o.order_status::text IN ('pending', 'confirmed') THEN 'pending'
@@ -145,7 +150,9 @@ BEGIN
   SELECT
     oi.id, oi.order_id, o.order_number, seller.shop_name,
     NULL::text, NULL::text, NULL::jsonb, NULL::numeric, NULL::numeric, NULL::text, NULL::text,
-    o.created_at, oi.product_name_snapshot, oi.sku_snapshot, oi.variant_snapshot,
+    o.created_at, oi.product_name_snapshot,
+    (SELECT pi.image_url FROM public.product_images AS pi WHERE pi.product_id = oi.product_id ORDER BY pi.is_primary DESC, pi.sort_order ASC, pi.created_at ASC LIMIT 1),
+    oi.sku_snapshot, oi.variant_snapshot,
     oi.quantity, oi.unit_price, oi.line_total,
     CASE
       WHEN o.order_status::text IN ('pending', 'confirmed') THEN 'pending'
