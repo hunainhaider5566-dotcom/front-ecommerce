@@ -113,7 +113,7 @@ export function HomePage() {
             <div className="home-shop-showcase__group">
               {shops.slice(0, 8).map((shop) => <Link className="home-shop-card" to={`/shops/${shop.slug}`} key={shop.id}>
                 <div className="home-shop-card__cover"><span className="home-shop-card__seller-image">{shop.shopImageUrl ? <img src={shop.shopImageUrl} alt="" loading="lazy" /> : <Store size={25} aria-hidden="true" />}</span><span className="home-shop-card__verified"><Check size={11} aria-hidden="true" /> {t('Verified shop')}</span><span className="home-shop-card__arrow"><ArrowUpRight size={16} aria-hidden="true" /></span></div>
-                <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description || 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
+                <div className="home-shop-card__body"><div><span className="home-shop-card__kicker">{t('Independent store')}</span><h3>{t(shop.shopName)}</h3><p>{t(shop.description && !/^(test(ing)?|demo|dummy|sample|asdf|qwerty)$/i.test(shop.description.trim()) ? shop.description : 'A curated collection from a trusted independent seller.')}</p></div><div className="home-shop-card__meta"><span>{shop.shopLocationLabel || t('Online shop')}</span><span>{shop.productCount} {t('products')}</span></div></div>
               </Link>)}
             </div>
           </div>
