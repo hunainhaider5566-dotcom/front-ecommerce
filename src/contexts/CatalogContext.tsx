@@ -63,20 +63,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true }
   }, [refreshToken])
 
-  useEffect(() => {
-    let lastRefresh = 0
-    const refreshWhenVisible = () => {
-      if (document.visibilityState !== 'visible' || Date.now() - lastRefresh < 5000) return
-      lastRefresh = Date.now()
-      refresh()
-    }
-    window.addEventListener('focus', refreshWhenVisible)
-    document.addEventListener('visibilitychange', refreshWhenVisible)
-    return () => {
-      window.removeEventListener('focus', refreshWhenVisible)
-      document.removeEventListener('visibilitychange', refreshWhenVisible)
-    }
-  }, [refresh])
+
 
   const value = useMemo<CatalogValue>(() => ({
     products,

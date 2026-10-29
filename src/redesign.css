@@ -1356,3 +1356,25 @@ button { font-family: var(--font-body); }
 @media(max-width:900px){.discover-track>.discover-card{flex-basis:min(46%,390px)}}
 @media(max-width:760px){.discover-track{height:auto;min-height:0;flex-direction:row;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:4px}.discover-track>.discover-card{width:auto;height:auto;min-height:0;flex:0 0 min(84%,340px);grid-template-columns:1fr;scroll-snap-align:center}.discover-track .discover-media{aspect-ratio:1.15/1;min-height:0}.discover-track .discover-content{padding:16px;gap:12px}.discover-track .discover-info h2{font-size:22px}.discover-track .discover-actions{display:grid;grid-template-columns:1fr 1fr}.discover-track .discover-actions .button{min-height:38px;padding:0 8px;font-size:11px}.review-composer{padding:18px}.review-composer__heading{align-items:flex-start;flex-direction:column}.review-form{padding:14px}}
 @media(prefers-reduced-motion:reduce){.discover-track{scroll-behavior:auto}.discover-track>.discover-card{transition:none}}
+
+
+/* Discover feed: restore crisp contrast and make product actions feel enabled. */
+.discover-page-container { width: min(1320px, calc(100% - 40px)); margin: 0 auto; padding: 34px 0 76px; }
+.discover-heading { margin: 0 auto 24px; }
+.discover-track { align-items: stretch; }
+.discover-card { background: #fff; border: 1px solid #e4e0d8; box-shadow: 0 12px 32px rgba(32,35,31,.09); opacity: 1; filter: none; }
+.discover-card .discover-media { background: #eeeae2; }
+.discover-card .discover-product-image img { opacity: 1; filter: none; }
+.discover-card .discover-content { background: #fff; }
+.discover-card .discover-price { color: #9b563e; font-weight: 700; }
+.discover-card .discover-info h2, .discover-card .discover-info h2 a { color: #242720; }
+.discover-card .discover-info p { color: #666960; }
+.discover-card .discover-seller-link { color: #9b563e; }
+.discover-card .discover-actions .button--dark { background: #292d27; color: #fff; }
+.discover-card .discover-actions .button--dark:disabled { background: #e7e4dd; color: #686a63; opacity: 1; }
+.discover-card .discover-wishlist-btn { border-color: #dedbd3; color: #30342e; background: #fff; }
+.discover-card .discover-actions .button--outline { border-color: #dedbd3; color: #30342e; background: #fff; }
+.discover-card .discover-actions .button--outline:hover, .discover-card .discover-wishlist-btn:hover { background: #f7f5ef; }
+.discover-nav-btn { color: #262a24; background: #fff; border-color: #dedbd3; }
+.nearby-shops__results { min-width: 0; }
+.nearby-shop-card { background: #fff; }

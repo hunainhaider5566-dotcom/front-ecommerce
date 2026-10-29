@@ -232,7 +232,7 @@ function HomeProductCard({ product }: { product: Product }) {
   const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus !== 'out-of-stock' && product.availabilityStatus !== 'unavailable' && product.availabilityStatus !== 'unknown'
   const availability = product.availabilityStatus === 'available' ? t('In stock') : product.availabilityStatus === 'out-of-stock' ? t('Out of stock') : product.availabilityStatus === 'unknown' ? t('Availability not confirmed') : t('Unavailable')
   const wishlistLabel = saved ? `${t('Remove from wishlist')} · ${name}` : `${t('Add to wishlist')} · ${name}`
-  function handleAdd() {
+  async function handleAdd() {
     if (product.variants.length > 0) {
       navigate(`/products/${product.slug}`)
       return
@@ -240,7 +240,7 @@ function HomeProductCard({ product }: { product: Product }) {
     if (addLock.current || !canAdd) return
     addLock.current = true
     setAdding(true)
-    if (add(product, 1)) {
+    if (await add(product, 1)) {
       push(t('Added to cart.'), 'success')
       window.setTimeout(() => { addLock.current = false; setAdding(false) }, 900)
     } else {
