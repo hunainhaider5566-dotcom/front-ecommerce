@@ -74,15 +74,16 @@ export function ProductPage() {
   const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
   const previousImage = () => { setImageFailed(false); setImageIndex((current) => (current - 1 + images.length) % images.length) }
   const nextImage = () => { setImageFailed(false); setImageIndex((current) => (current + 1) % images.length) }
-  function handleAdd() {
+  async function handleAdd() {
     if (!product || !canAdd || added || addLock.current) return
     addLock.current = true
-    if (add(product, quantity, variantId || undefined, selectedVariant?.value)) {
+    if (await add(product, quantity, variantId || undefined, selectedVariant?.value)) {
       setAdded(true)
       push(t('Added to your cart.'), 'success')
       window.setTimeout(() => { addLock.current = false; setAdded(false) }, 2200)
     } else {
       addLock.current = false
+      push(t('The item could not be saved to your cart.'), 'error')
     }
   }
 
