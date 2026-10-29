@@ -30,6 +30,7 @@ type ProductInventoryRow = { id: string; product_id: string; variant_id: string 
 type InventoryMovementRow = { id: string; product_id: string; variant_id: string | null; quantity_delta: number; movement_type: InventoryMovementType; reference_id: string | null; note: string | null; actor_id: string | null; created_at: string }
 type CustomerAddressRow = { id: string; user_id: string; recipient_name: string; phone: string; address_line_1: string; address_line_2: string | null; city: string; province: string | null; postal_code: string | null; delivery_instructions: string | null; is_default: boolean; created_at: string; updated_at: string }
 type WishlistItemRow = { id: string; user_id: string; product_id: string; variant_id: string | null; added_at: string }
+type CartItemRow = { id: string; user_id: string; product_id: string; variant_id: string | null; quantity: number; created_at: string; updated_at: string }
 type OrderRow = { id: string; order_number: string; customer_id: string | null; customer_name: string; customer_phone: string; customer_email: string | null; shipping_address_snapshot: Json; customer_note: string | null; currency: string; subtotal: number; delivery_fee: number; discount_amount: number; total: number; order_status: OrderStatus; payment_method: PaymentMethod; payment_status: PaymentStatus; delivery_lat: number | null; delivery_lng: number | null; delivery_location_name: string | null; delivery_location_captured_at: string | null; idempotency_key: string | null; created_at: string; updated_at: string }
 type OrderItemRow = { id: string; order_id: string; product_id: string | null; variant_id: string | null; seller_id: string | null; seller_name_snapshot: string | null; vendor_fulfillment_status: VendorFulfillmentStatus; tracking_number: string | null; tracking_url: string | null; vendor_note: string | null; vendor_updated_at: string | null; product_name_snapshot: string; sku_snapshot: string | null; variant_snapshot: Json; product_snapshot: Json; quantity: number; unit_price: number; line_total: number; created_at: string }
 type PaymentTransactionRow = { id: string; order_id: string; provider: string; provider_reference: string | null; amount: number; currency: string; status: PaymentStatus; safe_metadata: Json; created_at: string; updated_at: string }
@@ -82,6 +83,7 @@ export interface Database {
       inventory_movements: Table<InventoryMovementRow, 'product_id' | 'quantity_delta' | 'movement_type'>
       customer_addresses: Table<CustomerAddressRow, 'user_id' | 'recipient_name' | 'phone' | 'address_line_1' | 'city'>
       wishlist_items: Table<WishlistItemRow, 'user_id' | 'product_id'>
+      cart_items: Table<CartItemRow, 'user_id' | 'product_id'>
       orders: Table<OrderRow, 'customer_name' | 'customer_phone' | 'shipping_address_snapshot' | 'subtotal'>
       order_items: Table<OrderItemRow, 'order_id' | 'product_name_snapshot' | 'quantity' | 'unit_price'>
       marketplace_cases: Table<MarketplaceCaseRow, 'order_id' | 'buyer_id' | 'case_type' | 'reason'>
