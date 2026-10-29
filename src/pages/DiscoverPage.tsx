@@ -46,14 +46,16 @@ export function DiscoverPage() {
     if (currentIndex > visibleItems.length - 1) setCurrentIndex(Math.max(0, visibleItems.length - 1))
   }, [currentIndex, visibleItems.length])
 
-  useEffect(() => {
-    cardRefs.current[currentIndex]?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' })
-  }, [currentIndex, reducedMotion])
+  function navigateToIndex(nextIndex: number) {
+    const safeIndex = (nextIndex + visibleItems.length) % visibleItems.length
+    setCurrentIndex(safeIndex)
+    cardRefs.current[safeIndex]?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' })
+  }
 
   useEffect(() => {
     if (reducedMotion || items.length < 2) return
     const timer = window.setInterval(() => {
-      setCurrentIndex((index) => index >= items.length - 1 ? 0 : index + 1)
+      navigateToIndex(currentIndex >= items.length - 1 ? 0 : currentIndex + 1)
     }, 6500)
     return () => window.clearInterval(timer)
   }, [currentIndex, visibleItems.length, items.length, reducedMotion])
@@ -90,9 +92,9 @@ export function DiscoverPage() {
       {view === 'map' && <NearbyShopsMap shops={shops} />}
       {view === 'products' && (items.length === 0 ? <div className="empty-state"><Sparkles size={32} /><h2>{t('No Discover items available')}</h2><p>{t('Check back soon as sellers publish new products.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div> : <>
       <div className="discover-nav-buttons">
-        <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => index <= 0 ? items.length - 1 : index - 1)} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
+        <button type="button" className="discover-nav-btn" onClick={() => navigateToIndex(currentIndex <= 0 ? items.length - 1 : currentIndex - 1)} aria-label={t('Previous product')}><ChevronLeft size={22} /></button>
         <span className="discover-counter" aria-live="polite">{currentIndex + 1} / {items.length}</span>
-        <button type="button" className="discover-nav-btn" onClick={() => setCurrentIndex((index) => index >= items.length - 1 ? 0 : index + 1)} aria-label={t('Next product')}><ChevronRight size={22} /></button>
+        <button type="button" className="discover-nav-btn" onClick={() => navigateToIndex(currentIndex >= items.length - 1 ? 0 : currentIndex + 1)} aria-label={t('Next product')}><ChevronRight size={22} /></button>
       </div>
       <div className="discover-track" ref={trackRef} onScroll={handleTrackScroll} aria-label={t('Discover products')}>
         {visibleItems.map((item, index) => {
