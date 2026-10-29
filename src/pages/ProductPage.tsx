@@ -7,6 +7,7 @@ import { QuantitySelector } from '../components/products/QuantitySelector'
 import { WishlistButton } from '../components/products/WishlistButton'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { useCart } from '../contexts/CartContext'
+import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
@@ -29,6 +30,7 @@ export function ProductPage() {
   const [added, setAdded] = useState(false)
   const addLock = useRef(false)
   const { add } = useCart()
+  const { user } = useAuth()
   const { push } = useToast()
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export function ProductPage() {
     addLock.current = true
     if (await add(product, quantity, variantId || undefined, selectedVariant?.value)) {
       setAdded(true)
-      push(t('Added to your cart.'), 'success')
+      push(t(user ? 'Added to your saved cart.' : 'Added to a temporary guest cart. Sign in to save it.'), 'success')
       window.setTimeout(() => { addLock.current = false; setAdded(false) }, 2200)
     } else {
       addLock.current = false
