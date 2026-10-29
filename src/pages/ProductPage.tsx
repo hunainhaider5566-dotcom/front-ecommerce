@@ -7,6 +7,7 @@ import { QuantitySelector } from '../components/products/QuantitySelector'
 import { WishlistButton } from '../components/products/WishlistButton'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { useCart } from '../contexts/CartContext'
+import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
@@ -29,6 +30,7 @@ export function ProductPage() {
   const [added, setAdded] = useState(false)
   const addLock = useRef(false)
   const { add } = useCart()
+  const { user } = useAuth()
   const { push } = useToast()
 
   useEffect(() => {
@@ -74,15 +76,16 @@ export function ProductPage() {
   const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
   const previousImage = () => { setImageFailed(false); setImageIndex((current) => (current - 1 + images.length) % images.length) }
   const nextImage = () => { setImageFailed(false); setImageIndex((current) => (current + 1) % images.length) }
-  function handleAdd() {
+  async function handleAdd() {
     if (!product || !canAdd || added || addLock.current) return
     addLock.current = true
-    if (add(product, quantity, variantId || undefined, selectedVariant?.value)) {
+    if (await add(product, quantity, variantId || undefined, selectedVariant?.value)) {
       setAdded(true)
-      push(t('Added to your cart.'), 'success')
+      push(t(user ? 'Added to your saved cart.' : 'Added to a temporary guest cart. Sign in to save it.'), 'success')
       window.setTimeout(() => { addLock.current = false; setAdded(false) }, 2200)
     } else {
       addLock.current = false
+      push(t('The item could not be saved to your cart.'), 'error')
     }
   }
 

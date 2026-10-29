@@ -14,7 +14,7 @@ import { getCartLineUnitPrice, isCartLineAvailable } from '../utils/cart'
 export function CartPage() {
   const { t } = useI18n()
   const { push } = useToast()
-  const { lines, setQuantity, remove, clear } = useCart()
+  const { lines, setQuantity, remove, clear, loading: cartLoading } = useCart()
   const { status, error, findProductById, refresh } = useCatalog()
   const settings = useStoreSettings()
   usePageMeta(t('Your cart'), t('Review the items in your cart before continuing to secure checkout.'))
@@ -25,6 +25,8 @@ export function CartPage() {
     clear()
     push(t('Your cart is clear.'))
   }
+
+  if (cartLoading) return <div className="page-shell cart-page"><LoadingState label={t('Loading your saved cart…')} /></div>
 
   if (lines.length === 0) {
     return <div className="page-shell cart-page">
@@ -51,7 +53,7 @@ export function CartPage() {
           {canCheckout
             ? <Link to="/checkout" className="button button--dark button--full">{t('Continue to checkout')} <ArrowRight size={16} /></Link>
             : <button type="button" className="button button--dark button--full" disabled>{status === 'loading' ? t('Checking availability…') : t('Remove unavailable items to continue')}</button>}
-          <p>{t('You will be asked to sign in before placing your order. Your cart is kept on this device.')}</p>
+          <p>{t('Your saved cart is linked to your account. Guest carts are temporary until you sign in.')}</p>
         </div>
       </aside>
     </div>
