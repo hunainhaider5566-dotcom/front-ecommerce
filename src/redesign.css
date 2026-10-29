@@ -1464,3 +1464,29 @@ button { font-family: var(--font-body); }
   .discover-nav-buttons{justify-content:center}
 }
 @media(max-width:360px){.discover-track>.discover-card{flex-basis:86vw}.discover-track .discover-content{padding:13px}.discover-track .discover-info h2{font-size:19px}}
+
+
+/* JT Bazar footer palette refinement: remove the mismatched charcoal-green newsletter panel. */
+.site-footer{background:#0b1f3a;color:#f8f6f0}
+.footer-column h2{color:#fff7ec}
+.footer-column a{color:#c8d4e4}
+.footer-column a:hover,.footer-bottom a:hover{color:#ff9b35}
+.footer-note{border-color:#38506d;background:#122b4a}
+.footer-note .eyebrow{color:#ffad55}
+.footer-note p{color:#d0dbea}
+.footer-note>a{color:#fff}
+.footer-note>a:hover{color:#ffad55}
+.footer-bottom{border-color:#304761;color:#aabbd0}
+.footer-socials>:is(a,span){border-color:#47617f;color:#f8f6f0}
+.footer-socials>a:hover{border-color:#f28c28;color:#f28c28}
+.footer-socials>span{color:#8fa4bd}
+.footer-newsletter .home-newsletter{border:1px solid #eadbc8;background:#fff8ee;box-shadow:0 16px 40px #06162a26}
+.footer-newsletter .newsletter__copy h2,.footer-newsletter .newsletter__label{color:#0b1f3a}
+.footer-newsletter .newsletter__copy p,.footer-newsletter .newsletter__fine-print{color:#526176}
+.footer-newsletter .newsletter__eyebrow,.footer-newsletter .newsletter__feedback{color:#b95d0b}
+.footer-newsletter .newsletter__icon{color:#0b1f3a;background:#ffead2;border:1px solid #f8d3a9}
+.footer-newsletter .newsletter__input{border-color:#d8cbbb;background:#fff;color:#0b1f3a}
+.footer-newsletter .newsletter__input::placeholder{color:#8b95a4}
+.footer-newsletter .newsletter__submit{border-color:#f28c28;background:#f28c28;color:#0b1f3a}
+.footer-newsletter .newsletter__submit:hover{border-color:#db7615;background:#db7615;color:#fff}
+@media(max-width:760px){.footer-newsletter .home-newsletter{margin-bottom:30px;padding:22px 18px}.footer-newsletter .newsletter__copy h2{color:#0b1f3a}}
