@@ -5,7 +5,6 @@ import { useI18n } from '../../i18n/LocaleContext'
 import type { PublicShop } from '../../types/shop'
 
 type Coordinates = { latitude: number; longitude: number }
-const LAHORE: Coordinates = { latitude: 31.5204, longitude: 74.3587 }
 
 function distanceKm(from: Coordinates, to: Coordinates) {
   const radians = (value: number) => value * Math.PI / 180

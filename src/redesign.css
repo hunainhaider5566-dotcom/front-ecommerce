@@ -3,18 +3,18 @@
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-heading: "Poppins", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-urdu: "Noto Sans Arabic", "Noto Nastaliq Urdu", Arial, sans-serif;
-  --forest: #20231F;
-  --olive: #20231F;
-  --sage: #69775E;
-  --light-sage: #DCE4D6;
-  --cream: #F8F6F1;
+  --forest: #0B1F3A;
+  --olive: #102B50;
+  --sage: #F28C28;
+  --light-sage: #FFF0DE;
+  --cream: #F8F6F0;
   --white: #FFFFFF;
-  --charcoal: #20231F;
+  --charcoal: #102747;
   --muted: #686A63;
   --line: #E7E3DC;
-  --terracotta: #B96E52;
-  --terracotta-ink: #8E4E38;
-  --ink: #20231F;
+  --terracotta: #F28C28;
+  --terracotta-ink: #B95D0B;
+  --ink: #0B1F3A;
   --page: min(1320px, calc(100% - 64px));
   font-family: var(--font-body);
   color: var(--ink);
@@ -1426,3 +1426,41 @@ button { font-family: var(--font-body); }
 @media(max-width:760px){.discover-page-container{width:calc(100% - 28px);padding:30px 0 64px}.discover-heading h1{font-size:clamp(36px,9vw,50px)}.discover-heading p{font-size:13px}.discover-view-switch{gap:7px;margin:20px 0}.discover-view-switch button{min-height:40px;padding:0 13px;font-size:11px}.discover-nav-buttons{justify-content:center}.discover-track{gap:14px;padding:5px 2px 22px}.discover-track>.discover-card{flex:0 0 min(84vw,350px);height:auto;min-height:0;border-radius:17px}.discover-track .discover-media{aspect-ratio:1.12/1}.discover-track .discover-content{gap:15px;padding:16px}.discover-track .discover-info h2{font-size:22px}.discover-track .discover-info p{min-height:36px;font-size:12px}.discover-track .discover-actions{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:7px}.discover-track .discover-actions .button,.discover-track .discover-wishlist-btn{min-height:40px;padding:0 8px;font-size:10px}.discover-track .discover-actions .button--outline{grid-column:1/-1}.discover-track .discover-overlay-top{inset:10px 10px auto}.discover-track .discover-badge,.discover-track .discover-shop-tag{padding:8px 9px;font-size:9px}}
 @media(max-width:370px){.discover-track>.discover-card{flex-basis:88vw}.discover-track .discover-content{padding:14px}.discover-track .discover-info h2{font-size:20px}.discover-track .discover-actions .button,.discover-track .discover-wishlist-btn{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.discover-track>.discover-card,.discover-track .discover-product-image img{transition:none}}
+
+
+/* JT BAZAR brand palette: deep navy + market orange + warm ivory. */
+:root{--forest:#0b1f3a;--olive:#102b50;--sage:#f28c28;--light-sage:#fff0de;--cream:#f8f6f0;--charcoal:#102747;--terracotta:#f28c28;--terracotta-ink:#b95d0b;--ink:#0b1f3a;--line:#e8e1d6}
+::selection{background:#ffe0ba;color:#0b1f3a}
+.site-header{background:rgba(248,246,240,.97)}
+.announcement-bar{background:#0b1f3a;color:#fff7ec}
+.wordmark,.wordmark-mark{color:#0b1f3a;border-color:#0b1f3a}
+.wordmark-period{color:#f28c28}
+.wordmark-mark span{background:#f28c28;box-shadow:0 -4px 0 #f28c28}
+.hero-section{background:#0b1f3a}
+.eyebrow{color:#c86b12}
+.button--dark{background:#0b1f3a;color:#fff}
+.button--dark:hover:not(:disabled){background:#17385f}
+.button--outline{color:#0b1f3a;border-color:#e2d7c8}
+:focus-visible{outline-color:#f28c28}
+
+
+/* Mobile Discover: use a compact, fully visible card instead of a tall cropped panel. */
+@media(max-width:760px){
+  .discover-page-container{width:calc(100% - 24px);padding:24px 0 48px}
+  .discover-heading{margin-bottom:16px}
+  .discover-heading h1{font-size:clamp(32px,9vw,44px);line-height:1.04}
+  .discover-heading p{font-size:13px;line-height:1.6}
+  .discover-track{display:flex;align-items:stretch;gap:13px;max-height:none;height:auto;min-height:0;padding:4px 2px 22px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:2px}
+  .discover-track>.discover-card{flex:0 0 min(82vw,340px);width:auto;height:auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;border-radius:17px;scroll-snap-align:start}
+  .discover-track .discover-media{flex:none;aspect-ratio:1.18/1;min-height:0}
+  .discover-track .discover-content{flex:1;gap:14px;padding:15px}
+  .discover-track .discover-info h2{font-size:21px;line-height:1.18;margin:6px 0}
+  .discover-track .discover-info p{min-height:34px;margin:5px 0 8px;font-size:12px;line-height:1.5}
+  .discover-track .discover-seller-link{font-size:10px}
+  .discover-track .discover-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:7px}
+  .discover-track .discover-actions .button,.discover-track .discover-wishlist-btn{min-width:0;min-height:39px;padding:0 8px;font-size:10px;white-space:normal}
+  .discover-track .discover-actions .button--outline{grid-column:1/-1;min-height:35px}
+  .discover-track .discover-badge,.discover-track .discover-shop-tag{max-width:62%;padding:7px 9px;font-size:9px}
+  .discover-nav-buttons{justify-content:center}
+}
+@media(max-width:360px){.discover-track>.discover-card{flex-basis:86vw}.discover-track .discover-content{padding:13px}.discover-track .discover-info h2{font-size:19px}}
