@@ -1500,3 +1500,9 @@ button { font-family: var(--font-body); }
 .vendor-order-delivery__map{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:fit-content;max-width:100%;min-height:38px;margin-top:3px;padding:0 13px;border-radius:999px;background:#0b1f3a;color:#fff;text-decoration:none;font-size:12px;font-weight:700}
 .vendor-order-delivery__map:hover{background:#17385f;color:#fff}
 .vendor-order-delivery>small{color:#8b5a2b;font-size:12px}
+
+
+/* Packing slip address lines must remain visually separated when printed. */
+.vendor-print-slip__address>span{display:block;margin-top:4px;line-height:1.45}
+.vendor-print-slip__address>p{margin-top:8px;line-height:1.5}
+.vendor-print-slip__address>small{display:block;margin-top:6px}
