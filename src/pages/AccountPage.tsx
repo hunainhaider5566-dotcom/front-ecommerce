@@ -31,7 +31,7 @@ const emptyAddress: AddressInput = {
 function addressSummary(value: unknown): string {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return ''
   const address = value as Record<string, unknown>
-  return [address.address_line_1, address.address_line_2, address.city].filter((part) => typeof part === 'string' && part).join(', ')
+  return [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country].filter((part) => typeof part === 'string' && part.trim()).join(', ')
 }
 
 function statusClass(status: string): string {
@@ -293,7 +293,7 @@ export function AccountPage() {
                 </li>)}
               </ul>
               <div className="order-card__meta">
-                <div><span className="eyebrow">{t('Deliver to')}</span><p>{order.customer_name} · {order.customer_phone}</p><p>{addressSummary(order.shipping_address_snapshot) || t('Address on file')}</p>{order.delivery_location_name && <p><MapPin size={13} /> {order.delivery_location_name}</p>}</div>
+                <div className="order-card__delivery"><span className="eyebrow"><MapPin size={13} /> {t('Delivery address')}</span><p><strong>{order.customer_name}</strong> · {order.customer_phone}</p><p>{addressSummary(order.shipping_address_snapshot) || t('Address on file')}</p>{order.delivery_location_name && <p className="order-card__location-name"><MapPin size={13} /> {order.delivery_location_name}</p>}{order.delivery_lat !== null && order.delivery_lng !== null ? <a className="order-card__map-link" href={`https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}`} target="_blank" rel="noreferrer"><Navigation size={14} /> {t('Open exact delivery pin in Maps')}</a> : addressSummary(order.shipping_address_snapshot) ? <a className="order-card__map-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressSummary(order.shipping_address_snapshot))}`} target="_blank" rel="noreferrer"><Navigation size={14} /> {t('Find delivery address on Maps')}</a> : <p>{t('No map location was captured for this order.')}</p>}{typeof (order.shipping_address_snapshot as Record<string, unknown> | null)?.delivery_instructions === 'string' && <p><strong>{t('Delivery instructions')}:</strong> {(order.shipping_address_snapshot as Record<string, string>).delivery_instructions}</p>}</div>
                 <div><span className="eyebrow">{t('Payment')}</span><p>{t('Item subtotal')}: {formatPKR(Number(order.subtotal))}</p><p>{t('Delivery fee')}: {formatPKR(Number(order.delivery_fee))}</p><p><strong>{t('Total')}: {formatPKR(Number(order.total))}</strong></p></div>
               </div>
               <div className="order-card__actions"><Link to={`/order-confirmation/${order.order_number}`} className="text-button">{t('View confirmation')}</Link><button type="button" className="text-button" onClick={() => openCase(order, null)}>{t('Report an order issue')}</button>{canCancel && <button type="button" className="text-button text-button--danger" onClick={() => void cancelOrder(order)} disabled={cancellingOrderId === order.id}><XCircle size={14} /> {t(cancellingOrderId === order.id ? 'Cancelling…' : 'Cancel order')}</button>}</div>
