@@ -20,7 +20,7 @@ export function ProductCard({ product }: { product: Product }) {
   const name = t(product.name)
   const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus === 'available'
 
-  function handleAdd() {
+  async function handleAdd() {
     if (product.variants.length > 0) {
       navigate(`/products/${product.slug}`)
       return
@@ -28,7 +28,7 @@ export function ProductCard({ product }: { product: Product }) {
     if (addLock.current || !canAdd) return
     addLock.current = true
     setAdding(true)
-    if (add(product, 1)) {
+    if (await add(product, 1)) {
       push(t('Added to your cart.'), 'success')
       window.setTimeout(() => { addLock.current = false; setAdding(false) }, 900)
     } else {
