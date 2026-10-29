@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X, XCircle } from 'lucide-react'
+import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Navigation, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X, XCircle } from 'lucide-react'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
 import { useAuth } from '../contexts/AuthContext'
