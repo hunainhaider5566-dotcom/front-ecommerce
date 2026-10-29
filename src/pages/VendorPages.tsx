@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Navigation, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Search, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Search, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
@@ -22,7 +22,6 @@ import {
   listOwnProducts,
   resubmitSellerApplication,
   respondToCase,
-  updateOwnOrderItem,
   updateOwnShop,
   updateVendorProduct,
   uploadOwnProductImage,
