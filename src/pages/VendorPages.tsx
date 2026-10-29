@@ -517,6 +517,39 @@ function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSav
   </tr>
 }
 
+function formatVariantSnapshot(variant: unknown): string {
+  if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return '—'
+  const snapshot = variant as Record<string, unknown>
+  const parts: string[] = []
+  const label = typeof snapshot.label === 'string' ? snapshot.label.trim() : ''
+  const value = typeof snapshot.value === 'string' || typeof snapshot.value === 'number' ? String(snapshot.value).trim() : ''
+  if (label && value) parts.push(`${label}: ${value}`)
+  else if (value) parts.push(value)
+
+  const attributes = snapshot.attributes && typeof snapshot.attributes === 'object' && !Array.isArray(snapshot.attributes)
+    ? snapshot.attributes as Record<string, unknown>
+    : {}
+  const humanize = (key: string) => key.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  const readableValue = (raw: unknown) => {
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim()
+      return trimmed ? trimmed.replace(/^\p{L}/u, (letter) => letter.toUpperCase()) : ''
+    }
+    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw)
+    return ''
+  }
+  for (const [key, raw] of Object.entries(attributes)) {
+    const text = readableValue(raw)
+    if (text) parts.push(`${humanize(key)}: ${text}`)
+  }
+  for (const [key, raw] of Object.entries(snapshot)) {
+    if (['label', 'value', 'attributes'].includes(key)) continue
+    const text = readableValue(raw)
+    if (text) parts.push(`${humanize(key)}: ${text}`)
+  }
+  return [...new Set(parts)].join(' · ') || '—'
+}
+
 function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onError: (message: string) => void }) {
   const { t } = useI18n()
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null)
@@ -539,7 +572,7 @@ function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onErr
     try {
       const rows = await listOwnOrderItems({ page, pageSize, search, status })
       setPageItems(rows)
-    } catch (cause) { onError(cause instanceof Error ? cause.message : t('Fulfilment orders could not be loaded.')) }
+    } catch (cause) { onError(cause instanceof Error ? cause.message : t('Orders could not be loaded.')) }
     finally { setFetching(false) }
   }
 
@@ -561,83 +594,27 @@ function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onErr
   }, [])
 
   return <section className="account-panel">
-    <div className="account-panel__heading"><div><h2>{t('Fulfilment')}</h2><p>{t('Fulfilment is your shop’s order work queue. Each order card groups your items from one customer order; update each item separately as you accept, prepare, ship and deliver it. Other shops’ items stay private.')}</p></div></div>
-    <div className="vendor-order-filters"><label className="vendor-order-search"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder={t('Search order, product or customer')} /></label><label><span>{t('Filter status')}</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(0) }}><option value="all">{t('All fulfilment statuses')}</option>{['pending','accepted','processing','shipped','delivered','cancelled'].map((value) => <option key={value} value={value}>{t(value)}</option>)}</select></label></div>
-    {pageItems.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{search || status !== 'all' ? t('No matching orders') : t('No order items')}</h2><p>{search || status !== 'all' ? t('Clear the search or choose another status to see more orders.') : t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className={`vendor-list${fetching ? ' is-loading' : ''}`} aria-busy={fetching}>{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
-      <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print order slip')}</button></header>
-      <VendorOrderDeliveryDetails item={orderItems[0]} />
-      {orderItems.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={reloadPage} onError={onError} />)}
+    <div className="account-panel__heading"><div><h2>{t('My product orders')}</h2><p>{t('View orders for your own products and check whether each order has been delivered. Customer contact and delivery details are managed by the marketplace team.')}</p></div></div>
+    <div className="vendor-order-filters"><label className="vendor-order-search"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder={t('Search order number or product')} /></label><label><span>{t('Delivery status')}</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(0) }}><option value="all">{t('All delivery statuses')}</option>{['pending','delivered','not_delivered'].map((value) => <option key={value} value={value}>{t(value.replace(/_/g, ' '))}</option>)}</select></label></div>
+    {pageItems.length === 0 ? <div className="empty-state"><PackageSearch size={28} /><h2>{search || status !== 'all' ? t('No matching orders') : t('No product orders yet')}</h2><p>{search || status !== 'all' ? t('Clear the search or choose another delivery status to see more orders.') : t('Orders for your products will appear here after a customer places an order.')}</p></div> : <div className={`vendor-list${fetching ? ' is-loading' : ''}`} aria-busy={fetching}>{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
+      <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print product slip')}</button></header>
+      {orderItems.map((item) => <article className="vendor-order-card" key={item.id}>
+        <div className="vendor-order-card__head"><div><strong>{item.product_name_snapshot}</strong><small>{t('Qty')} {item.quantity} · {t('Variant')}: {formatVariantSnapshot(item.variant_snapshot)} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status === 'delivered' ? 'delivered' : item.vendor_fulfillment_status === 'pending' ? 'pending' : 'not_delivered'} /></div>
+      </article>)}
       {printingOrderId === id && <VendorOrderSlip items={orderItems} />}
     </section>)}</div>}
     <div className="vendor-api-pagination"><span>{totalOrders ? `${page * pageSize + 1}–${Math.min(totalOrders, (page + 1) * pageSize)} ${t('of')} ${totalOrders} ${t('orders')}` : t('No orders')}</span><div><button type="button" className="button button--outline" disabled={page === 0 || fetching} onClick={() => setPage((value) => Math.max(0, value - 1))}>{t('Previous')}</button><span>{page + 1} / {totalPages}</span><button type="button" className="button button--outline" disabled={page + 1 >= totalPages || fetching} onClick={() => setPage((value) => value + 1)}>{t('Next')}</button></div></div>
   </section>
 }
 
-function VendorOrderDeliveryDetails({ item }: { item: VendorOrderItem }) {
-  const { t } = useI18n()
-  const address = item.shipping_address_snapshot && typeof item.shipping_address_snapshot === 'object' && !Array.isArray(item.shipping_address_snapshot)
-    ? item.shipping_address_snapshot as Record<string, unknown>
-    : {}
-  const addressLines = [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-  const lat = item.delivery_lat ?? (typeof address.latitude === 'number' ? address.latitude : null)
-  const lng = item.delivery_lng ?? (typeof address.longitude === 'number' ? address.longitude : null)
-  const addressQuery = [item.customer_name, ...addressLines].join(', ')
-  const mapUrl = lat !== null && lng !== null
-    ? `https://www.google.com/maps?q=${lat},${lng}`
-    : addressLines.length > 0
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`
-      : null
-  return <div className="vendor-order-delivery"><div className="vendor-order-delivery__heading"><MapPin size={16} /><strong>{t('Customer delivery location')}</strong></div><p><strong>{item.customer_name}</strong> · {item.customer_phone}</p>{addressLines.length > 0 ? <p>{addressLines.join(', ')}</p> : <p>{t('No delivery address was saved on this order.')}</p>}{typeof address.delivery_instructions === 'string' && address.delivery_instructions.trim() && <p><strong>{t('Delivery instructions')}:</strong> {address.delivery_instructions}</p>}{item.delivery_location_name && <p>{t('Location note')}: {item.delivery_location_name}</p>}{mapUrl ? <a className="vendor-order-delivery__map" href={mapUrl} target="_blank" rel="noreferrer"><Navigation size={14} /> {lat !== null && lng !== null ? t('Open exact delivery pin in Maps') : t('Find delivery address in Maps')} <ExternalLink size={12} /></a> : <small>{t('Ask the customer to confirm the delivery address before dispatch.')}</small>}</div>
-}
-
 function VendorOrderSlip({ items }: { items: VendorOrderItem[] }) {
   const { t } = useI18n()
   const order = items[0]
-  const address = order.shipping_address_snapshot && typeof order.shipping_address_snapshot === 'object' && !Array.isArray(order.shipping_address_snapshot)
-    ? order.shipping_address_snapshot as Record<string, unknown>
-    : {}
-  const addressLines = [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-  const variantLabel = (variant: unknown) => {
-    if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return '—'
-    return Object.entries(variant as Record<string, unknown>).map(([key, value]) => `${key}: ${value && typeof value === 'object' ? JSON.stringify(value) : String(value)}`).join(' · ') || '—'
-  }
   return <article className="vendor-print-slip" data-active="true">
-    <header className="vendor-print-slip__header"><div><span>{t('Packing slip')}</span><h1>JTBazar</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
-    <section className="vendor-print-slip__address"><h2>{t('Ship to')}</h2><strong>{order.customer_name}</strong><span>{order.customer_phone}</span>{addressLines.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}{typeof address.delivery_instructions === 'string' && address.delivery_instructions.trim() && <p><strong>{t('Delivery instructions')}:</strong> {address.delivery_instructions}</p>}{order.delivery_location_name && <small>{t('Delivery pin')}: {order.delivery_location_name}</small>}</section>
-    <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{variantLabel(item.variant_snapshot)}</td><td>{item.quantity}</td></tr>)}</tbody></table>
-    <footer>{t('Please verify the items and quantity before packing. This slip is for fulfilment and does not show payment information.')}</footer>
+    <header className="vendor-print-slip__header"><div><span>{t('Product packing slip')}</span><h1>JTBazar</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
+    <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{formatVariantSnapshot(item.variant_snapshot)}</td><td>{item.quantity}</td></tr>)}</tbody></table>
+    <footer>{t('Product and quantity summary only. Customer contact and delivery details are managed by the marketplace team.')}</footer>
   </article>
-}
-
-function OrderItemRow({ item, onUpdated, onError }: { item: VendorOrderItem; onUpdated: () => Promise<void>; onError: (message: string) => void }) {
-  const { t } = useI18n()
-  const nextStatus = item.vendor_fulfillment_status === 'pending' ? 'accepted' : item.vendor_fulfillment_status === 'accepted' ? 'processing' : item.vendor_fulfillment_status === 'processing' ? 'shipped' : item.vendor_fulfillment_status === 'shipped' ? 'delivered' : null
-  const [trackingNumber, setTrackingNumber] = useState(item.tracking_number ?? '')
-  const [trackingUrl, setTrackingUrl] = useState(item.tracking_url ?? '')
-  const [note, setNote] = useState(item.vendor_note ?? '')
-  const [saving, setSaving] = useState(false)
-  async function advance() {
-    if (!nextStatus) return
-    setSaving(true)
-    try {
-      await updateOwnOrderItem(item.id, nextStatus, trackingNumber.trim() || null, trackingUrl.trim() || null, note.trim() || null)
-      await onUpdated()
-    } catch (cause) { onError(cause instanceof Error ? cause.message : t('Fulfilment update failed.')) }
-    finally { setSaving(false) }
-  }
-  return <div className="vendor-order-card">
-    <div className="vendor-order-card__head"><div><strong>{item.order_number} · {item.product_name_snapshot}</strong><small>{t('Qty')} {item.quantity} · {formatPKR(Number(item.line_total))} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status} /></div>
-    {nextStatus && <div className="vendor-order-card__fields">
-      <small className="vendor-form-help--wide">{t('Add tracking details when available. They are saved with each fulfilment update.')}</small>
-      <div className="form-field"><label htmlFor={`tracking-number-${item.id}`}>{t('Tracking number')}</label><input id={`tracking-number-${item.id}`} value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} /></div>
-      <div className="form-field"><label htmlFor={`tracking-url-${item.id}`}>{t('Tracking URL')}</label><input id={`tracking-url-${item.id}`} type="url" placeholder="https://" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} /></div>
-      <div className="form-field form-field--wide"><label htmlFor={`vendor-note-${item.id}`}>{t('Note to buyer')}</label><input id={`vendor-note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} /></div>
-      <button type="button" className="button button--dark" onClick={() => void advance()} disabled={saving}>{saving ? t('Updating…') : <>{t('Mark as')} {t(nextStatus)} <ArrowRight size={15} /></>}</button>
-    </div>}
-    {item.tracking_number && <p className="vendor-order-card__tracking">{t('Tracking')}: {item.tracking_number} {item.tracking_url && <a href={item.tracking_url} target="_blank" rel="noopener noreferrer">· {t('Open link')}</a>}</p>}
-  </div>
 }
 
 function CaseResponse({ item, onResponded, onError }: { item: MarketplaceCase; onResponded: () => Promise<void>; onError: (message: string) => void }) {
