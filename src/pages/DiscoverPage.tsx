@@ -98,7 +98,7 @@ export function DiscoverPage() {
         {visibleItems.map((item, index) => {
           const saved = has(item.product.id)
           const canAdd = item.product.variants.length === 0 && item.product.availabilityStatus === 'available'
-          return <article className="discover-card shine-surface" key={item.product.id} ref={(element) => { cardRefs.current[index] = element }}>
+          return <article className="discover-card" key={item.product.id} ref={(element) => { cardRefs.current[index] = element }}>
             <div className="discover-media">
               <Link to={`/products/${item.product.slug}`} className="discover-product-image" aria-label={`${t('View')} ${item.product.name}`}>
                 {item.product.images[0] ? <img src={item.product.images[0]} alt={item.product.name} loading={index < 2 ? 'eager' : 'lazy'} /> : <div className="image-fallback image-fallback--large"><BookOpen size={42} /><span>{item.product.name}</span></div>}
