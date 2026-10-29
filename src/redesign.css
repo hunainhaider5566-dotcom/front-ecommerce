@@ -1442,3 +1442,25 @@ button { font-family: var(--font-body); }
 .button--dark:hover:not(:disabled){background:#17385f}
 .button--outline{color:#0b1f3a;border-color:#e2d7c8}
 :focus-visible{outline-color:#f28c28}
+
+
+/* Mobile Discover: use a compact, fully visible card instead of a tall cropped panel. */
+@media(max-width:760px){
+  .discover-page-container{width:calc(100% - 24px);padding:24px 0 48px}
+  .discover-heading{margin-bottom:16px}
+  .discover-heading h1{font-size:clamp(32px,9vw,44px);line-height:1.04}
+  .discover-heading p{font-size:13px;line-height:1.6}
+  .discover-track{display:flex;align-items:stretch;gap:13px;max-height:none;height:auto;min-height:0;padding:4px 2px 22px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding-inline:2px}
+  .discover-track>.discover-card{flex:0 0 min(82vw,340px);width:auto;height:auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;border-radius:17px;scroll-snap-align:start}
+  .discover-track .discover-media{flex:none;aspect-ratio:1.18/1;min-height:0}
+  .discover-track .discover-content{flex:1;gap:14px;padding:15px}
+  .discover-track .discover-info h2{font-size:21px;line-height:1.18;margin:6px 0}
+  .discover-track .discover-info p{min-height:34px;margin:5px 0 8px;font-size:12px;line-height:1.5}
+  .discover-track .discover-seller-link{font-size:10px}
+  .discover-track .discover-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:7px}
+  .discover-track .discover-actions .button,.discover-track .discover-wishlist-btn{min-width:0;min-height:39px;padding:0 8px;font-size:10px;white-space:normal}
+  .discover-track .discover-actions .button--outline{grid-column:1/-1;min-height:35px}
+  .discover-track .discover-badge,.discover-track .discover-shop-tag{max-width:62%;padding:7px 9px;font-size:9px}
+  .discover-nav-buttons{justify-content:center}
+}
+@media(max-width:360px){.discover-track>.discover-card{flex-basis:86vw}.discover-track .discover-content{padding:13px}.discover-track .discover-info h2{font-size:19px}}
