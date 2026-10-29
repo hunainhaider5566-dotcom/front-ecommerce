@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Search, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Boxes, ClipboardList, ExternalLink, FileUp, LayoutDashboard, LocateFixed, MapPin, Navigation, Package, PackageSearch, Pencil, Plus, Printer, RefreshCw, Search, Settings, ShieldCheck, Store, Truck, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useToast } from '../contexts/ToastContext'
@@ -597,14 +597,14 @@ function VendorOrderSlip({ items }: { items: VendorOrderItem[] }) {
   const address = order.shipping_address_snapshot && typeof order.shipping_address_snapshot === 'object' && !Array.isArray(order.shipping_address_snapshot)
     ? order.shipping_address_snapshot as Record<string, unknown>
     : {}
-  const addressLines = [address.address_line_1, address.address_line_2, address.city, address.province, address.postal_code]
+  const addressLines = [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
   const variantLabel = (variant: unknown) => {
     if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return '—'
-    return Object.entries(variant as Record<string, unknown>).map(([key, value]) => `${key}: ${String(value)}`).join(' · ') || '—'
+    return Object.entries(variant as Record<string, unknown>).map(([key, value]) => `${key}: ${value && typeof value === 'object' ? JSON.stringify(value) : String(value)}`).join(' · ') || '—'
   }
   return <article className="vendor-print-slip" data-active="true">
-    <header className="vendor-print-slip__header"><div><span>{t('Packing slip')}</span><h1>{order.shop_name}</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
+    <header className="vendor-print-slip__header"><div><span>{t('Packing slip')}</span><h1>JTBazar</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
     <section className="vendor-print-slip__address"><h2>{t('Ship to')}</h2><strong>{order.customer_name}</strong><span>{order.customer_phone}</span>{addressLines.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}{typeof address.delivery_instructions === 'string' && address.delivery_instructions.trim() && <p><strong>{t('Delivery instructions')}:</strong> {address.delivery_instructions}</p>}{order.delivery_location_name && <small>{t('Delivery pin')}: {order.delivery_location_name}</small>}</section>
     <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{variantLabel(item.variant_snapshot)}</td><td>{item.quantity}</td></tr>)}</tbody></table>
     <footer>{t('Please verify the items and quantity before packing. This slip is for fulfilment and does not show payment information.')}</footer>
