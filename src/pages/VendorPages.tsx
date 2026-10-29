@@ -565,11 +565,30 @@ function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onErr
     <div className="vendor-order-filters"><label className="vendor-order-search"><Search size={16} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder={t('Search order, product or customer')} /></label><label><span>{t('Filter status')}</span><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(0) }}><option value="all">{t('All fulfilment statuses')}</option>{['pending','accepted','processing','shipped','delivered','cancelled'].map((value) => <option key={value} value={value}>{t(value)}</option>)}</select></label></div>
     {pageItems.length === 0 ? <div className="empty-state"><Truck size={28} /><h2>{search || status !== 'all' ? t('No matching orders') : t('No order items')}</h2><p>{search || status !== 'all' ? t('Clear the search or choose another status to see more orders.') : t('Vendor order items will appear here after a buyer places an order.')}</p></div> : <div className={`vendor-list${fetching ? ' is-loading' : ''}`} aria-busy={fetching}>{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
       <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print order slip')}</button></header>
+      <VendorOrderDeliveryDetails item={orderItems[0]} />
       {orderItems.map((item) => <OrderItemRow key={item.id} item={item} onUpdated={reloadPage} onError={onError} />)}
       {printingOrderId === id && <VendorOrderSlip items={orderItems} />}
     </section>)}</div>}
     <div className="vendor-api-pagination"><span>{totalOrders ? `${page * pageSize + 1}–${Math.min(totalOrders, (page + 1) * pageSize)} ${t('of')} ${totalOrders} ${t('orders')}` : t('No orders')}</span><div><button type="button" className="button button--outline" disabled={page === 0 || fetching} onClick={() => setPage((value) => Math.max(0, value - 1))}>{t('Previous')}</button><span>{page + 1} / {totalPages}</span><button type="button" className="button button--outline" disabled={page + 1 >= totalPages || fetching} onClick={() => setPage((value) => value + 1)}>{t('Next')}</button></div></div>
   </section>
+}
+
+function VendorOrderDeliveryDetails({ item }: { item: VendorOrderItem }) {
+  const { t } = useI18n()
+  const address = item.shipping_address_snapshot && typeof item.shipping_address_snapshot === 'object' && !Array.isArray(item.shipping_address_snapshot)
+    ? item.shipping_address_snapshot as Record<string, unknown>
+    : {}
+  const addressLines = [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+  const lat = item.delivery_lat ?? (typeof address.latitude === 'number' ? address.latitude : null)
+  const lng = item.delivery_lng ?? (typeof address.longitude === 'number' ? address.longitude : null)
+  const addressQuery = [item.customer_name, ...addressLines].join(', ')
+  const mapUrl = lat !== null && lng !== null
+    ? `https://www.google.com/maps?q=${lat},${lng}`
+    : addressLines.length > 0
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`
+      : null
+  return <div className="vendor-order-delivery"><div className="vendor-order-delivery__heading"><MapPin size={16} /><strong>{t('Customer delivery location')}</strong></div><p><strong>{item.customer_name}</strong> · {item.customer_phone}</p>{addressLines.length > 0 ? <p>{addressLines.join(', ')}</p> : <p>{t('No delivery address was saved on this order.')}</p>}{typeof address.delivery_instructions === 'string' && address.delivery_instructions.trim() && <p><strong>{t('Delivery instructions')}:</strong> {address.delivery_instructions}</p>}{item.delivery_location_name && <p>{t('Location note')}: {item.delivery_location_name}</p>}{mapUrl ? <a className="vendor-order-delivery__map" href={mapUrl} target="_blank" rel="noreferrer"><Navigation size={14} /> {lat !== null && lng !== null ? t('Open exact delivery pin in Maps') : t('Find delivery address in Maps')} <ExternalLink size={12} /></a> : <small>{t('Ask the customer to confirm the delivery address before dispatch.')}</small>}</div>
 }
 
 function VendorOrderSlip({ items }: { items: VendorOrderItem[] }) {

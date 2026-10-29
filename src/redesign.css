@@ -1490,3 +1490,13 @@ button { font-family: var(--font-body); }
 .footer-newsletter .newsletter__submit{border-color:#f28c28;background:#f28c28;color:#0b1f3a}
 .footer-newsletter .newsletter__submit:hover{border-color:#db7615;background:#db7615;color:#fff}
 @media(max-width:760px){.footer-newsletter .home-newsletter{margin-bottom:30px;padding:22px 18px}.footer-newsletter .newsletter__copy h2{color:#0b1f3a}}
+
+
+/* Seller order detail: make the delivery destination prominent and easy to open. */
+.vendor-order-delivery{display:grid;gap:8px;margin:14px 0 16px;padding:16px 18px;border:1px solid #e6d9c8;border-radius:14px;background:#fff8ef;color:#253247}
+.vendor-order-delivery__heading{display:flex;align-items:center;gap:8px;color:#0b1f3a}
+.vendor-order-delivery__heading svg{color:#f28c28;flex:none}
+.vendor-order-delivery p{margin:0;color:#46556a;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.vendor-order-delivery__map{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:fit-content;max-width:100%;min-height:38px;margin-top:3px;padding:0 13px;border-radius:999px;background:#0b1f3a;color:#fff;text-decoration:none;font-size:12px;font-weight:700}
+.vendor-order-delivery__map:hover{background:#17385f;color:#fff}
+.vendor-order-delivery>small{color:#8b5a2b;font-size:12px}
