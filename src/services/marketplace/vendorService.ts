@@ -248,6 +248,55 @@ export async function updateVendorProduct(productId: string, input: {
   return data as VendorProduct
 }
 
+export async function setVendorProductVisibility(productId: string, hidden: boolean): Promise<VendorProduct> {
+  const { data, error } = await getSupabase().rpc('vendor_set_product_visibility', {
+    p_product_id: productId,
+    p_hidden: hidden,
+  })
+  assertError(error)
+  if (!data) throw new Error('Product visibility could not be updated.')
+  return data as VendorProduct
+}
+
+export async function setVendorDailyAvailability(input: {
+  productId: string
+  isDailyItem: boolean
+  availableQuantity: number
+  minimumQuantity?: number
+  minimumOrderValue?: number | null
+  shopIsOpen?: boolean | null
+}): Promise<VendorProduct> {
+  if (!Number.isInteger(input.availableQuantity) || input.availableQuantity < 0) {
+    throw new Error('Daily availability must be a whole number of zero or more.')
+  }
+  if (!Number.isInteger(input.minimumQuantity ?? 1) || (input.minimumQuantity ?? 1) < 1) {
+    throw new Error('Minimum quantity must be at least one.')
+  }
+  if (input.minimumOrderValue != null && input.minimumOrderValue < 0) {
+    throw new Error('Minimum order value cannot be negative.')
+  }
+  const { data, error } = await getSupabase().rpc('vendor_set_daily_availability', {
+    p_product_id: input.productId,
+    p_is_daily_item: input.isDailyItem,
+    p_available_quantity: input.availableQuantity,
+    p_minimum_quantity: input.minimumQuantity ?? 1,
+    p_minimum_order_value: input.minimumOrderValue ?? null,
+    p_shop_is_open: input.shopIsOpen ?? null,
+  })
+  assertError(error)
+  if (!data) throw new Error('Daily availability could not be saved.')
+  return data as VendorProduct
+}
+
+export async function markVendorOrderReady(orderId: string, note?: string): Promise<void> {
+  const { data, error } = await getSupabase().rpc('vendor_mark_order_ready', {
+    p_order_id: orderId,
+    p_vendor_note: note?.trim() || null,
+  })
+  assertError(error)
+  if (!data) throw new Error('Order could not be marked ready for pickup.')
+}
+
 export async function listOwnInventory(): Promise<VendorInventory[]> {
   const { data, error } = await getSupabase().from('product_inventory')
     .select('id, product_id, variant_id, quantity, low_stock_threshold, updated_at, products!inner(name, seller_id), product_variants(option_label, option_value)')
