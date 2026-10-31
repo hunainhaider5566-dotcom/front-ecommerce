@@ -130,6 +130,19 @@ export async function getReviewableOrderId(userId: string, productId?: string, s
   if (sellerId) query = query.eq('seller_id', sellerId)
   const { data: items, error: itemsError } = await query.limit(100)
   if (itemsError || !items?.length) return null
-  const eligibleIds = new Set(items.map((item) => item.order_id))
-  return orders.find((order) => eligibleIds.has(order.id))?.id ?? null
+  const eligibleIds = [...new Set(items.map((item) => item.order_id))]
+  if (!eligibleIds.length) return null
+
+  let existingQuery = client
+    .from(productId ? 'product_reviews' : 'seller_reviews')
+    .select('order_id')
+    .eq('buyer_id', userId)
+    .in('order_id', eligibleIds)
+  existingQuery = productId
+    ? existingQuery.eq('product_id', productId)
+    : existingQuery.eq('seller_id', sellerId as string)
+  const { data: existingReviews, error: reviewError } = await existingQuery
+  if (reviewError) return null
+  const alreadyReviewed = new Set((existingReviews ?? []).map((review) => review.order_id))
+  return orders.find((order) => eligibleIds.includes(order.id) && !alreadyReviewed.has(order.id))?.id ?? null
 }
