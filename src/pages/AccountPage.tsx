@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Navigation, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X, XCircle } from 'lucide-react'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
+import { ReviewComposer } from '../components/reviews/ReviewComposer'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useI18n } from '../i18n/LocaleContext'
@@ -290,6 +291,7 @@ export function AccountPage() {
                 {items.map((item) => <li key={item.id}>
                   <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {item.quantity} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(item.vendor_fulfillment_status)}>{t(item.vendor_fulfillment_status)}</span></div>
                   <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
+                  {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
                 </li>)}
               </ul>
               <div className="order-card__meta">
