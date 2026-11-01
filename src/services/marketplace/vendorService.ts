@@ -374,3 +374,14 @@ export async function listOwnOrderItems(options: { page?: number; pageSize?: num
 }
 
 
+
+export async function setVendorFoodProductDetails(input: { productId: string; sellingUnit: string; unitPrice: number; quantityIncrement: number; minimumQuantity: number }): Promise<void> {
+  const { error } = await getSupabase().rpc('vendor_set_food_product_details', {
+    p_product_id: input.productId,
+    p_selling_unit: input.sellingUnit,
+    p_unit_price: input.unitPrice,
+    p_quantity_increment: input.quantityIncrement,
+    p_minimum_quantity: input.minimumQuantity,
+  })
+  assertError(error)
+}
