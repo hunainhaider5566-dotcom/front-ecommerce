@@ -16,6 +16,7 @@ import { useStoreSettings } from '../hooks/useStoreSettings'
 import { useI18n } from '../i18n/LocaleContext'
 import { formatPKR } from '../utils/money'
 import { supportDestination, productInquiryMessage } from '../utils/support'
+import { getFoodQuantityLabel } from '../utils/cart'
 
 export function ProductPage() {
   const { t } = useI18n()
@@ -23,7 +24,7 @@ export function ProductPage() {
   const { status, error, findProductBySlug, categories } = useCatalog()
   const settings = useStoreSettings()
   const product = findProductBySlug(slug)
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState(product?.foodMinimumQuantity ?? 1)
   const [variantId, setVariantId] = useState(product?.variants[0]?.id ?? '')
   const [imageIndex, setImageIndex] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
@@ -34,7 +35,7 @@ export function ProductPage() {
   const { push } = useToast()
 
   useEffect(() => {
-    setQuantity(1)
+    setQuantity(product?.foodMinimumQuantity ?? 1)
     setVariantId(product?.variants[0]?.id ?? '')
     setImageIndex(0)
     setImageFailed(false)
@@ -107,12 +108,12 @@ export function ProductPage() {
         <h1>{productName}</h1>
         <p className="product-detail__description">{t(product.description)}</p>
         <div className="product-price-row">
-          <strong>{formatPKR(price)}</strong>
+          <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>
           <AvailabilityBadge status={availability} />
         </div>
-        <p className="product-price-caption">{t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
+        <p className="product-price-caption">{product.foodSellingUnit ? `${t('Price per')} ${product.foodSellingUnit}` : t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
         {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
-        <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
+        <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, quantity) : undefined} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
         <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
         <p className="product-detail__reassurance"><ShieldCheck size={15} /> {t(settings.codEnabled ? 'Cash on delivery. Prices and stock are validated when the order is placed.' : 'Prices and stock are validated when an order is placed.')}</p>
         {product.sellerName && product.sellerSlug && <Link className="product-seller-link" to={`/shops/${product.sellerSlug}`}><Store size={15} /> {t('Sold by')} {product.sellerName}</Link>}
