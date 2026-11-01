@@ -67,6 +67,7 @@ export interface OrderItemRecord {
   product_name_snapshot: string
   sku_snapshot: string | null
   variant_snapshot: Json
+  product_snapshot: Json
   quantity: number
   unit_price: number
   line_total: number
