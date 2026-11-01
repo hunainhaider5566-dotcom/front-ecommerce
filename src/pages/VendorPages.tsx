@@ -25,6 +25,7 @@ import {
   updateOwnShop,
   updateVendorProduct,
   setVendorDailyAvailability,
+  setVendorFoodProductDetails,
   setVendorProductVisibility,
   markVendorOrderReady,
   uploadOwnProductImage,
@@ -382,7 +383,7 @@ export function VendorDashboardPage() {
       <div className="account-panel__heading"><div><h2>{t('Listings')}</h2><p>{t('Vendor edits are re-checked by moderation before publication. Supplier costs stay private.')}</p></div>{!creatingProduct && !editingProduct && <button type="button" className="button button--dark" onClick={() => setCreatingProduct(true)}><Plus size={15} /> {t('New listing')}</button>}</div>
       {(creatingProduct || editingProduct) && <ProductEditor
         product={editingProduct}
-        categories={[...categoriesById.entries()].map(([id, name]) => ({ id, name }))}
+        categories={categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parent_id: category.parentId }))}
         onCancel={() => { setCreatingProduct(false); setEditingProduct(null) }}
         onSaved={async (message) => { push(message, 'success'); setCreatingProduct(false); setEditingProduct(null); await load() }}
       />}
@@ -423,7 +424,7 @@ export function VendorDashboardPage() {
 
 function ProductEditor({ product, categories, onCancel, onSaved }: {
   product: VendorProduct | null
-  categories: { id: string; name: string }[]
+  categories: { id: string; name: string; slug: string; parent_id?: string | null }[]
   onCancel: () => void
   onSaved: (message: string) => Promise<void>
 }) {
@@ -433,7 +434,26 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [createdProductId, setCreatedProductId] = useState<string | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(product?.category_id ?? '')
+  const [sellingUnit, setSellingUnit] = useState(product?.food_selling_unit ?? 'kg')
+  const [unitPrice, setUnitPrice] = useState(String(product?.food_unit_price ?? product?.price ?? ''))
+  const [quantityIncrement, setQuantityIncrement] = useState(String(product?.food_quantity_increment ?? 250))
+  const [minimumQuantity, setMinimumQuantity] = useState(String(product?.food_minimum_quantity ?? 1))
   const editing = Boolean(product)
+  const categoryById = new Map(categories.map((category) => [category.id, category]))
+  const isFoodCategory = (() => {
+    let current = categoryById.get(selectedCategoryId)
+    while (current) {
+      if (current.slug === 'food-groceries') return true
+      current = current.parent_id ? categoryById.get(current.parent_id) : undefined
+    }
+    return false
+  })()
+  const unitOptions = [
+    { value: 'kg', label: 'Kilogram (kg)' }, { value: 'g', label: 'Gram (g)' },
+    { value: 'l', label: 'Litre (L)' }, { value: 'ml', label: 'Millilitre (ml)' },
+    { value: 'piece', label: 'Piece' }, { value: 'dozen', label: 'Dozen' }, { value: 'pack', label: 'Pack' },
+  ]
 
   useEffect(() => {
     if (!imageFile) { setImagePreview(null); return }
@@ -450,9 +470,12 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     const supplierCost = supplierCostRaw ? Number(supplierCostRaw) : null
     const fulfillmentExpense = Number(data.get('fulfillment_expense') || 0)
     const minimumProfit = Number(data.get('minimum_profit') || 0)
+    const foodIncrement = Number(quantityIncrement)
+    const foodMinimum = Number(minimumQuantity)
     if (!Number.isFinite(price) || price < 0) { setError(t('Enter a valid selling price.')); return }
     if (supplierCost !== null && (!Number.isFinite(supplierCost) || supplierCost < 0)) { setError(t('Enter a valid supplier cost.')); return }
     if (!Number.isFinite(fulfillmentExpense) || fulfillmentExpense < 0 || !Number.isFinite(minimumProfit) || minimumProfit < 0) { setError(t('Enter valid fulfilment and profit values.')); return }
+    if (isFoodCategory && (!Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0 || !Number.isInteger(foodIncrement) || foodIncrement < 1 || !Number.isInteger(foodMinimum) || foodMinimum < 1)) { setError(t('Enter a valid food unit price, quantity increment and minimum purchase quantity.')); return }
     setSaving(true)
     setError(null)
     try {
@@ -475,6 +498,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         productId = await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on' })
         setCreatedProductId(productId)
       }
+      if (isFoodCategory && productId) await setVendorFoodProductDetails({ productId, sellingUnit, unitPrice: Number(unitPrice), quantityIncrement: foodIncrement, minimumQuantity: foodMinimum })
       if (imageFile && productId) {
         await uploadOwnProductImage(productId, imageFile, input.name)
       }
@@ -495,8 +519,15 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-name">{t('Product name')} <span>*</span></label><input id="product-name" name="name" required defaultValue={product?.name ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-slug">{t('Slug')} <span>*</span></label><input id="product-slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={product?.slug ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-sku">{t('SKU')}</label><input id="product-sku" name="sku" defaultValue={product?.sku ?? ''} /></div>
-    <div className="form-field"><label htmlFor="product-category">{t('Category')}</label><select id="product-category" name="category_id" defaultValue={product?.category_id ?? ''}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
-    <div className="form-field"><label htmlFor="product-price">{t('Selling price')} <span>*</span></label><input id="product-price" name="price" type="number" min="0" step="0.01" required defaultValue={product ? String(product.price) : ''} /></div>
+    <div className="form-field"><label htmlFor="product-category">{t('Category')}</label><select id="product-category" name="category_id" value={selectedCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+    <div className="form-field"><label htmlFor="product-price">{t('Selling price')} <span>*</span></label><input id="product-price" name="price" type="number" min="0" step="0.01" required value={isFoodCategory ? unitPrice : undefined} defaultValue={!isFoodCategory && product ? String(product.price) : ''} onChange={isFoodCategory ? (event) => setUnitPrice(event.target.value) : undefined} /><small className="form-help">{isFoodCategory ? t('Price per selected selling unit') : t('Price per product')}</small></div>
+    {isFoodCategory && <section className="form-field form-field--wide food-unit-config" aria-label={t('Food selling unit configuration')}>
+      <h3>{t('Selling unit & quantity')}</h3>
+      <p className="form-help">{t('These fields appear only for Food & Groceries products. Shipping weight remains separate.')}</p>
+      <div className="form-field"><label htmlFor="food-selling-unit">{t('Selling unit')}</label><select id="food-selling-unit" value={sellingUnit} onChange={(event) => { const next=event.target.value as typeof sellingUnit; setSellingUnit(next); setQuantityIncrement(next==='kg'||next==='l'?'250':next==='g'||next==='ml'?'100':'1') }}>{unitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+      <div className="form-field"><label htmlFor="food-quantity-increment">{t('Customer quantity step')}</label><input id="food-quantity-increment" type="number" min="1" step="1" value={quantityIncrement} onChange={(event) => setQuantityIncrement(event.target.value)} /><small className="form-help">{t('For kg or litre, enter the step in grams or millilitres (e.g. 250). For piece, dozen or pack, enter number of units.')}</small></div>
+      <div className="form-field"><label htmlFor="food-minimum-quantity">{t('Minimum purchase steps')}</label><input id="food-minimum-quantity" type="number" min="1" step="1" value={minimumQuantity} onChange={(event) => setMinimumQuantity(event.target.value)} /></div>
+    </section>}
     <div className="form-field"><label htmlFor="product-supplier-cost">{t('Supplier cost')} <span>{t('private')}</span></label><input id="product-supplier-cost" name="supplier_cost" type="number" min="0" step="0.01" defaultValue={product?.supplier_cost == null ? '' : String(product.supplier_cost)} /></div>
     <div className="form-field"><label htmlFor="product-fulfilment">{t('Fulfilment expense')}</label><input id="product-fulfilment" name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue={product ? String(product.fulfillment_expense) : '0'} /></div>
     <div className="form-field"><label htmlFor="product-profit">{t('Minimum profit')}</label><input id="product-profit" name="minimum_profit" type="number" min="0" step="0.01" defaultValue={product ? String(product.minimum_profit) : '0'} /></div>
