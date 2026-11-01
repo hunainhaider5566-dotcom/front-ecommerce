@@ -4,7 +4,6 @@ import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Ho
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
 import { ReviewComposer } from '../components/reviews/ReviewComposer'
-import type { OrderItemRecord } from '../types/order'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useI18n } from '../i18n/LocaleContext'
