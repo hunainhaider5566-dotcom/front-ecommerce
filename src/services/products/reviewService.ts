@@ -133,16 +133,12 @@ export async function getReviewableOrderId(userId: string, productId?: string, s
   const eligibleIds = [...new Set(items.map((item) => item.order_id))]
   if (!eligibleIds.length) return null
 
-  let existingQuery = client
-    .from(productId ? 'product_reviews' : 'seller_reviews')
-    .select('order_id')
-    .eq('buyer_id', userId)
-    .in('order_id', eligibleIds)
-  existingQuery = productId
-    ? existingQuery.eq('product_id', productId)
-    : existingQuery.eq('seller_id', sellerId as string)
-  const { data: existingReviews, error: reviewError } = await existingQuery
-  if (reviewError) return null
-  const alreadyReviewed = new Set((existingReviews ?? []).map((review) => review.order_id))
+  // Keep the two table queries separate so Supabase's generated table types
+  // retain the product_id / seller_id columns instead of inferring their intersection.
+  const existingReviews = productId
+    ? await client.from('product_reviews').select('order_id').eq('buyer_id', userId).eq('product_id', productId).in('order_id', eligibleIds)
+    : await client.from('seller_reviews').select('order_id').eq('buyer_id', userId).eq('seller_id', sellerId as string).in('order_id', eligibleIds)
+  if (existingReviews.error) return null
+  const alreadyReviewed = new Set((existingReviews.data ?? []).map((review) => review.order_id))
   return orders.find((order) => eligibleIds.includes(order.id) && !alreadyReviewed.has(order.id))?.id ?? null
 }
