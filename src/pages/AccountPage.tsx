@@ -4,6 +4,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Ho
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
 import { ReviewComposer } from '../components/reviews/ReviewComposer'
+import type { OrderItemRecord } from '../types/order'
 import { useAuth } from '../contexts/AuthContext'
 import { useCatalog } from '../contexts/CatalogContext'
 import { useI18n } from '../i18n/LocaleContext'
@@ -37,6 +38,12 @@ function addressSummary(value: unknown): string {
 
 function statusClass(status: string): string {
   return `order-status order-status--${status.replace(/_/g, '-')}`
+}
+
+function orderItemQuantityLabel(item: OrderItemRecord): string {
+  const snapshot = item.product_snapshot
+  if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) && typeof snapshot.display_quantity === 'string') return snapshot.display_quantity
+  return String(item.quantity)
 }
 
 export function AccountPage() {
@@ -289,7 +296,7 @@ export function AccountPage() {
             {open && <div className="order-card__detail">
               <ul className="order-line-list">
                 {items.map((item) => <li key={item.id}>
-                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {item.quantity} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(item.vendor_fulfillment_status)}>{t(item.vendor_fulfillment_status)}</span></div>
+                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(item.vendor_fulfillment_status)}>{t(item.vendor_fulfillment_status)}</span></div>
                   <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
                   {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && items.findIndex((candidate) => candidate.seller_id === item.seller_id) === items.indexOf(item) && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
                 </li>)}
