@@ -52,7 +52,7 @@ export function ProductCard({ product }: { product: Product }) {
             <Store size={13} /> {product.sellerName || 'Verified Seller'}
           </Link>
         )}
-        <div className="product-card__title-row"><Link to={`/products/${product.slug}`} className="product-card__name">{name}</Link><span className="product-card__price">{formatPKR(product.price)}</span></div>
+        <div className="product-card__title-row"><Link to={`/products/${product.slug}`} className="product-card__name">{name}</Link><span className="product-card__price">{formatPKR(product.foodUnitPrice ?? product.price)}{product.foodSellingUnit ? <small> / {product.foodSellingUnit}</small> : null}</span></div>
         <p className="product-card__description">{t(product.shortDescription)}</p>
         <div className="product-card__bottom">
           <AvailabilityBadge status={product.availabilityStatus} />
