@@ -1,9 +1,35 @@
 import type { CartLine } from '../types/cart'
 import type { Product } from '../types/product'
 
+const unitDivisor = (unit: NonNullable<Product['foodSellingUnit']>) =>
+  unit === 'kg' || unit === 'l' ? 1000 : 1
+
+export function getFoodQuantityLabel(product: Product, increments: number): string {
+  const unit = product.foodSellingUnit
+  const step = product.foodQuantityIncrement ?? 1
+  if (!unit) return String(increments)
+  const amount = step * increments
+  if (unit === 'kg' || unit === 'g') {
+    if (unit === 'kg' && amount % 1000 === 0) return `${amount / 1000} kg`
+    return `${amount} g`
+  }
+  if (unit === 'l' || unit === 'ml') {
+    if (unit === 'l' && amount % 1000 === 0) return `${amount / 1000} L`
+    return `${amount} ml`
+  }
+  if (unit === 'dozen') return `${amount} ${amount === 1 ? 'dozen' : 'dozen'}`
+  if (unit === 'piece') return `${amount} ${amount === 1 ? 'piece' : 'pieces'}`
+  return `${amount} ${amount === 1 ? 'pack' : 'packs'}`
+}
+
 export function getCartLineUnitPrice(product: Product | undefined, line: CartLine): number {
   if (!product) return 0
-  return product.variants.find((variant) => variant.id === line.variantId)?.price ?? product.price
+  const variantPrice = product.variants.find((variant) => variant.id === line.variantId)?.price
+  if (variantPrice !== undefined) return variantPrice
+  if (product.foodSellingUnit && product.foodUnitPrice !== null && product.foodUnitPrice !== undefined) {
+    return Number((product.foodUnitPrice * (product.foodQuantityIncrement ?? 1) / unitDivisor(product.foodSellingUnit)).toFixed(2))
+  }
+  return product.price
 }
 
 export function isCartLineAvailable(product: Product | undefined, line: CartLine): boolean {
