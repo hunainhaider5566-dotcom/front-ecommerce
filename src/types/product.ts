@@ -21,6 +21,10 @@ export interface Product {
   shortDescription: string
   description: string
   price: number
+  foodSellingUnit?: 'kg' | 'g' | 'l' | 'ml' | 'piece' | 'dozen' | 'pack' | null
+  foodUnitPrice?: number | null
+  foodQuantityIncrement?: number | null
+  foodMinimumQuantity?: number | null
   currency: string
   categoryId: string
   images: string[]
