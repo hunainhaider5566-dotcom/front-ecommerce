@@ -413,7 +413,7 @@ export function VendorDashboardPage() {
       {inventory.length === 0 ? <div className="empty-state"><Boxes size={28} /><h2>{t('No stock records')}</h2><p>{t('Stock records appear when a listing with inventory tracking is created.')}</p></div> : <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Variant')}</th><th>{t('Quantity')}</th><th>{t('Updated')}</th><th>{t('Adjust')}</th></tr></thead><tbody>{inventory.map((item) => <InventoryRow key={item.id} item={item} onSaved={async (message) => { push(message, 'success'); await load() }} onError={(message) => push(message, 'error')} />)}</tbody></table></div>}
     </section>}
 
-    {tab === 'orders' && <VendorOrdersPanel items={orderItems} onError={(message) => push(message, 'error')} />}
+    {tab === 'orders' && <VendorOrdersPanel items={orderItems} products={products} onError={(message) => push(message, 'error')} />}
 
     {tab === 'cases' && <section className="account-panel">
       <div className="account-panel__heading"><div><h2>{t('Support & cases')}</h2><p>{t('Create a support ticket or respond to customer returns and complaints.')}</p></div><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div>
@@ -606,7 +606,18 @@ function formatVariantSnapshot(variant: unknown): string {
   return [...new Set(parts)].join(' · ') || '—'
 }
 
-function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onError: (message: string) => void }) {
+function formatVendorFoodQuantity(product: VendorProduct | undefined, quantity: number): string {
+  if (!product?.food_selling_unit) return String(quantity)
+  const amount = (product.food_quantity_increment ?? 1) * quantity
+  const unit = product.food_selling_unit
+  if (unit === 'kg' || unit === 'g') return unit === 'kg' && amount % 1000 === 0 ? `${amount / 1000} kg` : `${amount} g`
+  if (unit === 'l' || unit === 'ml') return unit === 'l' && amount % 1000 === 0 ? `${amount / 1000} L` : `${amount} ml`
+  if (unit === 'piece') return `${amount} ${amount === 1 ? 'piece' : 'pieces'}`
+  if (unit === 'dozen') return `${amount} dozen`
+  return `${amount} ${amount === 1 ? 'pack' : 'packs'}`
+}
+
+function VendorOrdersPanel({ items, products, onError }: { items: VendorOrderItem[]; products: VendorProduct[]; onError: (message: string) => void }) {
   const { t } = useI18n()
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null)
   const [pageItems, setPageItems] = useState(items)
@@ -655,20 +666,20 @@ function VendorOrdersPanel({ items, onError }: { items: VendorOrderItem[]; onErr
     {pageItems.length === 0 ? <div className="empty-state"><PackageSearch size={28} /><h2>{search || status !== 'all' ? t('No matching orders') : t('No product orders yet')}</h2><p>{search || status !== 'all' ? t('Clear the search or choose another delivery status to see more orders.') : t('Orders for your products will appear here after a customer places an order.')}</p></div> : <div className={`vendor-list${fetching ? ' is-loading' : ''}`} aria-busy={fetching}>{orderGroups.map(({ id, items: orderItems }) => <section className="vendor-order-group" key={id}>
       <header className="vendor-order-group__head"><div><strong>{orderItems[0].order_number}</strong><small>{new Date(orderItems[0].order_created_at).toLocaleString()} · {orderItems.length} {t(orderItems.length === 1 ? 'item' : 'items')}</small></div><div className="vendor-order-group__actions">{orderItems.every((item) => ['pending', 'accepted', 'processing'].includes(item.vendor_fulfillment_status)) && <button type="button" className="button button--dark" onClick={() => void markVendorOrderReady(id).then(() => reloadPage()).catch((cause) => onError(cause instanceof Error ? cause.message : t('Order could not be marked ready.')))}>{t('Ready for pickup')}</button>}<button type="button" className="button button--outline vendor-order-slip-action" onClick={() => setPrintingOrderId(id)}><Printer size={15} /> {t('Print product slip')}</button></div></header>
       {orderItems.map((item) => <article className="vendor-order-card" key={item.id}>
-        <div className="vendor-order-card__head">{item.product_image_url && <img src={item.product_image_url} alt="" loading="lazy" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}<div><strong>{item.product_name_snapshot}</strong><small>{t('Qty')} {item.quantity} · {t('Variant')}: {formatVariantSnapshot(item.variant_snapshot)} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status === 'delivered' ? 'delivered' : item.vendor_fulfillment_status === 'pending' ? 'pending' : 'not_delivered'} /></div>
+        <div className="vendor-order-card__head">{item.product_image_url && <img src={item.product_image_url} alt="" loading="lazy" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}<div><strong>{item.product_name_snapshot}</strong><small>{t('Qty')} {formatVendorFoodQuantity(products.find((product) => product.id === item.product_id), item.quantity)} · {t('Variant')}: {formatVariantSnapshot(item.variant_snapshot)} · {new Date(item.created_at).toLocaleDateString()}</small></div><StatusBadge status={item.vendor_fulfillment_status === 'delivered' ? 'delivered' : item.vendor_fulfillment_status === 'pending' ? 'pending' : 'not_delivered'} /></div>
       </article>)}
-      {printingOrderId === id && <VendorOrderSlip items={orderItems} />}
+      {printingOrderId === id && <VendorOrderSlip items={orderItems} products={products} />}
     </section>)}</div>}
     <div className="vendor-api-pagination"><span>{totalOrders ? `${page * pageSize + 1}–${Math.min(totalOrders, (page + 1) * pageSize)} ${t('of')} ${totalOrders} ${t('orders')}` : t('No orders')}</span><div><button type="button" className="button button--outline" disabled={page === 0 || fetching} onClick={() => setPage((value) => Math.max(0, value - 1))}>{t('Previous')}</button><span>{page + 1} / {totalPages}</span><button type="button" className="button button--outline" disabled={page + 1 >= totalPages || fetching} onClick={() => setPage((value) => value + 1)}>{t('Next')}</button></div></div>
   </section>
 }
 
-function VendorOrderSlip({ items }: { items: VendorOrderItem[] }) {
+function VendorOrderSlip({ items, products }: { items: VendorOrderItem[]; products: VendorProduct[] }) {
   const { t } = useI18n()
   const order = items[0]
   return <article className="vendor-print-slip" data-active="true">
     <header className="vendor-print-slip__header"><div><span>{t('Product packing slip')}</span><h1>JTBazar</h1></div><div><strong>{order.order_number}</strong><small>{new Date(order.order_created_at).toLocaleString()}</small></div></header>
-    <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{formatVariantSnapshot(item.variant_snapshot)}</td><td>{item.quantity}</td></tr>)}</tbody></table>
+    <table><thead><tr><th>{t('Product')}</th><th>{t('SKU')}</th><th>{t('Variant')}</th><th>{t('Qty')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.product_name_snapshot}</td><td>{item.sku_snapshot || '—'}</td><td>{formatVariantSnapshot(item.variant_snapshot)}</td><td>{formatVendorFoodQuantity(products.find((product) => product.id === item.product_id), item.quantity)}</td></tr>)}</tbody></table>
     <footer>{t('Product and quantity summary only. Customer contact and delivery details are managed by the marketplace team.')}</footer>
   </article>
 }
