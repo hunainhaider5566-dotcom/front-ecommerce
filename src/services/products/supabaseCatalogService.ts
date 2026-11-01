@@ -32,6 +32,7 @@ function mapSpecifications(value: Json): ProductSpecification[] {
 function mapCategory(row: CategoryRow): Category {
   return {
     id: row.id,
+    parentId: row.parent_id,
     slug: row.slug,
     name: row.name,
     description: row.description,
