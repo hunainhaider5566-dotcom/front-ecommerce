@@ -110,7 +110,11 @@ function mapProduct(
     name: row.name,
     shortDescription: row.short_description,
     description: row.description,
-    price: Number(row.price),
+    price: row.food_unit_price === null ? Number(row.price) : Number(row.food_unit_price),
+    foodSellingUnit: row.food_selling_unit as Product['foodSellingUnit'],
+    foodUnitPrice: row.food_unit_price === null ? null : Number(row.food_unit_price),
+    foodQuantityIncrement: row.food_quantity_increment,
+    foodMinimumQuantity: row.food_minimum_quantity,
     currency: row.currency,
     categoryId: row.category_id ?? '',
     images: [...images].sort((a, b) => a.sort_order - b.sort_order).map(mapImage).filter(Boolean),
@@ -133,7 +137,7 @@ async function loadSupabaseCatalog() {
   const client = getSupabase()
   const [productResult, categoryResult, shopResult] = await Promise.all([
     client.from('products')
-      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
+      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, food_selling_unit, food_unit_price, food_quantity_increment, food_minimum_quantity, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
       .eq('publication_status', 'published')
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false }),
