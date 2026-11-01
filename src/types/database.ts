@@ -122,6 +122,7 @@ export interface Database {
       vendor_order_items: { Args: Record<string, never>; Returns: VendorOrderItemRow[] }
       vendor_order_items_page: { Args: { p_limit?: number; p_offset?: number; p_search?: string | null; p_status?: string | null }; Returns: VendorOrderItemRow[] }
       vendor_update_order_item: { Args: { p_item_id: string; p_status: string; p_tracking_number?: string | null; p_tracking_url?: string | null; p_vendor_note?: string | null }; Returns: boolean }
+      vendor_set_food_product_details: { Args: { p_product_id: string; p_selling_unit: string; p_unit_price: number; p_quantity_increment: number; p_minimum_quantity: number }; Returns: ProductRow }
       vendor_set_product_visibility: { Args: { p_product_id: string; p_hidden: boolean }; Returns: ProductRow }
       vendor_set_daily_availability: { Args: { p_product_id: string; p_is_daily_item: boolean; p_available_quantity: number; p_minimum_quantity?: number; p_minimum_order_value?: number | null; p_shop_is_open?: boolean | null }; Returns: ProductRow }
       vendor_mark_order_ready: { Args: { p_order_id: string; p_vendor_note?: string | null }; Returns: VendorOrderPickupRow }
