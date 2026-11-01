@@ -437,6 +437,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [selectedCategoryId, setSelectedCategoryId] = useState(product?.category_id ?? '')
   const [sellingUnit, setSellingUnit] = useState(product?.food_selling_unit ?? 'kg')
   const [unitPrice, setUnitPrice] = useState(String(product?.food_unit_price ?? product?.price ?? ''))
+  const [regularPrice, setRegularPrice] = useState(String(product?.price ?? ''))
   const [quantityIncrement, setQuantityIncrement] = useState(String(product?.food_quantity_increment ?? 250))
   const [minimumQuantity, setMinimumQuantity] = useState(String(product?.food_minimum_quantity ?? 1))
   const editing = Boolean(product)
@@ -520,7 +521,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-slug">{t('Slug')} <span>*</span></label><input id="product-slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={product?.slug ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-sku">{t('SKU')}</label><input id="product-sku" name="sku" defaultValue={product?.sku ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-category">{t('Category')}</label><select id="product-category" name="category_id" value={selectedCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
-    <div className="form-field"><label htmlFor="product-price">{t('Selling price')} <span>*</span></label><input id="product-price" name="price" type="number" min="0" step="0.01" required value={isFoodCategory ? unitPrice : undefined} defaultValue={!isFoodCategory && product ? String(product.price) : ''} onChange={isFoodCategory ? (event) => setUnitPrice(event.target.value) : undefined} /><small className="form-help">{isFoodCategory ? t('Price per selected selling unit') : t('Price per product')}</small></div>
+    <div className="form-field"><label htmlFor="product-price">{t('Selling price')} <span>*</span></label><input id="product-price" name="price" type="number" min="0" step="0.01" required value={isFoodCategory ? unitPrice : regularPrice} onChange={(event) => isFoodCategory ? setUnitPrice(event.target.value) : setRegularPrice(event.target.value)} /><small className="form-help">{isFoodCategory ? t('Price per selected selling unit') : t('Price per product')}</small></div>
     {isFoodCategory && <section className="form-field form-field--wide food-unit-config" aria-label={t('Food selling unit configuration')}>
       <h3>{t('Selling unit & quantity')}</h3>
       <p className="form-help">{t('These fields appear only for Food & Groceries products. Shipping weight remains separate.')}</p>
