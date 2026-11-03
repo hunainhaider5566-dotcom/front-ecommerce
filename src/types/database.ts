@@ -106,6 +106,7 @@ export interface Database {
     Functions: {
       current_user_is_admin: { Args: Record<string, never>; Returns: boolean }
       get_public_availability: { Args: { product_ids: string[] }; Returns: { product_id: string; variant_id: string | null; is_available: boolean }[] }
+      get_public_inventory: { Args: { product_ids: string[] }; Returns: { product_id: string; variant_id: string | null; available_quantity: number | null }[] }
       list_public_shops: { Args: Record<string, never>; Returns: PublicShopRow[] }
       subscribe_newsletter: { Args: { p_email: string; p_source?: string }; Returns: boolean }
       place_order: { Args: PlaceOrderArgs; Returns: PlacedOrderRow[] }
