@@ -293,6 +293,16 @@ export function VerifyOtpPage() {
   const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    let active = true
+    if (authLoading || !user) return () => { active = false }
+    void authService.getCurrentUser().then(({ data, error }) => {
+      if (active && !error && data.user?.email_confirmed_at) navigate('/account', { replace: true })
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [authLoading, user?.id, navigate])
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
   const [email, setEmail] = useState(stateEmail)
   const [code, setCode] = useState(['', '', '', '', '', ''])
