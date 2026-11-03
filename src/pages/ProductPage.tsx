@@ -73,7 +73,6 @@ export function ProductPage() {
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
   const price = selectedVariant?.price ?? product.price
   const discountPercent = product.discountPercent ?? 0
-  const discountedPrice = price * (1 - discountPercent / 100)
   const support = supportDestination(productInquiryMessage(productName, product.slug), settings.supportWhatsapp)
   const availability = selectedVariant?.availabilityStatus ?? product.availabilityStatus
   const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
