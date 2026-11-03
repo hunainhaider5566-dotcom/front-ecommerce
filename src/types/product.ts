@@ -21,6 +21,7 @@ export interface Product {
   shortDescription: string
   description: string
   price: number
+  discountPercent?: number
   foodSellingUnit?: 'kg' | 'g' | 'l' | 'ml' | 'piece' | 'dozen' | 'pack' | null
   foodUnitPrice?: number | null
   foodQuantityIncrement?: number | null
