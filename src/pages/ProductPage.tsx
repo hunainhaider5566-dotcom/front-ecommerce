@@ -55,7 +55,7 @@ export function ProductPage() {
       '@type': 'Offer',
       url: `${SITE_URL}/products/${product.slug}`,
       priceCurrency: product.currency || 'PKR',
-      price: ((product.variants.find((variant) => variant.id === variantId)?.price ?? product.price) * (1 - (product.discountPercent ?? 0) / 100)),
+      price: product.variants.find((variant) => variant.id === variantId)?.price ?? product.price,
       availability: product.availabilityStatus === 'available' ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       itemCondition: 'https://schema.org/NewCondition',
     },
@@ -72,6 +72,7 @@ export function ProductPage() {
   const activeImage = images[imageIndex]
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
   const price = selectedVariant?.price ?? product.price
+  const originalPrice = selectedVariant?.originalPrice ?? product.originalPrice ?? price
   const discountPercent = product.discountPercent ?? 0
   const support = supportDestination(productInquiryMessage(productName, product.slug), settings.supportWhatsapp)
   const availability = selectedVariant?.availabilityStatus ?? product.availabilityStatus
@@ -109,11 +110,11 @@ export function ProductPage() {
         <h1>{productName}</h1>
         <p className="product-detail__description">{t(product.description)}</p>
         <div className="product-price-row">
-          {discountPercent > 0 ? <span className="product-discount-price"><strong>{formatPKR((product.foodUnitPrice ?? price) * (1 - discountPercent / 100))}</strong><s>{formatPKR(product.foodUnitPrice ?? price)}</s><small>{discountPercent}% OFF</small></span> : <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>}
+          {discountPercent > 0 ? <span className="product-discount-price"><strong>{formatPKR(product.foodUnitPrice ?? price)}</strong><s>{formatPKR(product.originalFoodUnitPrice ?? originalPrice)}</s><small>{discountPercent}% OFF</small></span> : <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>}
           <AvailabilityBadge status={availability} />
         </div>
         <p className="product-price-caption">{product.foodSellingUnit ? `${t('Price per')} ${product.foodSellingUnit}` : t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
-        {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price * (1 - discountPercent / 100))}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
+        {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
         <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, quantity) : undefined} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
         {product.foodSellingUnit && <p className="product-price-caption">{t('Estimated price for selected quantity')}: <strong>{formatPKR(Number(((product.foodUnitPrice ?? 0) * (product.foodQuantityIncrement ?? 1) * quantity / (product.foodSellingUnit === 'kg' || product.foodSellingUnit === 'l' ? 1000 : 1)).toFixed(2)))}</strong></p>}
         <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
