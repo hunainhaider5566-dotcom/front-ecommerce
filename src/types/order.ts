@@ -61,6 +61,7 @@ export interface OrderItemRecord {
   id: string
   order_id: string
   product_id: string | null
+  product_image_url: string | null
   variant_id: string | null
   seller_id: string | null
   seller_name_snapshot: string | null
