@@ -485,7 +485,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     try {
       let specifications: unknown = []; let dimensions: unknown = {}
       try { specifications = JSON.parse(String(data.get('specifications') || '[]')); dimensions = JSON.parse(String(data.get('dimensions') || '{}')) } catch { throw new Error(t('Specifications and dimensions must be valid JSON.')) }
-      const input = {
+      const input: Parameters<typeof updateVendorProduct>[1] = {
         category_id: String(data.get('category_id') ?? '') || null,
         name: String(data.get('name') ?? '').trim(),
         slug: String(data.get('slug') ?? '').trim(),
