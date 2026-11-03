@@ -53,7 +53,7 @@ export function CartPage() {
           {canCheckout
             ? <Link to="/checkout" className="button button--dark button--full">{t('Continue to checkout')} <ArrowRight size={16} /></Link>
             : <button type="button" className="button button--dark button--full" disabled>{status === 'loading' ? t('Checking availability…') : t('Remove unavailable items to continue')}</button>}
-          <p>{t('Your saved cart is linked to your account. Guest carts are temporary until you sign in.')}</p>
+          <p>{t('Your guest cart is saved in this browser and merges into your account when you sign in.')}</p>
         </div>
       </aside>
     </div>
