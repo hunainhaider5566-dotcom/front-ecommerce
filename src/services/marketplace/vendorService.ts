@@ -16,8 +16,8 @@ export interface VendorShopInput {
   shop_name: string
   slug: string
   description: string
-  current_address: string
-  complete_address: string
+  current_address?: string
+  complete_address?: string
   contact_email: string | null
   phone: string | null
   shop_image_url?: string | null
@@ -84,7 +84,7 @@ export async function getOwnSellerProfile(): Promise<SellerProfile | null> {
   return data as SellerProfile | null
 }
 
-export async function applyAsSeller(input: VendorShopInput & { document_path?: string | null }): Promise<SellerProfile> {
+export async function applyAsSeller(input: VendorShopInput & { current_address: string; complete_address: string; document_path?: string | null }): Promise<SellerProfile> {
   const user = (await getSupabase().auth.getUser()).data.user
   if (!user) throw new Error('Sign in before applying as a vendor.')
   const existing = await getOwnSellerProfile()
@@ -120,8 +120,8 @@ export async function updateOwnShop(input: VendorShopInput & { document_path?: s
     shop_name: input.shop_name,
     slug: input.slug,
     description: input.description,
-    current_address: input.current_address,
-    complete_address: input.complete_address,
+    ...(input.current_address !== undefined ? { current_address: input.current_address } : {}),
+    ...(input.complete_address !== undefined ? { complete_address: input.complete_address } : {}),
     contact_email: input.contact_email,
     phone: input.phone,
     ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
