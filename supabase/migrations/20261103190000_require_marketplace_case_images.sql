@@ -45,6 +45,8 @@ SET search_path = ''
 AS $$
 DECLARE
   linked_order_id uuid;
+  linked_customer_id uuid;
+  linked_seller_id uuid;
   evidence_mime text;
 BEGIN
   IF NEW.order_item_id IS NULL THEN
@@ -63,12 +65,28 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'You can only submit a case for your own account.';
   END IF;
 
-  SELECT oi.order_id INTO linked_order_id
+  SELECT o.customer_id INTO linked_customer_id
+  FROM public.orders AS o
+  WHERE o.id = NEW.order_id;
+
+  IF linked_customer_id IS NULL OR linked_customer_id <> NEW.buyer_id THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'The selected order does not belong to this customer.';
+  END IF;
+
+  SELECT oi.order_id, oi.seller_id INTO linked_order_id, linked_seller_id
   FROM public.order_items AS oi
   WHERE oi.id = NEW.order_item_id;
 
   IF linked_order_id IS NULL OR linked_order_id <> NEW.order_id THEN
     RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'The selected product does not belong to this order.';
+  END IF;
+
+  IF NEW.seller_id IS DISTINCT FROM linked_seller_id THEN
+    RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'The case seller does not match the selected order item.';
+  END IF;
+
+  IF split_part(NEW.evidence_path, '/', 2) NOT LIKE NEW.order_id::text || '-%' THEN
+    RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'The evidence image does not belong to the selected order.';
   END IF;
 
   SELECT so.metadata ->> 'mimetype' INTO evidence_mime
