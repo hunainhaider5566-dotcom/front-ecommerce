@@ -59,3 +59,33 @@ export function CartItem({ line, onQuantity, onRemove, compact = false }: { line
     </div>
   </article>
 }
+
+
+export function CartItemGroup({ lines, onQuantity, onRemove }: { lines: CartLine[]; onQuantity: (line: CartLine, quantity: number) => void; onRemove: (line: CartLine) => void }) {
+  const { findProductById } = useCatalog()
+  const { t } = useI18n()
+  const { push } = useToast()
+  const product = findProductById(lines[0]?.productId ?? '')
+  const [imageFailed, setImageFailed] = useState(false)
+  if (!product) return <>{lines.map((line) => <CartItem key={line.productId + '-' + (line.variantId ?? 'default')} line={line} onQuantity={(quantity) => onQuantity(line, quantity)} onRemove={() => onRemove(line)} />)}</>
+  const total = lines.reduce((sum, line) => sum + getCartLineUnitPrice(product, line) * line.quantity, 0)
+  return <article className="cart-item cart-item--group">
+    <Link to={'/products/' + product.slug} className="cart-item__image">
+      {imageFailed || !product.images[0] ? <span className="cart-item__fallback"><BookOpen size={24} aria-hidden="true" /></span> : <img src={product.images[0]} alt="" onError={() => setImageFailed(true)} />}
+    </Link>
+    <div className="cart-item__body">
+      <div className="cart-item__topline"><div><Link to={'/products/' + product.slug} className="cart-item__name">{t(product.name)}</Link><p className="cart-item__variant">{lines.length} {t('selected option(s)')}</p></div><strong className="cart-item__price">{formatPKR(total)}</strong></div>
+      <div className="cart-item-group__options">
+        {lines.map((line) => {
+          const variant = product.variants.find((entry) => entry.id === line.variantId)
+          const max = getCartLineMaxQuantity(product, line)
+          const available = isCartLineAvailable(product, line)
+          return <div className="cart-item-group__option" key={line.productId + '-' + (line.variantId ?? 'default')}>
+            <div className="cart-item-group__option-info"><span>{variant ? t(variant.label) + ': ' + t(variant.value) : t('Standard item')}{!available && <small className="cart-item__note cart-item__note--warning">{t('Unavailable at this time')}</small>}</span><strong>{formatPKR(getCartLineUnitPrice(product, line) * line.quantity)}</strong></div>
+            <div className="cart-item__controls"><QuantitySelector value={line.quantity} min={variant ? 1 : Math.min(product.foodMinimumQuantity ?? 1, max || 1)} max={max} displayValue={!variant && product.foodSellingUnit ? getFoodQuantityLabel(product, line.quantity) : undefined} onChange={(quantity) => onQuantity(line, quantity)} label={t('Quantity for') + ' ' + product.name + (variant ? ' ' + variant.value : '')} /><button type="button" className="text-button" onClick={() => { onRemove(line); push(t('Removed from your cart.')) }}><Trash2 size={14} /> {t('Remove option')}</button></div>
+          </div>
+        })}
+      </div>
+    </div>
+  </article>
+}
