@@ -263,11 +263,11 @@ export function AccountPage() {
     const selectedItem = (itemsByOrder[caseTarget.order.id] ?? []).find((item) => item.id === caseItemId)
     if (!selectedItem) { push(t('Select the product from this order.'), 'error'); return }
     if (caseReason.trim().length < 3 || caseReason.trim().length > 2000) { push(t('Enter a reason between 3 and 2,000 characters.'), 'error'); return }
-    if (!caseEvidence) { push(t('A product evidence image is required.'), 'error'); return }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(caseEvidence.type)) { push(t('Choose a JPG, PNG, WebP or AVIF image.'), 'error'); return }
+    if (caseType !== 'refund' && !caseEvidence) { push(t('A product evidence image is required.'), 'error'); return }
+    if (caseEvidence && !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(caseEvidence.type)) { push(t('Choose a JPG, PNG, WebP or AVIF image.'), 'error'); return }
     setSubmittingCase(true)
     try {
-      const evidencePath = await uploadComplaintEvidence(caseTarget.order.id, caseEvidence)
+      const evidencePath = caseEvidence ? await uploadComplaintEvidence(caseTarget.order.id, caseEvidence) : null
       await createMarketplaceCase({
         orderId: caseTarget.order.id,
         orderItemId: selectedItem.id,
@@ -398,7 +398,7 @@ export function AccountPage() {
           <div className="form-field form-field--wide"><label htmlFor="case-product">{t('Product involved')} <span>*</span></label><select id="case-product" value={caseItemId} onChange={(event) => setCaseItemId(event.target.value)} required><option value="">{t('Select a product from this order')}</option>{(itemsByOrder[caseTarget.order.id] ?? []).map((orderItem) => <option key={orderItem.id} value={orderItem.id}>{orderItem.product_name_snapshot} · {t('Qty')} {orderItemQuantityLabel(orderItem)}</option>)}</select></div>
           <div className="form-field"><label htmlFor="case-type">{t('Case type')}</label><select id="case-type" value={caseType} onChange={(event) => setCaseType(event.target.value as typeof caseType)}><option value="complaint">{t('Complaint')}</option><option value="return">{t('Return')}</option><option value="refund">{t('Refund')}</option></select></div>
           <div className="form-field form-field--wide"><label htmlFor="case-reason">{t('What happened?')} <span>*</span></label><textarea id="case-reason" rows={4} maxLength={2000} value={caseReason} onChange={(event) => setCaseReason(event.target.value)} placeholder={t('Describe the issue and what would resolve it.')} required /></div>
-          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{caseType === 'return' ? t('Product image') : t('Evidence image')} <span>*</span></label><input id="case-evidence" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setCaseEvidence(event.target.files?.[0] ?? null)} required /><p className="form-help"><FileUp size={13} /> {t('Required JPG, PNG, WebP or AVIF image, up to 10 MB.')}</p>{caseEvidence && <p className="form-help">{caseEvidence.name}</p>}</div>
+          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{caseType === 'return' ? t('Product image') : t('Evidence image')} {caseType !== 'refund' && <span>*</span>}</label><input id="case-evidence" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setCaseEvidence(event.target.files?.[0] ?? null)} required={caseType !== 'refund'} /><p className="form-help"><FileUp size={13} /> {caseType === 'refund' ? t('Optional JPG, PNG, WebP or AVIF image, up to 10 MB.') : t('Required JPG, PNG, WebP or AVIF image, up to 10 MB.')}</p>{caseEvidence && <p className="form-help">{caseEvidence.name}</p>}</div>
         </div>
         <div className="address-form__actions"><button type="submit" className="button button--dark" disabled={submittingCase}>{submittingCase ? t('Submitting…') : t('Submit case')}</button><button type="button" className="button button--outline" onClick={() => setCaseTarget(null)}>{t('Cancel')}</button></div>
       </form>}
