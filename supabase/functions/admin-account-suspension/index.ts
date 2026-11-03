@@ -1,5 +1,32 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+import nodemailer from 'npm:nodemailer@^9'
+
+const smtpUser = Deno.env.get('SMTP_USERNAME') ?? ''
+const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? ''
+const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? 'smtp.gmail.com'
+const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '465')
+const smtpFrom = Deno.env.get('SMTP_FROM') || (smtpUser ? `"JTBazar" <${smtpUser}>` : '')
+const resendKey = Deno.env.get('RESEND_API_KEY')
+const legacyFrom = Deno.env.get('SUPPORT_FROM_EMAIL')
+
+async function sendAccountEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (smtpUser && smtpPassword) {
+    const transport = nodemailer.createTransport({ host: smtpHost, port: smtpPort, secure: smtpPort === 465, auth: { user: smtpUser, pass: smtpPassword } })
+    await transport.sendMail({ from: smtpFrom, to, subject, html })
+    return true
+  }
+  if (resendKey && legacyFrom) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: legacyFrom, to: [to], subject, html }),
+    })
+    return response.ok
+  }
+  return false
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -26,12 +53,11 @@ Deno.serve(async (request) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
   const asyncEmail = async (subject: string, message: string) => {
-    const apiKey = Deno.env.get('RESEND_API_KEY')
-    const from = Deno.env.get('SUPPORT_FROM_EMAIL')
     const email = authUser.user?.email
-    if (!apiKey || !from || !email) return false
-    const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [email], subject, html: `<main style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20251f"><h2>${subject}</h2><p>${message.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)}</p><p>Meridion Marketplace</p></main>` }) })
-    return response.ok
+    if (!email) return false
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
+    const html = `<main style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20251f"><h2>${escapeHtml(subject)}</h2><p>${escapeHtml(message)}</p><p>JTBazar</p></main>`
+    try { return await sendAccountEmail(email, subject, html) } catch { return false }
   }
   let input: { user_id?: string; action?: string; reason?: string }
   try { input = await request.json() } catch { return json({ error: 'Invalid request body.' }, 400) }
@@ -57,7 +83,7 @@ Deno.serve(async (request) => {
     }
     await adminClient.from('notifications').insert({ user_id: userId, kind: 'account', audience: 'customer', title: 'Account suspended', body: reason })
     await adminClient.from('admin_audit_logs').insert({ actor_id: callerResult.user.id, action: 'UPDATE', entity: 'account_suspensions', entity_id: userId, details: { action: 'suspend', reason } })
-    const email_sent = await asyncEmail('Your Meridion account has been suspended', `Your marketplace account has been suspended. Reason: ${reason}`)
+    const email_sent = await asyncEmail('Your JTBazar account has been suspended', `Your marketplace account has been suspended. Reason: ${reason}`)
     return json({ ok: true, user_id: userId, suspended: true, email_sent })
   }
 
@@ -67,6 +93,6 @@ Deno.serve(async (request) => {
   if (removeError) return json({ error: 'Account is unbanned, but the suspension record could not be cleared.' }, 500)
   await adminClient.from('notifications').insert({ user_id: userId, kind: 'account', audience: 'customer', title: 'Account restored', body: 'Your marketplace account access has been restored.' })
   await adminClient.from('admin_audit_logs').insert({ actor_id: callerResult.user.id, action: 'UPDATE', entity: 'account_suspensions', entity_id: userId, details: { action: 'restore' } })
-  const email_sent = await asyncEmail('Your Meridion account has been restored', 'Your marketplace account access has been restored. You can sign in and use your customer and seller features again.')
+  const email_sent = await asyncEmail('Your JTBazar account has been restored', 'Your marketplace account access has been restored. You can sign in and use your customer and seller features again.')
   return json({ ok: true, user_id: userId, suspended: false, email_sent })
 })
