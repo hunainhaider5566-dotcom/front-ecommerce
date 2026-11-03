@@ -21,6 +21,8 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
+const IDLE_LOGOUT_MS = 30 * 60 * 1000
+const USER_RECHECK_MS = 5 * 60 * 1000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -58,6 +60,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe()
     }
   }, [])
+
+  // A locally cached JWT can outlive a user deleted from Supabase Auth.
+  // Revalidate it against Auth on startup, tab focus and periodically.
+  useEffect(() => {
+    if (!session?.user || !supabase) return
+    let active = true
+    let checking = false
+
+    const validateUser = async () => {
+      if (checking || !active) return
+      checking = true
+      try {
+        const { data, error: userError } = await authService.getCurrentUser()
+        if (!active) return
+        if (userError) {
+          const status = (userError as { status?: number }).status
+          const code = (userError as { code?: string }).code
+          if (status === 401 || status === 403 || status === 404 || code === 'user_not_found' || code === 'session_not_found') {
+            await authService.signOutLocal()
+          }
+          return
+        }
+        if (!data.user || data.user.id !== session.user.id) await authService.signOutLocal()
+      } catch {
+        // A temporary network failure must not sign out a legitimate user.
+      } finally {
+        checking = false
+      }
+    }
+
+    void validateUser()
+    const onFocus = () => { if (document.visibilityState === 'visible') void validateUser() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    const interval = window.setInterval(() => { void validateUser() }, USER_RECHECK_MS)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [session?.user?.id])
+
+  // Automatically sign out after 30 minutes without user activity.
+  useEffect(() => {
+    if (!session?.user) return
+    let timeout = 0
+    const resetIdleTimer = () => {
+      window.clearTimeout(timeout)
+      timeout = window.setTimeout(() => {
+        void authService.signOutLocal()
+      }, IDLE_LOGOUT_MS)
+    }
+    const activityEvents: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'touchstart', 'scroll']
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetIdleTimer, { passive: true }))
+    resetIdleTimer()
+
+    return () => {
+      window.clearTimeout(timeout)
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetIdleTimer))
+    }
+  }, [session?.user?.id])
 
   useEffect(() => {
     let active = true
