@@ -136,6 +136,7 @@ export function AccountPage() {
       setOrdersLoading(false); setAddressesLoading(false); setCasesLoading(false)
       return () => { active = false }
     }
+    setEmailVerified(false)
     setVerificationCheckDone(false)
     void authService.getCurrentUser().then(({ data, error }) => {
       if (!active) return
