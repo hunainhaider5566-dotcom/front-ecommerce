@@ -10,7 +10,7 @@ import { isValidEmail } from '../utils/contactValidation'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
 type FieldErrors = Record<string, string>
 
-const emailPattern = /^\S+@\S+\.\S+$/
+const emailPattern = isValidEmail
 const PENDING_SIGNUP_EMAIL_KEY = 'jtbazar_pending_signup_email'
 
 function getPendingSignupEmail() {
