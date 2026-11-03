@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+
 import nodemailer from 'npm:nodemailer@^9'
 
 const smtpUser = Deno.env.get('SMTP_USERNAME') ?? ''
@@ -7,31 +8,17 @@ const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? ''
 const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? 'smtp.gmail.com'
 const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '465')
 const smtpFrom = Deno.env.get('SMTP_FROM') || (smtpUser ? `"JTBazar" <${smtpUser}>` : '')
-const resendKey = Deno.env.get('RESEND_API_KEY')
-const legacyFrom = Deno.env.get('SUPPORT_FROM_EMAIL')
 
-async function sendEmail(to: string, subject: string, html: string): Promise<'smtp' | 'resend' | null> {
-  if (smtpUser && smtpPassword) {
-    const transport = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPassword },
-    })
-    await transport.sendMail({ from: smtpFrom, to, subject, html })
-    return 'smtp'
-  }
-  // Temporary compatibility while SMTP Edge Function secrets are being configured.
-  if (resendKey && legacyFrom) {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: legacyFrom, to: [to], subject, html }),
-    })
-    if (!response.ok) throw new Error('Legacy email provider rejected the message.')
-    return 'resend'
-  }
-  return null
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (!smtpUser || !smtpPassword) throw new Error('SMTP credentials are not configured for this Edge Function.')
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPassword },
+  })
+  await transport.sendMail({ from: smtpFrom, to, subject, html })
+  return true
 }
 
 const corsHeaders = {
