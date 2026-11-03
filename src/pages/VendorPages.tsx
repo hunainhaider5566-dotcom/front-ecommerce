@@ -198,34 +198,6 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   </form>
 }
 
-function VerificationDocumentSection({ profile, onSaved }: { profile: SellerProfile; onSaved: (profile: SellerProfile) => void }) {
-  const { t } = useI18n()
-  const { push } = useToast()
-  const [file, setFile] = useState<File | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [hasDocument, setHasDocument] = useState(Boolean(profile.document_path))
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!file) { push(t('Choose a verification document first.'), 'error'); return }
-    setSaving(true)
-    try {
-      const documentPath = await uploadVendorDocument(file)
-      const saved = await updateOwnShop({ shop_name: profile.shop_name, slug: profile.slug, description: profile.description, contact_email: profile.contact_email, phone: profile.phone, document_path: documentPath })
-      onSaved(saved)
-      setFile(null)
-      setHasDocument(true)
-      push(t('Private verification document saved.'), 'success')
-    } catch (cause) { push(cause instanceof Error ? cause.message : t('The verification document could not be saved.'), 'error') }
-    finally { setSaving(false) }
-  }
-  return <form className="placeholder-panel vendor-form vendor-verification" onSubmit={(event) => void submit(event)}>
-    <h2>{t('Private verification documents')}</h2>
-    <p>{t(hasDocument ? 'A private verification document is on file.' : 'No private verification document is on file.')}</p>
-    <div className="form-field"><label htmlFor="vendor-private-document">{t('Identity or business registration document')}</label><input id="vendor-private-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>
-    <button type="submit" className="button button--outline" disabled={saving || !file}>{saving ? t('Uploading…') : t(hasDocument ? 'Replace private document' : 'Upload private document')}</button>
-  </form>
-}
-
 export function VendorApplicationPage() {
   const { t } = useI18n()
   const { user, loading: authLoading } = useAuth()
