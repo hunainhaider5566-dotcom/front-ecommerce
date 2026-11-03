@@ -10,6 +10,17 @@ type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
 type FieldErrors = Record<string, string>
 
 const emailPattern = /^\S+@\S+\.\S+$/
+const PENDING_SIGNUP_EMAIL_KEY = 'jtbazar_pending_signup_email'
+
+function getPendingSignupEmail() {
+  try { return window.sessionStorage.getItem(PENDING_SIGNUP_EMAIL_KEY) ?? '' }
+  catch { return '' }
+}
+
+function clearPendingSignupEmail() {
+  try { window.sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY) }
+  catch { /* session storage may be unavailable */ }
+}
 const emptyCredentials = { email: '', password: '' }
 const emptyRegistration = { name: '', email: '', password: '', confirmation: '', terms: false }
 
@@ -86,11 +97,11 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   return message ? <p className="auth-field__error" id={id} role="alert">{t(message)}</p> : null
 }
 
-function AuthField({ label, name, type = 'text', value, onChange, error, autoComplete, required = true, help, children }: { label: string; name: string; type?: string; value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; error?: string; autoComplete?: string; required?: boolean; help?: string; children?: ReactNode }) {
+function AuthField({ label, name, type = 'text', value, onChange, error, autoComplete, required = true, help, readOnly = false, children }: { label: string; name: string; type?: string; value: string; onChange?: (event: ChangeEvent<HTMLInputElement>) => void; error?: string; autoComplete?: string; required?: boolean; help?: string; readOnly?: boolean; children?: ReactNode }) {
   const { t } = useI18n()
   const errorId = `${name}-error`
   const helpId = `${name}-help`
-  return <div className="auth-field"><label htmlFor={name}>{t(label)} <span className="auth-field__meta">{t(required ? 'Required' : 'Optional')}</span></label><div className="auth-field__control"><input id={name} name={name} type={type} value={value} onChange={onChange} autoComplete={autoComplete} required={required} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : help ? helpId : undefined} />{children}</div>{help && !error ? <p className="auth-field__help" id={helpId}>{t(help)}</p> : null}<FieldError id={errorId} message={error} /></div>
+  return <div className="auth-field"><label htmlFor={name}>{t(label)} <span className="auth-field__meta">{t(required ? 'Required' : 'Optional')}</span></label><div className="auth-field__control"><input id={name} name={name} type={type} value={value} onChange={onChange} readOnly={readOnly} autoComplete={autoComplete} required={required} aria-invalid={Boolean(error)} aria-describedby={error ? errorId : help ? helpId : undefined} />{children}</div>{help && !error ? <p className="auth-field__help" id={helpId}>{t(help)}</p> : null}<FieldError id={errorId} message={error} /></div>
 }
 
 function PasswordField({ name, label, value, onChange, error, autoComplete }: { name: string; label: string; value: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void; error?: string; autoComplete?: string }) {
@@ -198,8 +209,13 @@ export function RegisterPage() {
         setMessage('An account with this email already exists. Please sign in instead or continue with Google.')
         return
       }
-      if (response.data.session) navigate('/account')
-      else navigate('/verify-email', { state: { email: form.email.trim() } })
+      if (response.data.session) {
+        clearPendingSignupEmail()
+        navigate('/account')
+      } else {
+        try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, form.email.trim()) } catch { /* route state remains available */ }
+        navigate('/verify-email', { state: { email: form.email.trim() } })
+      }
     } catch (error) {
       setStatus('error'); setMessage(friendlyAuthError(error))
     }
@@ -232,7 +248,7 @@ export function VerifyEmailPage() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
-  const [email, setEmail] = useState(stateEmail || user?.email || '')
+  const email = stateEmail || getPendingSignupEmail() || user?.email || ''
   const [error, setError] = useState('')
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
@@ -274,8 +290,8 @@ export function VerifyEmailPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (resendCooldown > 0) return
-    if (!email.trim()) { setError('Email is required.'); return }
-    if (!emailPattern.test(email)) { setError('Enter a valid email address.'); return }
+    if (!email.trim()) { setError('Your registered email address could not be found. Please return to registration and try again.'); return }
+    if (!emailPattern.test(email)) { setError('The registered email address is invalid. Please return to registration and try again.'); return }
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.resendSignupVerification(email.trim()))
@@ -283,8 +299,28 @@ export function VerifyEmailPage() {
       setStatus('success'); setMessage('A new verification email has been requested. If it does not arrive, wait 60 seconds and try again.')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
   }
+  const requestOtp = async () => {
+    if (status === 'loading') return
+    if (!emailPattern.test(email)) { setError('Your registered email address could not be found. Please return to registration and try again.'); return }
+    if (resendCooldown > 0) {
+      navigate('/verify-otp', { state: { email } })
+      return
+    }
+    setStatus('loading'); setMessage('')
+    try {
+      throwIfAuthError(await authService.resendSignupVerification(email.trim()))
+      setResendCooldown(60)
+      navigate('/verify-otp', { state: { email } })
+    } catch (cause) {
+      setStatus('error')
+      const detail = describeError(cause)
+      setMessage(/rate limit|too many requests|after \\d+ seconds/i.test(detail)
+        ? 'A verification code was recently requested. Please check your inbox and wait before trying again.'
+        : detail)
+    }
+  }
   if (authLoading || checkingVerification) return <section className="account-page"><div className="account-page__inner"><h1>{t('Checking email verification')}</h1><p role="status">{t('Please wait while we securely check your account status…')}</p></div></section>
-  return <AuthLayout eyebrow="Verification email" title="Verify your email address" intro="Resend a verification email or enter your six-digit code to verify your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Please check your spam or junk folder if you do not see the email in your inbox.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading' || resendCooldown > 0}>{status === 'loading' ? t('Requesting verification…') : resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend verification email')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form><div className="auth-secondary-action"><Link className="auth-link" to="/verify-otp" state={{ email }}>{t('Enter a verification code')}<ArrowRight size={15} aria-hidden="true" /></Link></div></AuthLayout>
+  return <AuthLayout eyebrow="Verification email" title="Verify your email address" intro="Resend a verification email or enter your six-digit code to verify your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Please check your spam or junk folder if you do not see the email in your inbox.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} readOnly autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading' || resendCooldown > 0}>{status === 'loading' ? t('Requesting verification…') : resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend verification email')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form><div className="auth-secondary-action"><Link className="auth-link" to="/verify-otp" state={{ email }} onClick={(event) => { event.preventDefault(); void requestOtp() }} aria-disabled={status === 'loading'}>{t('Enter a verification code')}<ArrowRight size={15} aria-hidden="true" /></Link></div></AuthLayout>
 }
 
 function OtpInputs({ code, setCode, error }: { code: string[]; setCode: (code: string[]) => void; error?: string }) {
@@ -306,14 +342,16 @@ export function VerifyOtpPage() {
 
   useEffect(() => {
     let active = true
-    if (authLoading || !user) return () => { active = false }
+    if (authLoading) return () => { active = false }
+    if (!email) { navigate('/register', { replace: true }); return () => { active = false } }
+    if (!user) return () => { active = false }
     void authService.getCurrentUser().then(({ data, error }) => {
       if (active && !error && data.user?.email_confirmed_at) navigate('/account', { replace: true })
     }).catch(() => undefined)
     return () => { active = false }
-  }, [authLoading, user?.id, navigate])
+  }, [authLoading, user?.id, email, navigate])
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
-  const [email, setEmail] = useState(stateEmail)
+  const email = stateEmail || getPendingSignupEmail() || user?.email || ''
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [error, setError] = useState('')
   const [status, setStatus] = useState<AuthStatus>('ready')
@@ -348,10 +386,11 @@ export function VerifyOtpPage() {
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.verifySignupOtp(email.trim(), value))
+      clearPendingSignupEmail()
       navigate('/account')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)); setCode(['', '', '', '', '', '']) }
   }
-  return <AuthLayout eyebrow="Verification email" title="Verify your email" intro="Verify your email address using the one-time code sent to your inbox."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Email" name="otp-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error && !emailPattern.test(email) ? error : undefined} autoComplete="email" /><OtpInputs code={code} setCode={(next) => { setCode(next); setError('') }} error={error && emailPattern.test(email) ? error : undefined} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Verifying…') : t('Verify code')}<ShieldCheck size={16} aria-hidden="true" /></button><button className="auth-provider-button" type="button" onClick={resendCode} disabled={status === 'loading' || resendCooldown > 0 || !emailPattern.test(email)}>{resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend OTP code')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/verify-email" state={{ email }}><ArrowLeft size={15} aria-hidden="true" />{t('Back to verification email')}</Link></form></AuthLayout>
+  return <AuthLayout eyebrow="Verification email" title="Verify your email" intro="Verify your email address using the one-time code sent to your inbox."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Email" name="otp-email" type="email" value={email} readOnly error={error && !emailPattern.test(email) ? error : undefined} autoComplete="email" /><OtpInputs code={code} setCode={(next) => { setCode(next); setError('') }} error={error && emailPattern.test(email) ? error : undefined} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Verifying…') : t('Verify code')}<ShieldCheck size={16} aria-hidden="true" /></button><button className="auth-provider-button" type="button" onClick={resendCode} disabled={status === 'loading' || resendCooldown > 0 || !emailPattern.test(email)}>{resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend OTP code')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/verify-email" state={{ email }}><ArrowLeft size={15} aria-hidden="true" />{t('Back to verification email')}</Link></form></AuthLayout>
 }
 
 export function ResetPasswordPage() {
