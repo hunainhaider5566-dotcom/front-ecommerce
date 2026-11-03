@@ -664,3 +664,7 @@ img { display: block; max-width: 100%; }
 .case-card__evidence img{width:88px;height:88px;object-fit:cover;border:1px solid var(--line);border-radius:10px}
 .case-card__evidence span{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700}
 @media(max-width:600px){.case-card__product{align-items:flex-start}.case-card__product>img{width:54px;height:54px;flex:0 0 54px}.case-card__evidence img{width:76px;height:76px}}
+
+
+/* Food menu status chips */
+.product-card__daily-status { display: inline-flex; align-items: center; width: fit-content; margin: 0.35rem 0; padding: 0.25rem 0.55rem; border: 1px solid var(--line, #d8d5ce); border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.02em; }
