@@ -1,5 +1,39 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+import nodemailer from 'npm:nodemailer@^9'
+
+const smtpUser = Deno.env.get('SMTP_USERNAME') ?? ''
+const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? ''
+const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? 'smtp.gmail.com'
+const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '465')
+const smtpFrom = Deno.env.get('SMTP_FROM') || (smtpUser ? `"JTBazar" <${smtpUser}>` : '')
+const resendKey = Deno.env.get('RESEND_API_KEY')
+const legacyFrom = Deno.env.get('SUPPORT_FROM_EMAIL')
+
+async function sendEmail(to: string, subject: string, html: string): Promise<'smtp' | 'resend' | null> {
+  if (smtpUser && smtpPassword) {
+    const transport = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPassword },
+    })
+    await transport.sendMail({ from: smtpFrom, to, subject, html })
+    return 'smtp'
+  }
+  // Temporary compatibility while SMTP Edge Function secrets are being configured.
+  if (resendKey && legacyFrom) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: legacyFrom, to: [to], subject, html }),
+    })
+    if (!response.ok) throw new Error('Legacy email provider rejected the message.')
+    return 'resend'
+  }
+  return null
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,7 +49,7 @@ Deno.serve(async (request) => {
   const authorization = request.headers.get('Authorization')
   if (!authorization) return json({ error: 'Sign-in is required.' }, 401)
   const url = Deno.env.get('SUPABASE_URL'), anon = Deno.env.get('SUPABASE_ANON_KEY'), serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const resendKey = Deno.env.get('RESEND_API_KEY'), from = Deno.env.get('SUPPORT_FROM_EMAIL'), inbox = Deno.env.get('SUPPORT_INBOX_EMAIL')
+  const inbox = Deno.env.get('SUPPORT_INBOX_EMAIL')
   if (!url || !anon || !serviceKey) return json({ error: 'Email service is not configured.' }, 503)
   const caller = createClient(url, anon, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } })
   const { data: authData, error: authError } = await caller.auth.getUser()
@@ -92,17 +126,15 @@ Deno.serve(async (request) => {
     eventType = 'seller_approved'
   } else return json({ error: 'Unsupported email event.' }, 400)
 
-  if (!resendKey || !from || recipients.length === 0) return json({ sent: false, reason: !resendKey || !from ? 'email_not_configured' : 'recipient_missing' })
+  if (recipients.length === 0) return json({ sent: false, reason: 'recipient_missing' })
   let sent = 0
   for (const recipient of [...new Set(recipients)]) {
     const eventKey = `${eventType}:${entityId}:${recipient.toLowerCase()}`
     const { error: claimError } = await admin.from('email_notification_events').insert({ event_key: eventKey, event_type: eventType, entity_id: entityId, recipient_email: recipient })
     if (claimError?.code === '23505') { sent++; continue }
     if (claimError) continue
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [recipient], subject, html: (() => {
+    try {
+      const provider = await sendEmail(recipient, subject, (() => {
         const status = eventType.startsWith('order_') ? eventType.replace('order_', '').replace(/_/g, ' ') : eventType.replace(/_/g, ' ')
         const statusColors: Record<string, { bg: string; fg: string }> = {
           placed: { bg: '#fff4db', fg: '#8a5a00' },
@@ -138,12 +170,14 @@ Deno.serve(async (request) => {
             <div style="font-size:11px;color:#98a2b3;padding:18px 8px">This is an automated notification about your marketplace order.</div>
           </td></tr></table>
         </body></html>`
-      })() }),
-    })
-    if (response.ok) {
-      sent++
-      await admin.from('email_notification_events').update({ sent_at: new Date().toISOString() }).eq('event_key', eventKey)
-    } else await admin.from('email_notification_events').delete().eq('event_key', eventKey)
+      })())
+      if (provider) {
+        sent++
+        await admin.from('email_notification_events').update({ sent_at: new Date().toISOString() }).eq('event_key', eventKey)
+      } else await admin.from('email_notification_events').delete().eq('event_key', eventKey)
+    } catch {
+      await admin.from('email_notification_events').delete().eq('event_key', eventKey)
+    }
   }
   return json({ sent: sent > 0, recipients_sent: sent })
 })
