@@ -41,6 +41,7 @@ function mapCategory(row: CategoryRow): Category {
     image: row.image_url ?? undefined,
     isActive: row.is_active,
     isComingSoon: row.is_coming_soon,
+    isFoodCategory: row.is_food_category,
     sortOrder: row.sort_order,
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
@@ -125,6 +126,10 @@ function mapProduct(
     originalFoodUnitPrice: row.food_unit_price === null ? null : Number(row.food_unit_price),
     foodQuantityIncrement: row.food_quantity_increment,
     foodMinimumQuantity: row.food_minimum_quantity,
+    isDailyItem: row.is_daily_item,
+    dailyStatus: row.daily_status,
+    dailyAvailableOn: row.daily_available_on,
+    dailyAvailableQuantity: row.daily_available_quantity,
     currency: row.currency,
     categoryId: row.category_id ?? '',
     images: [...images].sort((a, b) => a.sort_order - b.sort_order).map(mapImage).filter(Boolean),
@@ -148,12 +153,12 @@ async function loadSupabaseCatalog() {
   const client = getSupabase()
   const [productResult, categoryResult, shopResult] = await Promise.all([
     client.from('products')
-      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, discount_percent, food_selling_unit, food_unit_price, food_quantity_increment, food_minimum_quantity, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
+      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, discount_percent, food_selling_unit, food_unit_price, food_quantity_increment, food_minimum_quantity, is_daily_item, daily_available_quantity, daily_minimum_quantity, daily_available_on, daily_status, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
       .eq('publication_status', 'published')
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false }),
     client.from('categories')
-      .select('id, parent_id, name, slug, description, eyebrow, image_url, is_active, is_coming_soon, sort_order, seo_title, seo_description, created_at, updated_at')
+      .select('id, parent_id, name, slug, description, eyebrow, image_url, is_active, is_coming_soon, is_food_category, sort_order, seo_title, seo_description, created_at, updated_at')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
