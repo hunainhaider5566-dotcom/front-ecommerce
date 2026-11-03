@@ -237,6 +237,13 @@ export function VerifyEmailPage() {
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
   const [checkingVerification, setCheckingVerification] = useState(true)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
 
   useEffect(() => {
     let active = true
@@ -266,16 +273,18 @@ export function VerifyEmailPage() {
   }, [authLoading, user?.id, navigate])
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (resendCooldown > 0) return
     if (!email.trim()) { setError('Email is required.'); return }
     if (!emailPattern.test(email)) { setError('Enter a valid email address.'); return }
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.resendSignupVerification(email.trim()))
-      setStatus('success'); setMessage('Verification email sent. Please check your inbox.')
+      setResendCooldown(60)
+      setStatus('success'); setMessage('A new verification email has been requested. If it does not arrive, wait 60 seconds and try again.')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
   }
   if (authLoading || checkingVerification) return <section className="account-page"><div className="account-page__inner"><h1>{t('Checking email verification')}</h1><p role="status">{t('Please wait while we securely check your account status…')}</p></div></section>
-  return <AuthLayout eyebrow="Verification email" title="Verify your email address" intro="Resend a verification email or enter your six-digit code to verify your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Please check your spam or junk folder if you do not see the email in your inbox.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Requesting verification…') : t('Resend verification email')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form><div className="auth-secondary-action"><Link className="auth-link" to="/verify-otp" state={{ email }}>{t('Enter a verification code')}<ArrowRight size={15} aria-hidden="true" /></Link></div></AuthLayout>
+  return <AuthLayout eyebrow="Verification email" title="Verify your email address" intro="Resend a verification email or enter your six-digit code to verify your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Please check your spam or junk folder if you do not see the email in your inbox.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading' || resendCooldown > 0}>{status === 'loading' ? t('Requesting verification…') : resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend verification email')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form><div className="auth-secondary-action"><Link className="auth-link" to="/verify-otp" state={{ email }}>{t('Enter a verification code')}<ArrowRight size={15} aria-hidden="true" /></Link></div></AuthLayout>
 }
 
 function OtpInputs({ code, setCode, error }: { code: string[]; setCode: (code: string[]) => void; error?: string }) {
@@ -309,6 +318,28 @@ export function VerifyOtpPage() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
+  const resendCode = async () => {
+    if (!emailPattern.test(email) || resendCooldown > 0 || status === 'loading') return
+    setStatus('loading'); setMessage('')
+    try {
+      throwIfAuthError(await authService.resendSignupVerification(email.trim()))
+      setResendCooldown(60)
+      setStatus('success')
+      setMessage('A new verification code email has been requested. Check your inbox and spam folder.')
+    } catch (cause) {
+      setStatus('error')
+      const detail = describeError(cause)
+      setMessage(/rate limit|too many requests|after \d+ seconds/i.test(detail)
+        ? 'Email provider cooldown is active. Please wait a minute before requesting another code.'
+        : detail)
+    }
+  }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const value = code.join('')
@@ -320,7 +351,7 @@ export function VerifyOtpPage() {
       navigate('/account')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)); setCode(['', '', '', '', '', '']) }
   }
-  return <AuthLayout eyebrow="Verification email" title="Verify your email" intro="Verify your email address using the one-time code sent to your inbox."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Email" name="otp-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error && !emailPattern.test(email) ? error : undefined} autoComplete="email" /><OtpInputs code={code} setCode={(next) => { setCode(next); setError('') }} error={error && emailPattern.test(email) ? error : undefined} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Verifying…') : t('Verify code')}<ShieldCheck size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/verify-email" state={{ email }}><ArrowLeft size={15} aria-hidden="true" />{t('Back to verification email')}</Link></form></AuthLayout>
+  return <AuthLayout eyebrow="Verification email" title="Verify your email" intro="Verify your email address using the one-time code sent to your inbox."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Email" name="otp-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error && !emailPattern.test(email) ? error : undefined} autoComplete="email" /><OtpInputs code={code} setCode={(next) => { setCode(next); setError('') }} error={error && emailPattern.test(email) ? error : undefined} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Verifying…') : t('Verify code')}<ShieldCheck size={16} aria-hidden="true" /></button><button className="auth-provider-button" type="button" onClick={resendCode} disabled={status === 'loading' || resendCooldown > 0 || !emailPattern.test(email)}>{resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend OTP code')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/verify-email" state={{ email }}><ArrowLeft size={15} aria-hidden="true" />{t('Back to verification email')}</Link></form></AuthLayout>
 }
 
 export function ResetPasswordPage() {
