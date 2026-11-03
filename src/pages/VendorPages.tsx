@@ -485,6 +485,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       let specifications: unknown = []; let dimensions: unknown = {}
       try { specifications = JSON.parse(String(data.get('specifications') || '[]')); dimensions = JSON.parse(String(data.get('dimensions') || '{}')) } catch { throw new Error(t('Specifications and dimensions must be valid JSON.')) }
       const input = {
+        category_id: String(data.get('category_id') ?? '') || null,
         name: String(data.get('name') ?? '').trim(),
         slug: String(data.get('slug') ?? '').trim(),
         sku: String(data.get('sku') ?? '').trim() || null,
@@ -551,7 +552,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-seo-title">{t('SEO title')}</label><input id="product-seo-title" name="seo_title" defaultValue={product?.seo_title ?? ''}/></div>
     <div className="form-field"><label htmlFor="product-seo-description">{t('SEO description')}</label><textarea id="product-seo-description" name="seo_description" rows={2} defaultValue={product?.seo_description ?? ''}/></div>
     {!editing && <><label className="checkout-save-address"><input type="checkbox" name="track_inventory" defaultChecked /> {t('Track inventory for this listing')}</label><div className="form-field"><label htmlFor="product-initial-stock">{t('Initial stock quantity')}</label><input id="product-initial-stock" name="initial_stock" type="number" min="0" step="1" defaultValue="0"/></div></>}
-    <div className="vendor-form__actions form-field--wide"><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(editing ? 'Save changes' : 'Submit listing')}</button><button type="button" className="button button--outline" onClick={onCancel}>{t('Cancel')}</button></div>
+    <div className="vendor-form__actions form-field--wide" style={{ gridColumn: '1 / -1', width: '100%', display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap' }}><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(editing ? 'Save changes' : 'Submit listing')}</button><button type="button" className="button button--outline" onClick={onCancel}>{t('Cancel')}</button></div>
   </form>
 }
 
