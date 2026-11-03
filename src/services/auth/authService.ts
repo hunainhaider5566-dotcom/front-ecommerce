@@ -66,4 +66,8 @@ export const authService = {
   signOut() {
     return getSupabase().auth.signOut()
   },
+
+  signOutLocal() {
+    return getSupabase().auth.signOut({ scope: 'local' })
+  },
 }
