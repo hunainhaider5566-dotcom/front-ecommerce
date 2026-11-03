@@ -95,7 +95,7 @@ export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
   const itemIds = [...new Set(cases.map((item) => item.order_item_id).filter((id): id is string => Boolean(id)))]
   const [ordersResult, itemsResult] = await Promise.all([
     client.from('orders').select('id, order_number').in('id', orderIds),
-    itemIds.length ? client.from('order_items').select('id, order_id, product_id, product_name_snapshot, sku_snapshot, variant_snapshot, quantity, unit_price, line_total').in('id', itemIds) : Promise.resolve({ data: [], error: null }),
+    itemIds.length ? client.from('order_items').select('id, order_id, product_id, product_name_snapshot, product_image_url, sku_snapshot, variant_snapshot, quantity, unit_price, line_total').in('id', itemIds) : Promise.resolve({ data: [], error: null }),
   ])
   throwIfError(ordersResult.error); throwIfError(itemsResult.error)
   const orderNumbers = new Map((ordersResult.data ?? []).map((row) => [row.id, row.order_number]))
@@ -120,7 +120,7 @@ export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
       product_quantity: orderItem?.quantity ?? null,
       product_unit_price: orderItem?.unit_price ?? null,
       product_line_total: orderItem?.line_total ?? null,
-      product_image_url: orderItem?.product_id ? imageByProduct.get(orderItem.product_id) ?? null : null,
+      product_image_url: orderItem?.product_image_url ?? (orderItem?.product_id ? imageByProduct.get(orderItem.product_id) ?? null : null),
       evidence_url: item.evidence_path ? await getEvidenceSignedUrl(item.evidence_path) : null,
     }
   }))
