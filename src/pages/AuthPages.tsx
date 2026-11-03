@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Info, KeyRound, LockKeyhole, LogOut, Mail, ShieldCheck } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,6 +16,14 @@ const emptyRegistration = { name: '', email: '', password: '', confirmation: '',
 function describeError(error: unknown) {
   if (error instanceof Error) return error.message
   return 'The authentication request could not be completed. Please try again.'
+}
+
+function friendlyAuthError(error: unknown) {
+  const message = describeError(error)
+  if (/already registered|already exists|user_already_exists|email_exists/i.test(message)) {
+    return 'An account with this email already exists. Please sign in instead or continue with Google.'
+  }
+  return message
 }
 
 function isSuspendedAccountError(error: unknown): boolean {
@@ -167,7 +175,7 @@ export function RegisterPage() {
   const google = async () => {
     setStatus('loading'); setMessage('')
     try { throwIfAuthError(await authService.signInWithGoogle()); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
-    catch (error) { setStatus('error'); setMessage(describeError(error)) }
+    catch (error) { setStatus('error'); setMessage(friendlyAuthError(error)) }
   }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -185,10 +193,15 @@ export function RegisterPage() {
     setStatus('loading'); setMessage('')
     try {
       const response = throwIfAuthError(await authService.signUp(form.email.trim(), form.password, form.name.trim()))
+      if (response.data.user?.identities?.length === 0) {
+        setStatus('error')
+        setMessage('An account with this email already exists. Please sign in instead or continue with Google.')
+        return
+      }
       if (response.data.session) navigate('/account')
       else navigate('/verify-email', { state: { email: form.email.trim() } })
     } catch (error) {
-      setStatus('error'); setMessage(describeError(error))
+      setStatus('error'); setMessage(friendlyAuthError(error))
     }
   }
   return <AuthLayout eyebrow="Authentication" title="Create your account" intro="Create your Paperloom account to save your favorites and enjoy seamless shopping."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><ProviderButton onClick={google} disabled={status === 'loading'} /><Divider /><AuthField label="Full name" name="name" value={form.name} onChange={update} error={errors.name} autoComplete="name" /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" /><PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" /><div className="auth-terms"><label className="auth-checkbox auth-checkbox--terms"><input type="checkbox" name="terms" checked={form.terms} onChange={(event) => { setForm((current) => ({ ...current, terms: event.target.checked })); setErrors((current) => ({ ...current, terms: '' })) }} aria-invalid={Boolean(errors.terms)} aria-describedby={errors.terms ? 'terms-error' : undefined} /> <span>{t('I agree to the terms')}</span></label><Link className="auth-link auth-terms-link" to="/privacy">{t('Read privacy notes')}</Link></div><FieldError id="terms-error" message={errors.terms} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Creating account…') : t('Create account')}<ArrowRight size={16} aria-hidden="true" /></button></form><AuthLinks mode="register" /></AuthLayout>
@@ -293,6 +306,53 @@ export function ResetPasswordPage() {
     catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
   }
   return <AuthLayout eyebrow="Password reset" title="Reset your password" intro="Set a new secure password for your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><LockKeyhole size={20} aria-hidden="true" /><div><h2>{t('Secure password update')}</h2><p>{t(loading ? 'Verifying the recovery session…' : user ? 'Recovery session is active.' : 'No active recovery session found.')}</p></div></div><PasswordField label="New password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" /><PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" /><button className="auth-submit" type="submit" disabled={status === 'loading' || loading || !user}>{status === 'loading' ? t('Updating password…') : t('Reset password')}<KeyRound size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/forgot-password"><ArrowLeft size={15} aria-hidden="true" />{t('Request another recovery link')}</Link></form></AuthLayout>
+}
+
+export function AuthCallbackPage() {
+  const { t } = useI18n()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [status, setStatus] = useState<AuthStatus>('loading')
+  const [message, setMessage] = useState('Completing your secure sign-in…')
+  const completionRef = useRef<Promise<string> | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (!completionRef.current) {
+      completionRef.current = (async () => {
+        const params = new URLSearchParams(location.search)
+        const providerError = params.get('error_description') || params.get('error')
+        if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
+
+        const code = params.get('code')
+        if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
+
+        const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
+        if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
+        return getSafeAuthRedirect('', { from: params.get('next') })
+      })()
+    }
+
+    completionRef.current.then((next) => {
+      if (active) navigate(next, { replace: true })
+    }).catch((cause: unknown) => {
+      if (!active) return
+      setStatus('error')
+      setMessage(friendlyAuthError(cause))
+    })
+
+    return () => { active = false }
+  }, [location.search, navigate])
+
+  return <AuthLayout eyebrow="Account security" title="Finishing verification" intro="Please wait while we securely confirm your account.">
+    <div className="auth-form" aria-busy={status === 'loading'}>
+      <AuthStatusMessage status={status} message={message} />
+      {status === 'error' && <div className="auth-callback-actions">
+        <Link className="auth-submit" to="/verify-email">{t('Request a new verification email')}<Mail size={16} aria-hidden="true" /></Link>
+        <Link className="auth-link" to="/login">{t('Back to sign in')}<ArrowRight size={15} aria-hidden="true" /></Link>
+      </div>}
+    </div>
+  </AuthLayout>
 }
 
 export function LogoutPage() {

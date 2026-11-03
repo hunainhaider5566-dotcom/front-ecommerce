@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { CartProvider } from '../contexts/CartContext'
 import { CatalogProvider } from '../contexts/CatalogContext'
@@ -20,7 +20,7 @@ import { CartPage } from '../pages/CartPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
 import { ConfirmationPage } from '../pages/ConfirmationPage'
 import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage } from '../pages/InfoPages'
-import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, VerifyOtpPage, ResetPasswordPage, LogoutPage } from '../pages/AuthPages'
+import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, VerifyOtpPage, ResetPasswordPage, AuthCallbackPage, LogoutPage } from '../pages/AuthPages'
 import { AccountPage } from '../pages/AccountPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { VendorApplicationPage, VendorDashboardPage } from '../pages/VendorPages'
@@ -31,9 +31,22 @@ function ScrollToTop() {
   return null
 }
 
+function SplashScreen() {
+  return <div className="app-splash" role="status" aria-label="Loading JTBazar">
+    <img src="/jtbazar-logo.webp" alt="JTBazar" />
+    <span>Pakistan's marketplace</span>
+  </div>
+}
+
 function Storefront() {
   const { t, locale, direction } = useI18n()
-  return <div className="app-shell" lang={locale} dir={direction}>
+  const [showSplash, setShowSplash] = useState(true)
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowSplash(false), 950)
+    return () => window.clearTimeout(timeout)
+  }, [])
+  return <>
+  <div className="app-shell" lang={locale} dir={direction}>
     <a className="skip-link" href="#main-content">{t('Skip to content')}</a>
     <SiteHeader />
     <main id="main-content" className="main-content">
@@ -54,6 +67,7 @@ function Storefront() {
         <Route path="/account" element={<AccountPage />} />
         <Route path="/vendor/apply" element={<VendorApplicationPage />} />
         <Route path="/vendor" element={<VendorDashboardPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -74,6 +88,8 @@ function Storefront() {
     <MobileBottomNavigation />
     <ScrollToTop />
   </div>
+  {showSplash && <SplashScreen />}
+  </>
 }
 
 export function App() {

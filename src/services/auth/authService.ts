@@ -4,6 +4,10 @@ function redirect(path: string) {
   return new URL(path, window.location.origin).toString()
 }
 
+function callbackRedirect(nextPath: string) {
+  return redirect(`/auth/callback?next=${encodeURIComponent(nextPath)}`)
+}
+
 export const authService = {
   signInWithPassword(email: string, password: string) {
     return getSupabase().auth.signInWithPassword({ email, password })
@@ -15,21 +19,25 @@ export const authService = {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: redirect('/verify-email'),
+        emailRedirectTo: callbackRedirect('/account?verified=1'),
       },
     })
   },
 
   resendSignupVerification(email: string) {
-    return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: redirect('/verify-email') } })
+    return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: callbackRedirect('/account?verified=1') } })
   },
 
   verifySignupOtp(email: string, token: string) {
     return getSupabase().auth.verifyOtp({ email, token, type: 'signup' })
   },
 
+  exchangeCodeForSession(code: string) {
+    return getSupabase().auth.exchangeCodeForSession(code)
+  },
+
   sendPasswordRecovery(email: string) {
-    return getSupabase().auth.resetPasswordForEmail(email, { redirectTo: redirect('/reset-password') })
+    return getSupabase().auth.resetPasswordForEmail(email, { redirectTo: callbackRedirect('/reset-password') })
   },
 
   updatePassword(password: string) {
@@ -39,7 +47,7 @@ export const authService = {
   signInWithGoogle(redirectPath = '/account') {
     return getSupabase().auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: redirect(redirectPath) },
+      options: { redirectTo: callbackRedirect(redirectPath) },
     })
   },
 

@@ -17,7 +17,7 @@ export const supabase = isSupabaseConfigured
         storage: typeof window === 'undefined' ? undefined : window.localStorage,
         persistSession: typeof window !== 'undefined',
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
         flowType: 'pkce',
       },
     })
