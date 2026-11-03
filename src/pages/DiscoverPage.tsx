@@ -47,24 +47,39 @@ export function DiscoverPage() {
   }, [currentIndex, visibleItems.length])
 
   function navigateToIndex(nextIndex: number) {
+    if (visibleItems.length === 0) return
     const safeIndex = (nextIndex + visibleItems.length) % visibleItems.length
     setCurrentIndex(safeIndex)
-    cardRefs.current[safeIndex]?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' })
+    const track = trackRef.current
+    const card = cardRefs.current[safeIndex]
+    if (!track || !card) return
+
+    // Scroll only the Discover carousel. scrollIntoView also moves the page viewport,
+    // which caused the whole document to jump while browsing cards.
+    const horizontal = window.matchMedia('(min-width: 761px)').matches
+    const nextPosition = horizontal
+      ? card.offsetLeft - track.offsetLeft
+      : card.offsetTop - track.offsetTop
+    track.scrollTo({
+      [horizontal ? 'left' : 'top']: nextPosition,
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    })
   }
 
   useEffect(() => {
-    if (reducedMotion || items.length < 2) return
+    if (reducedMotion || items.length < 2 || view !== 'products') return
     const timer = window.setInterval(() => {
       navigateToIndex(currentIndex >= items.length - 1 ? 0 : currentIndex + 1)
     }, 6500)
     return () => window.clearInterval(timer)
-  }, [currentIndex, visibleItems.length, items.length, reducedMotion])
+  }, [currentIndex, items.length, reducedMotion, view])
 
   function handleTrackScroll() {
     const track = trackRef.current
     if (!track) return
     const horizontal = window.matchMedia('(min-width: 761px)').matches
-    const center = horizontal ? track.getBoundingClientRect().left + track.clientWidth / 2 : track.getBoundingClientRect().top + track.clientHeight / 2
+    const trackRect = track.getBoundingClientRect()
+    const center = horizontal ? trackRect.left + track.clientWidth / 2 : trackRect.top + track.clientHeight / 2
     let nearest = currentIndex
     let distance = Number.POSITIVE_INFINITY
     cardRefs.current.slice(0, visibleItems.length).forEach((card, index) => {
@@ -83,7 +98,6 @@ export function DiscoverPage() {
   if (status === 'error') {
     return <div className="page-shell"><div className="empty-state"><Sparkles size={32} /><h2>{t('The catalog is unavailable')}</h2><p>{error || t('The catalog could not be loaded.')}</p><Link to="/shop" className="button button--dark">{t('Browse Store')}</Link></div></div>
   }
-
 
   return (
     <div className="discover-page-container">
