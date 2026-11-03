@@ -1,5 +1,26 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+
+import nodemailer from 'npm:nodemailer@^9'
+
+const smtpUser = Deno.env.get('SMTP_USERNAME') ?? ''
+const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? ''
+const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? 'smtp.gmail.com'
+const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '465')
+const smtpFrom = Deno.env.get('SMTP_FROM') || (smtpUser ? `"JTBazar" <${smtpUser}>` : '')
+
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (!smtpUser || !smtpPassword) throw new Error('SMTP credentials are not configured for this Edge Function.')
+  const transport = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPassword },
+  })
+  await transport.sendMail({ from: smtpFrom, to, subject, html })
+  return true
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,7 +35,7 @@ Deno.serve(async (request) => {
   const authorization = request.headers.get('Authorization')
   if (!authorization) return json({ error: 'Sign-in is required.' }, 401)
   const url = Deno.env.get('SUPABASE_URL'), anon = Deno.env.get('SUPABASE_ANON_KEY'), serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const resendKey = Deno.env.get('RESEND_API_KEY'), from = Deno.env.get('SUPPORT_FROM_EMAIL'), inbox = Deno.env.get('SUPPORT_INBOX_EMAIL')
+  const inbox = Deno.env.get('SUPPORT_INBOX_EMAIL')
   if (!url || !anon || !serviceKey) return json({ error: 'Support email is not configured.' }, 503)
   const caller = createClient(url, anon, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } })
   const { data: userData, error: userError } = await caller.auth.getUser()
@@ -32,7 +53,7 @@ Deno.serve(async (request) => {
   if (ticketError || !ticket) return json({ error: 'Support ticket not found.' }, 404)
   const ownerId = input.ticket_kind === 'customer' ? ticket.user_id : ticket.created_by
   if (input.event === 'created' && ownerId !== userData.user.id) return json({ error: 'You can only notify support about your own ticket.' }, 403)
-  if (!resendKey || !from || !inbox) return json({ sent: false, reason: 'email_not_configured' }, 200)
+  if (!inbox) return json({ sent: false, reason: 'support_inbox_not_configured' }, 200)
   let recipient = inbox
   let subject = `New ${input.ticket_kind} support request: ${ticket.subject}`
   let heading = 'New support request'
@@ -48,7 +69,11 @@ Deno.serve(async (request) => {
   }
   const body = input.event === 'admin_reply' ? ticket.admin_response ?? 'Your support request was updated.' : ticket.message
   const html = `<main style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20251f"><h2>${escapeHtml(heading)}</h2><p><b>Subject:</b> ${escapeHtml(ticket.subject)}</p><p style="white-space:pre-wrap">${escapeHtml(body)}</p><p style="color:#687268">Meridion Marketplace Support</p></main>`
-  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [recipient], subject, html }) })
-  if (!response.ok) return json({ sent: false, reason: 'provider_error' }, 200)
-  return json({ sent: true })
+  try {
+    const provider = await sendEmail(recipient, subject, html)
+    if (!provider) return json({ sent: false, reason: 'smtp_not_configured' }, 200)
+    return json({ sent: true, provider })
+  } catch {
+    return json({ sent: false, reason: 'provider_error' }, 200)
+  }
 })
