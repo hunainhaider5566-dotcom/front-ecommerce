@@ -159,7 +159,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
           const previousPath = decodeURIComponent(new URL(profile.shop_image_url).pathname.split('/shop-images/').at(-1) ?? '')
           if (previousPath) await removeVendorShopImage(previousPath).catch(() => undefined)
         }
-        push(t(profile ? 'Shop details updated.' : 'Seller application submitted for review.'), 'success')
+        push(t(profile?.status === 'rejected' ? 'Application resubmitted for review.' : profile ? 'Shop details updated.' : 'Seller application submitted for review.'), 'success')
         if (profile && profile.status === 'rejected') {
           const resubmitted = await resubmitSellerApplication()
           onSaved(resubmitted)
@@ -182,7 +182,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
   }
 
   return <form className="placeholder-panel vendor-form" onSubmit={submit}>
-    <h2>{t(mode === 'settings' ? 'Shop settings' : profile ? 'Update application' : 'Apply to open a shop')}</h2>
+    <h2>{t(profile?.status === 'rejected' ? 'Correct and resubmit application' : mode === 'settings' ? 'Shop settings' : profile ? 'Update application' : 'Apply to open a shop')}</h2>
     <p>{t('Your public shop details and private verification information are handled separately. Only approved shops can publish products.')}</p>
     <div className="form-field"><label htmlFor="shop_name">{t('Shop name')} <span>*</span></label><input id="shop_name" name="shop_name" required maxLength={160} defaultValue={profile?.shop_name ?? ''} placeholder="e.g. Acme Traders" /></div>
     <div className="form-field"><label htmlFor="slug">{t('Shop URL slug')} <span>*</span></label><input id="slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={profile?.slug ?? ''} placeholder="acme-traders" /></div>
@@ -194,7 +194,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
     {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><ShopLocationPicker point={shopLatitude && shopLongitude ? { latitude: Number(shopLatitude), longitude: Number(shopLongitude) } : null} onChange={({ latitude, longitude }) => { setShopLatitude(latitude.toFixed(6)); setShopLongitude(longitude.toFixed(6)) }} /><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
     {(!profile || profile.status === 'rejected' || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path || profile.status === 'rejected'} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
-    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
+    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(profile?.status === 'rejected' ? 'Correct & resubmit application' : mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }
 
