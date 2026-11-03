@@ -15,6 +15,10 @@ SET public = false,
     allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/avif']::text[];
 
 DROP POLICY IF EXISTS complaint_evidence_insert_own ON storage.objects;
+DROP POLICY IF EXISTS complaint_evidence_owner_insert ON storage.objects;
+DROP POLICY IF EXISTS complaint_evidence_seller_read ON storage.objects;
+DROP POLICY IF EXISTS complaint_evidence_buyer_or_admin_read ON storage.objects;
+DROP POLICY IF EXISTS complaint_evidence_read_own_or_admin ON storage.objects;
 CREATE POLICY complaint_evidence_insert_own
 ON storage.objects
 FOR INSERT
@@ -22,6 +26,7 @@ TO authenticated
 WITH CHECK (
   bucket_id = 'complaint-evidence'
   AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+  AND lower(storage.extension(name)) = ANY (ARRAY['jpg', 'jpeg', 'png', 'webp', 'avif'])
 );
 
 DROP POLICY IF EXISTS complaint_evidence_select_owner_or_admin ON storage.objects;
@@ -33,7 +38,7 @@ USING (
   bucket_id = 'complaint-evidence'
   AND (
     (storage.foldername(name))[1] = (SELECT auth.uid())::text
-    OR public.current_user_is_admin()
+    OR private.has_role('admin'::public.app_role)
   )
 );
 
