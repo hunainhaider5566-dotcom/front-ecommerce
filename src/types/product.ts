@@ -8,6 +8,7 @@ export interface ProductVariant {
   originalPrice?: number
   sku?: string
   availabilityStatus?: Exclude<AvailabilityStatus, 'unavailable'>
+  stockQuantity?: number | null
 }
 
 export interface ProductSpecification {
@@ -38,6 +39,7 @@ export interface Product {
   availabilityStatus: AvailabilityStatus
   isFeatured?: boolean
   trackInventory?: boolean
+  stockQuantity?: number | null
   sellerId?: string | null
   vendorId?: string
   sellerName?: string
