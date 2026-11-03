@@ -60,7 +60,7 @@ export function CheckoutPage() {
 
   function captureLocation(showSuccess = false) {
     if (!navigator.geolocation) {
-      setGeoError(t('Location is not available in this browser. You can still place your order without a pin.'))
+      setGeoError(t(requiresFoodDeliveryPin ? 'A location pin is required for nearby food delivery, but this browser cannot read your location.' : 'Location is not available in this browser. You can still place your order without a pin.'))
       return
     }
     setGeoLoading(true)
@@ -126,6 +126,7 @@ export function CheckoutPage() {
   const subtotal = lines.reduce((sum, line) => sum + getCartLineUnitPrice(findProductById(line.productId), line) * line.quantity, 0)
   const total = subtotal + settings.deliveryFee
   const linesAvailable = lines.length > 0 && lines.every((line) => isCartLineAvailable(findProductById(line.productId), line))
+  const requiresFoodDeliveryPin = lines.some((line) => { const product = findProductById(line.productId); return Boolean(product?.foodSellingUnit && product.sellerId) })
 
   if (status === 'loading' && lines.length > 0) return <div className="page-shell"><LoadingState label={t('Preparing checkout…')} /></div>
   if (status === 'error' && lines.length > 0) return <div className="page-shell"><ErrorState message={error || t('The catalog could not be loaded.')} /><button type="button" className="button button--outline" onClick={refresh}>{t('Try again')}</button><Link className="back-link" to="/cart">{t('Return to cart')}</Link></div>
@@ -189,6 +190,7 @@ export function CheckoutPage() {
     if (form.email.trim() && !isValidEmail(form.email.trim())) { push(t('Enter a valid email address.'), 'error'); return }
     if (!settings.codEnabled) { push(t('Cash on delivery is currently unavailable.'), 'error'); return }
     const location = resolvedLocation()
+    if (requiresFoodDeliveryPin && !location) { push(t('Add your current location pin to order food from nearby shops.'), 'error'); return }
     setSubmitting(true)
     try {
       const placed = await placeOrder({
@@ -285,13 +287,13 @@ export function CheckoutPage() {
 
           <div className="location-pin-box shine-surface">
             <div className="location-pin-header">
-              <div><h3><MapPin size={18} /> {t('Location pin')} <span>{t('Optional')}</span></h3></div>
+              <div><h3><MapPin size={18} /> {t('Location pin')} <span>{t(requiresFoodDeliveryPin ? 'Required for food delivery' : 'Optional')}</span></h3></div>
               <button type="button" className="button button--outline" onClick={() => captureLocation(true)} disabled={geoLoading}><Navigation size={16} className={geoLoading ? 'spin' : ''} />{t(geoLoading ? 'Finding location…' : coords ? 'Update my location' : 'Use my current location')}</button>
             </div>
             {geoError && <p className="field-error"><AlertCircle size={15} /> {geoError}</p>}
             {coords
               ? <div className="coords-confirmed-badge"><CheckCircle2 size={18} /><div><strong>{t('Delivery pin confirmed')}</strong><span>{coords.lat}, {coords.lng}</span><button type="button" className="text-button" onClick={() => setCoords(null)}>{t('Change pin')}</button></div></div>
-              : !geoError ? <p className="location-pin-note">{t(geoLoading ? 'Finding your location…' : 'Your location will be added to your order when available.')}</p> : null}
+              : !geoError ? <p className="location-pin-note">{t(geoLoading ? 'Finding your location…' : requiresFoodDeliveryPin ? 'A location pin is required to confirm that the food shop is within its nearby delivery area.' : 'Your location will be added to your order when available.')}</p> : null}
             <div className="checkout-map-preview">
               <iframe title={t('Map preview of selected delivery location')} src={mapEmbedUrl(coords ?? undefined)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
               <div className="checkout-map-preview__caption"><span>{coords ? t('Your delivery area') : t('Delivery area')}</span><a href={`https://www.openstreetmap.org/?mlat=${coords?.lat ?? 31.5204}&mlon=${coords?.lng ?? 74.3587}#map=16/${coords?.lat ?? 31.5204}/${coords?.lng ?? 74.3587}`} target="_blank" rel="noreferrer">{t('Open map')}</a></div>
