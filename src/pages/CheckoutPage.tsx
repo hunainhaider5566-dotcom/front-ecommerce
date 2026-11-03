@@ -15,6 +15,7 @@ import { placeOrder } from '../services/orders/orderService'
 import type { CheckoutFormValues } from '../types/order'
 import { formatPKR } from '../utils/money'
 import { getCartLineUnitPrice, isCartLineAvailable } from '../utils/cart'
+import { isValidEmail, isValidPakistaniMobile, normalizePakistaniMobile } from '../utils/contactValidation'
 
 interface LocationCoordinates {
   lat: number
@@ -184,17 +185,19 @@ export function CheckoutPage() {
       push(t('Please complete the recipient, phone, city and street address fields.'), 'error')
       return
     }
+    if (!isValidPakistaniMobile(form.phone)) { push(t('Enter exactly 03001234567 or +923001234567.'), 'error'); return }
+    if (form.email.trim() && !isValidEmail(form.email.trim())) { push(t('Enter a valid email address.'), 'error'); return }
     if (!settings.codEnabled) { push(t('Cash on delivery is currently unavailable.'), 'error'); return }
     const location = resolvedLocation()
     setSubmitting(true)
     try {
       const placed = await placeOrder({
         customerName: form.fullName.trim(),
-        customerPhone: form.phone.trim(),
+        customerPhone: normalizePakistaniMobile(form.phone),
         customerEmail: form.email.trim() || null,
         shippingAddress: {
           recipient_name: form.fullName.trim(),
-          phone: form.phone.trim(),
+          phone: normalizePakistaniMobile(form.phone),
           address_line_1: form.address.trim(),
           address_line_2: form.area.trim() || null,
           city: form.city.trim(),
@@ -266,7 +269,7 @@ export function CheckoutPage() {
           <h2>{t('Contact details')}</h2>
           <div className="form-grid">
             <div className="form-field"><label htmlFor="fullName">{t('Full name')} <span>*</span></label><input id="fullName" name="fullName" value={form.fullName} onChange={setField} autoComplete="name" required /></div>
-            <div className="form-field"><label htmlFor="phone">{t('Mobile number')} <span>*</span></label><input id="phone" name="phone" type="tel" placeholder="03xx xxx xxxx" value={form.phone} onChange={setField} autoComplete="tel" required /></div>
+            <div className="form-field"><label htmlFor="phone">{t('Mobile number')} <span>*</span></label><input id="phone" name="phone" type="tel" placeholder="03001234567 or +923001234567" maxLength={13} pattern="(03[0-9]{9}|\+923[0-9]{9})" value={form.phone} onChange={setField} autoComplete="tel" required /></div>
             <div className="form-field"><label htmlFor="email">{t('Email address')}</label><input id="email" name="email" type="email" value={form.email} onChange={setField} autoComplete="email" /></div>
           </div>
         </section>

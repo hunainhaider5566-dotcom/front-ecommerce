@@ -1,4 +1,5 @@
 import { getSupabase } from '../../lib/supabase'
+import { isValidPakistaniMobile, normalizePakistaniMobile } from '../../utils/contactValidation'
 const BUCKET = 'customer-avatars'
 const MAX_BYTES = 5 * 1024 * 1024
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -23,6 +24,7 @@ export async function saveMyProfile(input: { fullName: string; phone: string; av
   if (!user) throw new Error('Please sign in to update your profile.')
   const fullName = input.fullName.trim()
   const phone = input.phone.trim()
+  if (phone && !isValidPakistaniMobile(phone)) throw new Error('Enter exactly 03001234567 or +923001234567.')
   if (!fullName || fullName.length > 120) throw new Error('Enter a name of up to 120 characters.')
   if (phone.length > 30) throw new Error('Phone number must be 30 characters or fewer.')
   const { data: oldProfile } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()
@@ -37,7 +39,7 @@ export async function saveMyProfile(input: { fullName: string; phone: string; av
     if (upload.error) throw upload.error
     avatarUrl = supabase.storage.from(BUCKET).getPublicUrl(uploadedPath).data.publicUrl
   }
-  const result = await supabase.from('profiles').update({ full_name: fullName, phone: phone || null, ...(avatarUrl ? { avatar_url: avatarUrl } : {}), updated_at: new Date().toISOString() }).eq('id', user.id).select('id').maybeSingle()
+  const result = await supabase.from('profiles').update({ full_name: fullName, phone: phone ? normalizePakistaniMobile(phone) : null, ...(avatarUrl ? { avatar_url: avatarUrl } : {}), updated_at: new Date().toISOString() }).eq('id', user.id).select('id').maybeSingle()
   if (result.error || !result.data) {
     if (uploadedPath) await supabase.storage.from(BUCKET).remove([uploadedPath])
     if (result.error) throw result.error

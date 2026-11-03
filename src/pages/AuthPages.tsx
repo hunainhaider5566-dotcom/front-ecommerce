@@ -6,10 +6,11 @@ import { useI18n } from '../i18n/LocaleContext'
 import { authService } from '../services/auth/authService'
 import { clearRememberedAccountSuspension, rememberAccountSuspension } from '../services/auth/accountAccessNotice'
 import { LoadingState } from '../components/common/States'
+import { isValidEmail } from '../utils/contactValidation'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
 type FieldErrors = Record<string, string>
 
-const emailPattern = /^\S+@\S+\.\S+$/
+const emailPattern = isValidEmail
 const PENDING_SIGNUP_EMAIL_KEY = 'jtbazar_pending_signup_email'
 
 function getPendingSignupEmail() {

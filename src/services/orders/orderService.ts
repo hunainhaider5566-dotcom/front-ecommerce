@@ -1,6 +1,7 @@
 import { getSupabase } from '../../lib/supabase'
 import type { Json } from '../../types/database'
 import { sendCommerceEmail } from '../account/commerceEmailService'
+import { isValidPakistaniMobile, normalizePakistaniMobile } from '../../utils/contactValidation'
 import type {
   MarketplaceCaseRecord,
   OrderItemRecord,
@@ -18,9 +19,10 @@ function throwIfError(error: { message: string } | null) {
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
+  if (!isValidPakistaniMobile(input.customerPhone)) throw new Error('Enter exactly 03001234567 or +923001234567.')
   const { data, error } = await getSupabase().rpc('place_order', {
     p_customer_name: input.customerName,
-    p_customer_phone: input.customerPhone,
+    p_customer_phone: normalizePakistaniMobile(input.customerPhone),
     p_customer_email: input.customerEmail,
     p_shipping_address: input.shippingAddress,
     p_items: input.items as unknown as Json,
