@@ -94,17 +94,19 @@ BEGIN
     RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'The evidence image does not belong to the selected order.';
   END IF;
 
-  SELECT so.metadata ->> 'mimetype' INTO evidence_mime
-  FROM storage.objects AS so
-  WHERE so.bucket_id = 'complaint-evidence'
-    AND so.name = NEW.evidence_path;
+  IF NEW.evidence_path IS NOT NULL THEN
+    SELECT so.metadata ->> 'mimetype' INTO evidence_mime
+    FROM storage.objects AS so
+    WHERE so.bucket_id = 'complaint-evidence'
+      AND so.name = NEW.evidence_path;
 
-  IF evidence_mime IS NULL OR evidence_mime NOT IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif') THEN
-    RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Upload a valid JPG, PNG, WebP or AVIF evidence image before submitting.';
-  END IF;
+    IF evidence_mime IS NULL OR evidence_mime NOT IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif') THEN
+      RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'Upload a valid JPG, PNG, WebP or AVIF evidence image before submitting.';
+    END IF;
 
-  IF split_part(NEW.evidence_path, '/', 1) <> NEW.buyer_id::text THEN
-    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'Evidence must belong to the customer submitting this case.';
+    IF split_part(NEW.evidence_path, '/', 1) <> NEW.buyer_id::text THEN
+      RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'Evidence must belong to the customer submitting this case.';
+    END IF;
   END IF;
 
   RETURN NEW;
