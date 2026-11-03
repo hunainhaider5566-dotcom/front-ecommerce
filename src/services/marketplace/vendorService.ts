@@ -162,6 +162,13 @@ export async function createVendorProduct(input: {
   fulfillment_expense: number
   minimum_profit: number
   track_inventory: boolean
+  discount_percent: number
+  weight_grams: number | null
+  specifications: unknown
+  dimensions: unknown
+  seo_title: string | null
+  seo_description: string | null
+  initial_stock: number
 }): Promise<string> {
   const { data, error } = await getSupabase().rpc('vendor_create_product', {
     p_category_id: input.category_id,
@@ -175,6 +182,13 @@ export async function createVendorProduct(input: {
     p_fulfillment_expense: input.fulfillment_expense,
     p_minimum_profit: input.minimum_profit,
     p_track_inventory: input.track_inventory,
+    p_discount_percent: input.discount_percent,
+    p_weight_grams: input.weight_grams,
+    p_specifications: input.specifications,
+    p_dimensions: input.dimensions,
+    p_seo_title: input.seo_title,
+    p_seo_description: input.seo_description,
+    p_initial_stock: input.initial_stock,
   })
   assertError(error)
   if (!data) throw new Error('The product was not created.')
@@ -237,6 +251,12 @@ export async function updateVendorProduct(productId: string, input: {
   supplier_cost: number | null
   fulfillment_expense: number
   minimum_profit: number
+  discount_percent: number
+  weight_grams: number | null
+  specifications: unknown
+  dimensions: unknown
+  seo_title: string | null
+  seo_description: string | null
 }): Promise<VendorProduct> {
   const { data, error } = await getSupabase().rpc('vendor_update_product', {
     p_product_id: productId,
@@ -249,6 +269,12 @@ export async function updateVendorProduct(productId: string, input: {
     p_supplier_cost: input.supplier_cost,
     p_fulfillment_expense: input.fulfillment_expense,
     p_minimum_profit: input.minimum_profit,
+    p_discount_percent: input.discount_percent,
+    p_weight_grams: input.weight_grams,
+    p_specifications: input.specifications,
+    p_dimensions: input.dimensions,
+    p_seo_title: input.seo_title,
+    p_seo_description: input.seo_description,
   })
   assertError(error)
   if (!data) throw new Error('The product was not updated.')
@@ -329,6 +355,26 @@ export async function listOwnInventory(): Promise<VendorInventory[]> {
 export async function adjustOwnInventory(id: string, quantity: number, note: string): Promise<void> {
   const { error } = await getSupabase().rpc('vendor_adjust_inventory', { p_inventory_id: id, p_new_quantity: quantity, p_note: note })
   assertError(error)
+}
+
+export async function setOwnProductInventory(productId: string, quantity: number, note: string, variantId: string | null = null): Promise<void> {
+  if (!Number.isInteger(quantity) || quantity < 0) throw new Error('Stock must be a whole number of zero or more.')
+  const { error } = await getSupabase().rpc('vendor_set_product_inventory', {
+    p_product_id: productId, p_variant_id: variantId, p_new_quantity: quantity, p_note: note.trim(),
+  })
+  assertError(error)
+}
+
+export async function requestOwnProductDeletion(productId: string, reason: string): Promise<void> {
+  if (reason.trim().length < 3) throw new Error('Please provide a reason for the deletion request.')
+  const { error } = await getSupabase().rpc('vendor_request_product_deletion', { p_product_id: productId, p_reason: reason.trim() })
+  assertError(error)
+}
+
+export async function listOwnProductDeletionRequests(): Promise<Array<{ product_id: string; status: string }>> {
+  const { data, error } = await getSupabase().from('product_deletion_requests').select('product_id,status').order('created_at', { ascending: false }).limit(200)
+  assertError(error)
+  return data ?? []
 }
 
 export async function listOwnCases(): Promise<MarketplaceCase[]> {
