@@ -113,6 +113,8 @@ $$;
 
 REVOKE ALL ON FUNCTION private.validate_marketplace_case_evidence() FROM PUBLIC, anon, authenticated, service_role;
 
+REVOKE ALL ON FUNCTION public.enforce_marketplace_case_evidence() FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS marketplace_cases_require_evidence ON public.marketplace_cases;
 CREATE TRIGGER marketplace_cases_require_evidence
 BEFORE INSERT OR UPDATE OF order_id, order_item_id, buyer_id, reason, evidence_path
