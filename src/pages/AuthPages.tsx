@@ -314,7 +314,7 @@ export function VerifyEmailPage() {
     } catch (cause) {
       setStatus('error')
       const detail = describeError(cause)
-      setMessage(/rate limit|too many requests|after \\d+ seconds/i.test(detail)
+      setMessage(/rate limit|too many requests|after \d+ seconds/i.test(detail)
         ? 'A verification code was recently requested. Please check your inbox and wait before trying again.'
         : detail)
     }
@@ -339,6 +339,8 @@ export function VerifyOtpPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
+  const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
+  const email = stateEmail || getPendingSignupEmail() || user?.email || ''
 
   useEffect(() => {
     let active = true
@@ -350,8 +352,6 @@ export function VerifyOtpPage() {
     }).catch(() => undefined)
     return () => { active = false }
   }, [authLoading, user?.id, email, navigate])
-  const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
-  const email = stateEmail || getPendingSignupEmail() || user?.email || ''
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [error, setError] = useState('')
   const [status, setStatus] = useState<AuthStatus>('ready')
