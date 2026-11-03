@@ -8,6 +8,7 @@ export interface Category {
   eyebrow?: string
   isActive?: boolean
   isComingSoon?: boolean
+  isFoodCategory?: boolean
   sortOrder?: number
   seoTitle?: string | null
   seoDescription?: string | null
