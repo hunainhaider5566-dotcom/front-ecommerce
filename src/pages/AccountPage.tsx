@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowRight, CheckCircle2, ClipboardList, FileUp, Heart, Home, MapPin, Navigation, Package, Pencil, Plus, RefreshCw, ShieldCheck, Store, Trash2, UserRound, X, XCircle } from 'lucide-react'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { UserAvatar } from '../components/common/UserAvatar'
@@ -9,6 +9,7 @@ import { useCatalog } from '../contexts/CatalogContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { useToast } from '../contexts/ToastContext'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { authService } from '../services/auth/authService'
 import { createAddress, deleteAddress, listMyAddresses, setDefaultAddress, updateAddress, type AddressInput, type SavedAddress } from '../services/account/addressService'
 import { hasRememberedAccountSuspension } from '../services/auth/accountAccessNotice'
 import { cancelCustomerOrder, createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
@@ -48,6 +49,9 @@ function orderItemQuantityLabel(item: OrderItemRecord): string {
 export function AccountPage() {
   const { t } = useI18n()
   const { configured, loading, user, isAdmin, error: authError, avatarUrl, displayName } = useAuth()
+  const navigate = useNavigate()
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [verificationCheckDone, setVerificationCheckDone] = useState(false)
   const { push } = useToast()
   const { refresh: refreshCatalog } = useCatalog()
   const [tab, setTab] = useState<Tab>('orders')
@@ -125,15 +129,38 @@ export function AccountPage() {
   }
 
   useEffect(() => {
-    if (!user) { setOrdersLoading(false); setAddressesLoading(false); setCasesLoading(false); return }
+    let active = true
+    if (!user) {
+      setEmailVerified(false)
+      setVerificationCheckDone(false)
+      setOrdersLoading(false); setAddressesLoading(false); setCasesLoading(false)
+      return () => { active = false }
+    }
+    setVerificationCheckDone(false)
+    void authService.getCurrentUser().then(({ data, error }) => {
+      if (!active) return
+      if (error || !data.user?.email_confirmed_at) {
+        navigate('/verify-email', { replace: true })
+        return
+      }
+      setEmailVerified(true)
+      setVerificationCheckDone(true)
+    }).catch(() => {
+      if (active) navigate('/login', { replace: true })
+    })
+    return () => { active = false }
+  }, [user?.id, navigate])
+
+  useEffect(() => {
+    if (!user || !emailVerified) { setOrdersLoading(false); setAddressesLoading(false); setCasesLoading(false); return }
     void loadOrders()
     void loadAddresses()
     void loadCases()
-  }, [user])
+  }, [user?.id, emailVerified])
 
   const orderNumbers = useMemo(() => new Map(orders.map((order) => [order.id, order.order_number])), [orders])
 
-  if (loading) return <section className="account-page"><div className="account-page__inner"><span className="auth-eyebrow">{t('Account')}</span><h1>{t('Restoring your session')}</h1><p role="status">{t('Verifying your session…')}</p></div></section>
+  if (loading || (user && !verificationCheckDone)) return <section className="account-page"><div className="account-page__inner"><span className="auth-eyebrow">{t('Account security')}</span><h1>{t('Verifying account access')}</h1><p role="status">{t('Checking your verified email and secure session…')}</p></div></section>
 
   if (!configured || !user) {
     return <section className="account-page"><div className="account-page__inner"><div className="account-page__icon" aria-hidden="true"><UserRound size={28} /></div><span className="auth-eyebrow">{t('Account')}</span><h1>{t(knownSuspendedAccount ? 'Account suspended' : configured ? 'Sign in to view your account' : 'Account access is not configured')}</h1><p className={knownSuspendedAccount ? 'account-page__note' : undefined} role={knownSuspendedAccount ? 'alert' : undefined}>{t(knownSuspendedAccount ? 'This account was suspended by marketplace administration. Sign-in is disabled. Contact support if you believe this is a mistake.' : configured ? 'You are not currently signed in.' : 'Account access is currently unavailable.')}</p>{authError && !knownSuspendedAccount && <p className="account-page__note" role="alert">{t(authError)}</p>}<div className="account-page__actions"><Link className="account-page__primary" to="/login">{t('Sign in')}<ArrowRight size={16} aria-hidden="true" /></Link>{knownSuspendedAccount ? <Link className="account-page__secondary" to="/contact">{t('Contact marketplace support')}</Link> : <Link className="account-page__secondary" to="/register">{t('Create account')}</Link>}</div></div></section>
