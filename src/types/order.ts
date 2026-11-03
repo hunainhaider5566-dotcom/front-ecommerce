@@ -88,6 +88,15 @@ export interface MarketplaceCaseRecord {
   admin_decision: string | null
   created_at: string
   updated_at: string
+  order_number?: string
+  product_name?: string | null
+  product_sku?: string | null
+  product_variant?: Json | null
+  product_quantity?: number | null
+  product_unit_price?: number | null
+  product_line_total?: number | null
+  product_image_url?: string | null
+  evidence_url?: string | null
 }
 
 export interface NotificationRecord {
