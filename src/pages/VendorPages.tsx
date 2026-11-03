@@ -10,6 +10,7 @@ import { getMyAccountSuspensionReason } from '../services/account/notificationSe
 import { LoadingState } from '../components/common/States'
 import { ShopLocationPicker } from '../components/shops/ShopLocationPicker'
 import { formatPKR } from '../utils/money'
+import type { Json } from '../types/database'
 import { isValidEmail, isValidPakistaniMobile, normalizePakistaniMobile } from '../utils/contactValidation'
 import {
   adjustOwnInventory,
@@ -497,7 +498,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         minimum_profit: minimumProfit,
         discount_percent: Number(data.get('discount_percent') ?? 0),
         weight_grams: data.get('weight_grams') ? Number(data.get('weight_grams')) : null,
-        specifications, dimensions,
+        specifications: specifications as Json, dimensions: dimensions as Json,
         seo_title: String(data.get('seo_title') ?? '').trim() || null,
         seo_description: String(data.get('seo_description') ?? '').trim() || null,
       }
