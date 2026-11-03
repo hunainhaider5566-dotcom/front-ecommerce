@@ -303,6 +303,8 @@ BEGIN
   ELSIF NEW.daily_status = 'coming_soon' THEN
     NEW.daily_available_on := NULL;
   ELSE
+    NEW.daily_status := 'not_today';
+    NEW.daily_available_quantity := 0;
     NEW.daily_available_on := v_today - 1;
   END IF;
   RETURN NEW;
@@ -384,7 +386,20 @@ BEGIN
     FROM public.categories c WHERE c.id = v_category_id;
     EXIT WHEN v_is_food OR v_category_id IS NULL;
   END LOOP;
-  IF NOT v_is_food OR v_product.seller_id IS NULL THEN
+  IF NOT v_is_food THEN
+    RETURN NEW;
+  END IF;
+
+  IF v_product.is_daily_item AND (
+    v_product.daily_status <> 'available'
+    OR v_product.daily_available_on <> (now() AT TIME ZONE 'Asia/Karachi')::date
+    OR v_product.daily_available_quantity < NEW.quantity
+  ) THEN
+    RAISE EXCEPTION USING ERRCODE='22023',
+      MESSAGE='This daily food item is not available in the requested quantity today.';
+  END IF;
+
+  IF v_product.seller_id IS NULL THEN
     RETURN NEW;
   END IF;
 
@@ -420,6 +435,33 @@ BEFORE INSERT ON public.order_items
 FOR EACH ROW EXECUTE FUNCTION public.enforce_food_delivery_radius();
 
 REVOKE ALL ON FUNCTION public.enforce_food_delivery_radius() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.decrement_daily_food_quantity_after_order()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+BEGIN
+  IF NEW.product_id IS NULL THEN RETURN NEW; END IF;
+  UPDATE public.products p
+  SET daily_available_quantity = GREATEST(0, p.daily_available_quantity - NEW.quantity),
+      daily_status = CASE
+        WHEN p.daily_available_quantity - NEW.quantity <= 0 THEN 'not_today'
+        ELSE p.daily_status
+      END,
+      updated_at = now()
+  WHERE p.id = NEW.product_id AND p.is_daily_item = true;
+  RETURN NEW;
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.decrement_daily_food_quantity_after_order() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS order_items_decrement_daily_food_quantity ON public.order_items;
+CREATE TRIGGER order_items_decrement_daily_food_quantity
+AFTER INSERT ON public.order_items
+FOR EACH ROW EXECUTE FUNCTION public.decrement_daily_food_quantity_after_order();
 
 -- Safe deterministic smoke checks: 250 g at PKR 220/kg = PKR 55;
 -- 1 dozen at PKR 360/dozen = PKR 360; midnight Karachi maps to 19:00 UTC.
