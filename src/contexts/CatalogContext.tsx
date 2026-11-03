@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { isSupabaseConfigured } from '../lib/supabase'
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { catalogService } from '../services/products/productService'
 import type { Category } from '../types/category'
 import type { Product } from '../types/product'
@@ -43,7 +43,8 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(() => initialCatalog?.products ?? [])
   const [categories, setCategories] = useState<Category[]>(() => initialCatalog?.categories ?? [])
   const [shops, setShops] = useState<PublicShop[]>(() => initialCatalog?.shops ?? [])
-  const [status, setStatus] = useState<CatalogStatus>(isSupabaseConfigured ? initialCatalog ? 'ready' : 'loading' : 'unconfigured')
+  // Always validate the cached snapshot against the live database before rendering routes.
+  const [status, setStatus] = useState<CatalogStatus>(isSupabaseConfigured ? 'loading' : 'unconfigured')
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
 
@@ -61,7 +62,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       return () => { cancelled = true }
     }
 
-    if (!initialCatalog) setStatus('loading')
+    setStatus('loading')
     catalogService.loadCatalog()
       .then((catalog) => {
         if (cancelled) return
@@ -80,7 +81,17 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true }
   }, [refreshToken])
 
-
+  // Admin category status changes are broadcast through Supabase Realtime.
+  // A refresh replaces the full catalog so products in newly inactive collections disappear too.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const client = getSupabase()
+    const channel = client
+      .channel('storefront-category-status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => refresh())
+      .subscribe()
+    return () => { void client.removeChannel(channel) }
+  }, [refresh])
 
   const value = useMemo<CatalogValue>(() => ({
     products,
