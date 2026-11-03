@@ -250,6 +250,9 @@ export function AccountPage() {
     event.preventDefault()
     if (!caseTarget) return
     if (caseReason.trim().length < 3) { push(t('Add a short reason for your case.'), 'error'); return }
+    if (caseType !== 'refund' && !caseEvidence) { push(t('A product evidence image is required for complaints and returns.'), 'error'); return }
+    if (caseEvidence && !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(caseEvidence.type)) { push(t('Upload a JPG, PNG, WebP or AVIF image.'), 'error'); return }
+    if (caseEvidence && caseEvidence.size > 10 * 1024 * 1024) { push(t('Evidence images must be 10 MB or smaller.'), 'error'); return }
     setSubmittingCase(true)
     try {
       let evidencePath: string | null = null
@@ -388,7 +391,7 @@ export function AccountPage() {
         <div className="form-grid">
           <div className="form-field"><label htmlFor="case-type">{t('Case type')}</label><select id="case-type" value={caseType} onChange={(event) => setCaseType(event.target.value as typeof caseType)}><option value="complaint">{t('Complaint')}</option><option value="return">{t('Return')}</option><option value="refund">{t('Refund')}</option></select></div>
           <div className="form-field form-field--wide"><label htmlFor="case-reason">{t('What happened?')} <span>*</span></label><textarea id="case-reason" rows={4} value={caseReason} onChange={(event) => setCaseReason(event.target.value)} placeholder={t('Describe the issue and what would resolve it.')} required /></div>
-          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{t('Evidence (optional)')}</label><input id="case-evidence" type="file" accept="image/*,application/pdf" onChange={(event) => setCaseEvidence(event.target.files?.[0] ?? null)} /><p className="form-help"><FileUp size={13} /> {t('Images or PDF, up to 10 MB.')}</p></div>
+          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{t('Product evidence image')} {caseType !== 'refund' ? <span>*</span> : <span>{t('optional')}</span>}</label><input id="case-evidence" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required={caseType !== 'refund'} onChange={(event) => { const file = event.target.files?.[0] ?? null; if (file && !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) { push(t('Upload a JPG, PNG, WebP or AVIF image.'), 'error'); event.currentTarget.value = ''; setCaseEvidence(null); return } if (file && file.size > 10 * 1024 * 1024) { push(t('Evidence images must be 10 MB or smaller.'), 'error'); event.currentTarget.value = ''; setCaseEvidence(null); return } setCaseEvidence(file) }} /><p className="form-help"><FileUp size={13} /> {t(caseType === 'refund' ? 'Optional image evidence, JPG/PNG/WebP/AVIF, up to 10 MB.' : 'Required product photo, JPG/PNG/WebP/AVIF, up to 10 MB.')}</p></div>
         </div>
         <div className="address-form__actions"><button type="submit" className="button button--dark" disabled={submittingCase}>{submittingCase ? t('Submitting…') : t('Submit case')}</button><button type="button" className="button button--outline" onClick={() => setCaseTarget(null)}>{t('Cancel')}</button></div>
       </form>}
