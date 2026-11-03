@@ -1,4 +1,4 @@
-import { Grid2X2, House, Search, ShoppingCart, Sparkles } from 'lucide-react'
+import { Grid2X2, Heart, House, Search, ShoppingCart, Sparkles } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../../contexts/CartContext'
 import { useI18n } from '../../i18n/LocaleContext'
@@ -7,6 +7,7 @@ const items = [
   { to: '/', label: 'Home', Icon: House, match: (path: string) => path === '/' },
   { to: '/shop', label: 'Shop', Icon: Search, match: (path: string) => path === '/shop' || path.startsWith('/search') },
   { to: '/categories', label: 'Categories', Icon: Grid2X2, match: (path: string) => path.startsWith('/categories') },
+  { to: '/wishlist', label: 'Wishlist', Icon: Heart, match: (path: string) => path === '/wishlist' },
   { to: '/cart', label: 'Cart', Icon: ShoppingCart, match: (path: string) => path === '/cart' || path === '/checkout' },
   { to: '/discover', label: 'Discover', Icon: Sparkles, match: (path: string) => path === '/discover' },
 ]
