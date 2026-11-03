@@ -15,8 +15,9 @@ import { hasRememberedAccountSuspension } from '../services/auth/accountAccessNo
 import { cancelCustomerOrder, createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
 import type { MarketplaceCaseRecord, OrderItemRecord, OrderRecord } from '../types/order'
 import { formatPKR } from '../utils/money'
+import { CustomerProfilePanel } from '../components/account/CustomerProfilePanel'
 
-type Tab = 'orders' | 'addresses' | 'cases'
+type Tab = 'profile' | 'orders' | 'addresses' | 'cases'
 
 const emptyAddress: AddressInput = {
   recipient_name: '',
@@ -295,10 +296,13 @@ export function AccountPage() {
     </header>
 
     <nav className="account-tabs" aria-label={t('Account sections')}>
+      <button type="button" className={tab === 'profile' ? 'is-active' : ''} onClick={() => setTab('profile')}><UserRound size={16} /> {t('Profile')}</button>
       <button type="button" className={tab === 'orders' ? 'is-active' : ''} onClick={() => setTab('orders')}><Package size={16} /> {t('Orders')}{orders.length > 0 ? ` · ${orders.length}` : ''}</button>
       <button type="button" className={tab === 'addresses' ? 'is-active' : ''} onClick={() => setTab('addresses')}><Home size={16} /> {t('Addresses')}</button>
       <button type="button" className={tab === 'cases' ? 'is-active' : ''} onClick={() => setTab('cases')}><ClipboardList size={16} /> {t('Returns & complaints')}{cases.length > 0 ? ` · ${cases.length}` : ''}</button>
     </nav>
+
+    {tab === 'profile' && <CustomerProfilePanel />}
 
     {tab === 'orders' && <section className="account-panel" aria-labelledby="account-orders-title">
       <div className="account-panel__heading"><div><h2 id="account-orders-title">{t('Order history')}</h2><p>{t('Track delivery and open a return or complaint from an order.')}</p></div><button type="button" className="button button--outline" onClick={() => void loadOrders()} disabled={ordersLoading}><RefreshCw size={15} className={ordersLoading ? 'spin' : ''} /> {t('Refresh')}</button></div>
