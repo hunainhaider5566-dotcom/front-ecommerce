@@ -229,12 +229,41 @@ export function ForgotPasswordPage() {
 export function VerifyEmailPage() {
   const { t } = useI18n()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const navigate = useNavigate()
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
   const [email, setEmail] = useState(stateEmail || user?.email || '')
   const [error, setError] = useState('')
-  const [status, setStatus] = useState<AuthStatus>(user?.email_confirmed_at ? 'success' : 'ready')
-  const [message, setMessage] = useState(user?.email_confirmed_at ? 'Your email has been successfully verified.' : '')
+  const [status, setStatus] = useState<AuthStatus>('ready')
+  const [message, setMessage] = useState('')
+  const [checkingVerification, setCheckingVerification] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    if (authLoading) return () => { active = false }
+    if (!user) { setCheckingVerification(false); return () => { active = false } }
+    setCheckingVerification(true)
+    void authService.getCurrentUser().then(({ data, error: userError }) => {
+      if (!active) return
+      if (userError) {
+        setStatus('error')
+        setMessage('We could not confirm your email status. Please sign in again and retry.')
+        setCheckingVerification(false)
+        return
+      }
+      if (data.user?.email_confirmed_at) {
+        navigate('/account', { replace: true })
+        return
+      }
+      setCheckingVerification(false)
+    }).catch(() => {
+      if (!active) return
+      setStatus('error')
+      setMessage('We could not confirm your email status. Please sign in again and retry.')
+      setCheckingVerification(false)
+    })
+    return () => { active = false }
+  }, [authLoading, user?.id, navigate])
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!email.trim()) { setError('Email is required.'); return }
@@ -245,6 +274,7 @@ export function VerifyEmailPage() {
       setStatus('success'); setMessage('Verification email sent. Please check your inbox.')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
   }
+  if (authLoading || checkingVerification) return <section className="account-page"><div className="account-page__inner"><h1>{t('Checking email verification')}</h1><p role="status">{t('Please wait while we securely check your account status…')}</p></div></section>
   return <AuthLayout eyebrow="Verification email" title="Verify your email address" intro="Resend a verification email or enter your six-digit code to verify your account."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Please check your spam or junk folder if you do not see the email in your inbox.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError('') }} error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Requesting verification…') : t('Resend verification email')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form><div className="auth-secondary-action"><Link className="auth-link" to="/verify-otp" state={{ email }}>{t('Enter a verification code')}<ArrowRight size={15} aria-hidden="true" /></Link></div></AuthLayout>
 }
 
@@ -263,6 +293,16 @@ export function VerifyOtpPage() {
   const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+
+  useEffect(() => {
+    let active = true
+    if (authLoading || !user) return () => { active = false }
+    void authService.getCurrentUser().then(({ data, error }) => {
+      if (active && !error && data.user?.email_confirmed_at) navigate('/account', { replace: true })
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [authLoading, user?.id, navigate])
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
   const [email, setEmail] = useState(stateEmail)
   const [code, setCode] = useState(['', '', '', '', '', ''])
