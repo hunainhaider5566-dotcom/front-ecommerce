@@ -229,12 +229,20 @@ export function ForgotPasswordPage() {
 export function VerifyEmailPage() {
   const { t } = useI18n()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  const navigate = useNavigate()
   const stateEmail = (location.state as { email?: string } | null)?.email ?? ''
   const [email, setEmail] = useState(stateEmail || user?.email || '')
   const [error, setError] = useState('')
   const [status, setStatus] = useState<AuthStatus>(user?.email_confirmed_at ? 'success' : 'ready')
   const [message, setMessage] = useState(user?.email_confirmed_at ? 'Your email has been successfully verified.' : '')
+
+  useEffect(() => {
+    if (!loading && user?.email_confirmed_at) {
+      navigate('/account?verified=1', { replace: true })
+    }
+  }, [loading, user?.email_confirmed_at, navigate])
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!email.trim()) { setError('Email is required.'); return }
