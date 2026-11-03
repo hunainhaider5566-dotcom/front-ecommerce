@@ -120,6 +120,8 @@ export async function updateOwnShop(input: VendorShopInput & { document_path?: s
     shop_name: input.shop_name,
     slug: input.slug,
     description: input.description,
+    current_address: input.current_address,
+    complete_address: input.complete_address,
     contact_email: input.contact_email,
     phone: input.phone,
     ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
