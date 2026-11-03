@@ -80,7 +80,7 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
         <Link className="text-link" to="/account">{t('Back to account')}</Link>
       </div>
     </div>
-    {!approved && <VerificationDocumentSection profile={profile} onSaved={() => undefined} />}
+
   </section>
 }
 
@@ -126,18 +126,22 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     const shopName = String(data.get('shop_name') ?? '').trim()
     const slug = String(data.get('slug') ?? '').trim().toLowerCase()
     const description = String(data.get('description') ?? '').trim()
-    const contactEmail = String(data.get('contact_email') ?? '').trim() || null
-    const phone = String(data.get('phone') ?? '').trim() || null
+    const currentAddress = String(data.get('current_address') ?? '').trim()
+    const completeAddress = String(data.get('complete_address') ?? '').trim()
+    const contactEmail = String(data.get('contact_email') ?? '').trim()
+    const phone = String(data.get('phone') ?? '').trim()
     const showLocation = mode === 'settings' && data.get('show_shop_on_map') === 'on'
     const latitude = shopLatitude.trim() ? Number(shopLatitude) : null
     const longitude = shopLongitude.trim() ? Number(shopLongitude) : null
     const locationLabel = shopLocationLabel.trim()
     if (shopName.length < 2) { push(t('Enter a shop name of at least two characters.'), 'error'); return }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { push(t('Use a URL-safe slug, for example acme-traders.'), 'error'); return }
-    if (contactEmail && !isValidEmail(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
-    if (phone && !isValidPakistaniMobile(phone)) { push(t('Enter exactly 03001234567 or +923001234567.'), 'error'); return }
-    if (!profile && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
-    if (profile && !profile.document_path && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
+    if (!description || description.length < 10) { push(t('Enter a shop description of at least 10 characters.'), 'error'); return }
+    if (currentAddress.length < 3) { push(t('Enter your current address (area and city).'), 'error'); return }
+    if (completeAddress.length < 10) { push(t('Enter your complete address with house, street and area details.'), 'error'); return }
+    if (!isValidEmail(contactEmail)) { push(t('Enter a valid business contact email.'), 'error'); return }
+    if (!isValidPakistaniMobile(phone)) { push(t('Enter exactly 03001234567 or +923001234567.'), 'error'); return }
+    if ((!profile || profile.status === 'rejected') && !verificationDocument) { push(t('Upload an identity or business document before submitting or reapplying.'), 'error'); return }
     if (showLocation && (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || locationLabel.length < 2)) { push(t('Add valid coordinates and a public area label to show this shop on Explore.'), 'error'); return }
 
     setSaving(true)
@@ -148,7 +152,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
       try {
         if (shopImage && profile) uploadedImage = await uploadVendorShopImage(shopImage)
         if (verificationDocument) uploadedDocument = await uploadVendorDocument(verificationDocument)
-        const input = { shop_name: shopName, slug, description, contact_email: contactEmail, phone: phone ? normalizePakistaniMobile(phone) : null, ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}), ...(uploadedDocument ? { document_path: uploadedDocument } : {}), ...(mode === 'settings' ? { shop_lat: latitude, shop_lng: longitude, shop_location_label: locationLabel, show_shop_on_map: showLocation } : {}) }
+        const input = { shop_name: shopName, slug, description, current_address: currentAddress, complete_address: completeAddress, contact_email: contactEmail, phone: normalizePakistaniMobile(phone), ...(uploadedImage ? { shop_image_url: uploadedImage.url } : {}), ...(uploadedDocument ? { document_path: uploadedDocument } : {}), ...(mode === 'settings' ? { shop_lat: latitude, shop_lng: longitude, shop_location_label: locationLabel, show_shop_on_map: showLocation } : {}) }
         const saved = profile ? await updateOwnShop(input) : await applyAsSeller(input)
         committed = true
         if (uploadedImage && profile?.shop_image_url?.includes('/shop-images/')) {
@@ -182,41 +186,15 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     <p>{t('Your public shop details and private verification information are handled separately. Only approved shops can publish products.')}</p>
     <div className="form-field"><label htmlFor="shop_name">{t('Shop name')} <span>*</span></label><input id="shop_name" name="shop_name" required maxLength={160} defaultValue={profile?.shop_name ?? ''} placeholder="e.g. Acme Traders" /></div>
     <div className="form-field"><label htmlFor="slug">{t('Shop URL slug')} <span>*</span></label><input id="slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={profile?.slug ?? ''} placeholder="acme-traders" /></div>
-    <div className="form-field"><label htmlFor="contact_email">{t('Business contact email')}</label><input id="contact_email" name="contact_email" type="email" defaultValue={profile?.contact_email ?? ''} placeholder="vendor@acme.com" /></div>
-    <div className="form-field"><label htmlFor="phone">{t('Business phone')}</label><input id="phone" name="phone" type="tel" defaultValue={profile?.phone ?? ''} maxLength={13} pattern="(03[0-9]{9}|\+923[0-9]{9})" placeholder="03001234567 or +923001234567" /></div>
-    <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')}</label><textarea id="description" name="description" rows={4} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
+    <div className="form-field"><label htmlFor="contact_email">{t('Business contact email')} <span>*</span></label><input id="contact_email" name="contact_email" type="email" required defaultValue={profile?.contact_email ?? ''} placeholder="vendor@acme.com" /></div>
+    <div className="form-field"><label htmlFor="phone">{t('Business phone')} <span>*</span></label><input id="phone" name="phone" type="tel" required defaultValue={profile?.phone ?? ''} maxLength={13} pattern="(03[0-9]{9}|\+923[0-9]{9})" placeholder="03001234567 or +923001234567" /></div>
+    <div className="form-field form-field--wide"><label htmlFor="description">{t('Shop description')} <span>*</span></label><textarea id="description" name="description" rows={4} required minLength={10} maxLength={2000} defaultValue={profile?.description ?? ''} placeholder={t('Describe your products, sourcing and fulfilment.')} /></div>
+    <div className="form-field"><label htmlFor="current_address">{t('Current Address')} <span>*</span></label><input id="current_address" name="current_address" required minLength={3} maxLength={200} defaultValue={profile?.current_address ?? ''} placeholder={t('Area, city and current location')} /></div>
+    <div className="form-field form-field--wide"><label htmlFor="complete_address">{t('Complete Address')} <span>*</span></label><textarea id="complete_address" name="complete_address" required minLength={10} maxLength={1000} rows={3} defaultValue={profile?.complete_address ?? ''} placeholder={t('House/shop number, street, building, area, city and nearby landmark')} /></div>
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
     {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><ShopLocationPicker point={shopLatitude && shopLongitude ? { latitude: Number(shopLatitude), longitude: Number(shopLongitude) } : null} onChange={({ latitude, longitude }) => { setShopLatitude(latitude.toFixed(6)); setShopLongitude(longitude.toFixed(6)) }} /><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
-    {(!profile || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
+    {(!profile || profile.status === 'rejected' || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path || profile.status === 'rejected'} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
     <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
-  </form>
-}
-
-function VerificationDocumentSection({ profile, onSaved }: { profile: SellerProfile; onSaved: (profile: SellerProfile) => void }) {
-  const { t } = useI18n()
-  const { push } = useToast()
-  const [file, setFile] = useState<File | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [hasDocument, setHasDocument] = useState(Boolean(profile.document_path))
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!file) { push(t('Choose a verification document first.'), 'error'); return }
-    setSaving(true)
-    try {
-      const documentPath = await uploadVendorDocument(file)
-      const saved = await updateOwnShop({ shop_name: profile.shop_name, slug: profile.slug, description: profile.description, contact_email: profile.contact_email, phone: profile.phone, document_path: documentPath })
-      onSaved(saved)
-      setFile(null)
-      setHasDocument(true)
-      push(t('Private verification document saved.'), 'success')
-    } catch (cause) { push(cause instanceof Error ? cause.message : t('The verification document could not be saved.'), 'error') }
-    finally { setSaving(false) }
-  }
-  return <form className="placeholder-panel vendor-form vendor-verification" onSubmit={(event) => void submit(event)}>
-    <h2>{t('Private verification documents')}</h2>
-    <p>{t(hasDocument ? 'A private verification document is on file.' : 'No private verification document is on file.')}</p>
-    <div className="form-field"><label htmlFor="vendor-private-document">{t('Identity or business registration document')}</label><input id="vendor-private-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>
-    <button type="submit" className="button button--outline" disabled={saving || !file}>{saving ? t('Uploading…') : t(hasDocument ? 'Replace private document' : 'Upload private document')}</button>
   </form>
 }
 
