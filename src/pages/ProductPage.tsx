@@ -72,6 +72,8 @@ export function ProductPage() {
   const activeImage = images[imageIndex]
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
   const price = selectedVariant?.price ?? product.price
+  const originalPrice = selectedVariant?.originalPrice ?? product.originalPrice ?? price
+  const discountPercent = product.discountPercent ?? 0
   const support = supportDestination(productInquiryMessage(productName, product.slug), settings.supportWhatsapp)
   const availability = selectedVariant?.availabilityStatus ?? product.availabilityStatus
   const canAdd = product.isPublished && availability !== 'out-of-stock' && availability !== 'unavailable' && availability !== 'unknown'
@@ -108,7 +110,7 @@ export function ProductPage() {
         <h1>{productName}</h1>
         <p className="product-detail__description">{t(product.description)}</p>
         <div className="product-price-row">
-          <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>
+          {discountPercent > 0 ? <span className="product-discount-price"><strong>{formatPKR(product.foodUnitPrice ?? price)}</strong><s>{formatPKR(product.originalFoodUnitPrice ?? originalPrice)}</s><small>{discountPercent}% OFF</small></span> : <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>}
           <AvailabilityBadge status={availability} />
         </div>
         <p className="product-price-caption">{product.foodSellingUnit ? `${t('Price per')} ${product.foodSellingUnit}` : t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>

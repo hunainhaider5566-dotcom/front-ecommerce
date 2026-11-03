@@ -5,6 +5,7 @@ export interface ProductVariant {
   label: string
   value: string
   price?: number
+  originalPrice?: number
   sku?: string
   availabilityStatus?: Exclude<AvailabilityStatus, 'unavailable'>
 }
@@ -21,8 +22,11 @@ export interface Product {
   shortDescription: string
   description: string
   price: number
+  originalPrice?: number
+  discountPercent?: number
   foodSellingUnit?: 'kg' | 'g' | 'l' | 'ml' | 'piece' | 'dozen' | 'pack' | null
   foodUnitPrice?: number | null
+  originalFoodUnitPrice?: number | null
   foodQuantityIncrement?: number | null
   foodMinimumQuantity?: number | null
   currency: string

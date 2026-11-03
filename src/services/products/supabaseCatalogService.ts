@@ -82,13 +82,15 @@ function mapProduct(
 ): Product {
   const productAvailability = availabilityRows?.filter((item) => item.product_id === row.id) ?? []
   const availabilityByVariant = new Map(productAvailability.map((item) => [item.variant_id, item.is_available]))
+  const discountPercent = Number(row.discount_percent ?? 0)
+  const originalProductPrice = row.food_unit_price === null ? Number(row.price) : Number(row.food_unit_price)
   const mappedVariants: ProductVariant[] = variants
     .filter((variant) => variant.is_active)
     .map((variant) => ({
       id: variant.id,
       label: variant.option_label,
       value: variant.option_value,
-      ...(variant.price_override !== null ? { price: Number(variant.price_override) } : {}),
+      ...(variant.price_override !== null ? { price: Number(variant.price_override) * (1 - discountPercent / 100), originalPrice: Number(variant.price_override) } : {}),
       ...(variant.sku ? { sku: variant.sku } : {}),
       availabilityStatus: productStatus(availabilityByVariant.get(variant.id), availabilityKnown),
     }))
@@ -111,9 +113,12 @@ function mapProduct(
     name: row.name,
     shortDescription: row.short_description,
     description: row.description,
-    price: row.food_unit_price === null ? Number(row.price) : Number(row.food_unit_price),
+    price: Number((originalProductPrice * (1 - discountPercent / 100)).toFixed(2)),
+    originalPrice: originalProductPrice,
+    discountPercent,
     foodSellingUnit: row.food_selling_unit as Product['foodSellingUnit'],
-    foodUnitPrice: row.food_unit_price === null ? null : Number(row.food_unit_price),
+    foodUnitPrice: row.food_unit_price === null ? null : Number((Number(row.food_unit_price) * (1 - discountPercent / 100)).toFixed(2)),
+    originalFoodUnitPrice: row.food_unit_price === null ? null : Number(row.food_unit_price),
     foodQuantityIncrement: row.food_quantity_increment,
     foodMinimumQuantity: row.food_minimum_quantity,
     currency: row.currency,
@@ -138,7 +143,7 @@ async function loadSupabaseCatalog() {
   const client = getSupabase()
   const [productResult, categoryResult, shopResult] = await Promise.all([
     client.from('products')
-      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, food_selling_unit, food_unit_price, food_quantity_increment, food_minimum_quantity, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
+      .select('id, category_id, seller_id, name, slug, sku, short_description, description, price, discount_percent, food_selling_unit, food_unit_price, food_quantity_increment, food_minimum_quantity, currency, specifications, publication_status, moderation_status, stock_verification_status, is_featured, track_inventory, seo_title, seo_description, created_at')
       .eq('publication_status', 'published')
       .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false }),
