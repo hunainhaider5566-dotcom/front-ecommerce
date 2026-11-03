@@ -483,7 +483,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     setSaving(true)
     setError(null)
     try {
-      let specifications: unknown = []; let dimensions: unknown = {}
+      let specifications: Json = []; let dimensions: Json = {}
       try { specifications = JSON.parse(String(data.get('specifications') || '[]')); dimensions = JSON.parse(String(data.get('dimensions') || '{}')) } catch { throw new Error(t('Specifications and dimensions must be valid JSON.')) }
       const input: Parameters<typeof updateVendorProduct>[1] = {
         category_id: String(data.get('category_id') ?? '') || null,
@@ -507,7 +507,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       if (productId) {
         await updateVendorProduct(productId, input)
       } else {
-        productId = await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on', initial_stock: Number(data.get('initial_stock') ?? 0) })
+        const createInput: Parameters<typeof createVendorProduct>[0] = { ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on', initial_stock: Number(data.get('initial_stock') ?? 0) }
+        productId = await createVendorProduct(createInput)
         setCreatedProductId(productId)
       }
       if (isFoodCategory && productId) await setVendorFoodProductDetails({ productId, sellingUnit, unitPrice: Number(unitPrice), quantityIncrement: foodIncrement, minimumQuantity: foodMinimum })
