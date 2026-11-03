@@ -1,5 +1,5 @@
 import { getSupabase } from '../../lib/supabase'
-import type { Database } from '../../types/database'
+import type { Database, Json } from '../../types/database'
 import { notifySupportEmail } from '../account/supportService'
 
 export type SellerProfile = Database['public']['Tables']['seller_profiles']['Row']
@@ -164,8 +164,8 @@ export async function createVendorProduct(input: {
   track_inventory: boolean
   discount_percent: number
   weight_grams: number | null
-  specifications: unknown
-  dimensions: unknown
+  specifications: Json
+  dimensions: Json
   seo_title: string | null
   seo_description: string | null
   initial_stock: number
