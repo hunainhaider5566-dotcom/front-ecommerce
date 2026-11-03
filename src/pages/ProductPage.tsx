@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { AvailabilityBadge } from '../components/products/AvailabilityBadge'
 import { ReviewComposer } from '../components/reviews/ReviewComposer'
 import { QuantitySelector } from '../components/products/QuantitySelector'
+import { getCartLineMaxQuantity } from '../utils/cart'
 import { WishlistButton } from '../components/products/WishlistButton'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/States'
 import { useCart } from '../contexts/CartContext'
@@ -106,7 +107,7 @@ export function ProductPage() {
         </>}
       </div>
       <div className="product-detail__content">
-        <div className="product-detail__topline"><span className="eyebrow">{categoryName}</span><WishlistButton productId={product.id} productName={productName} /></div>
+        <div className="product-detail__topline"><span className="eyebrow">{categoryName}</span><WishlistButton productId={product.id} productName={productName} variantId={variantId || undefined} /></div>
         <h1>{productName}</h1>
         <p className="product-detail__description">{t(product.description)}</p>
         <div className="product-price-row">
@@ -115,7 +116,7 @@ export function ProductPage() {
         </div>
         <p className="product-price-caption">{product.foodSellingUnit ? `${t('Price per')} ${product.foodSellingUnit}` : t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
         {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => setVariantId(variant.id)}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
-        <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, quantity) : undefined} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
+        <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, quantity) : undefined} max={getCartLineMaxQuantity(product, { productId: product.id, quantity, variantId: variantId || undefined })} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
         {product.foodSellingUnit && <p className="product-price-caption">{t('Estimated price for selected quantity')}: <strong>{formatPKR(Number(((product.foodUnitPrice ?? 0) * (product.foodQuantityIncrement ?? 1) * quantity / (product.foodSellingUnit === 'kg' || product.foodSellingUnit === 'l' ? 1000 : 1)).toFixed(2)))}</strong></p>}
         <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
         <p className="product-detail__reassurance"><ShieldCheck size={15} /> {t(settings.codEnabled ? 'Cash on delivery. Prices and stock are validated when the order is placed.' : 'Prices and stock are validated when an order is placed.')}</p>
