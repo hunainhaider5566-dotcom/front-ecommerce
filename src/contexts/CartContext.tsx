@@ -90,7 +90,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         for (const line of guestLines) {
           const product = findProductById(line.productId)
-          if (!product || (product.variants.length > 0 && (!line.variantId || !product.variants.some((variant) => variant.id === line.variantId)))) continue
+          if (!product || (line.variantId && !product.variants.some((variant) => variant.id === line.variantId)) || (product.variants.length > 0 && !line.variantId)) continue
           const max = getCartLineMaxQuantity(product, line)
           if (max < 1) continue
           const key = line.productId + ':' + (line.variantId ?? '')
@@ -130,7 +130,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const currentProduct = findProductById(product.id)
     const selectedVariant = currentProduct?.variants.find((variant) => variant.id === variantId)
     const availability = selectedVariant?.availabilityStatus ?? currentProduct?.availabilityStatus
-    if (!currentProduct || !currentProduct.isPublished || availability === 'unavailable' || availability === 'out-of-stock') {
+    if (!currentProduct || !currentProduct.isPublished || (variantId && !selectedVariant) || availability === 'unavailable' || availability === 'out-of-stock') {
       setMessage(`${product.name} is not currently available to add.`)
       return false
     }
