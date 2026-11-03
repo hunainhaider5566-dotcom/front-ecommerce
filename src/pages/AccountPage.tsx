@@ -48,6 +48,15 @@ function orderItemQuantityLabel(item: OrderItemRecord): string {
   return String(item.quantity)
 }
 
+function formatCaseVariant(value: unknown): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return typeof value === 'string' ? value : ''
+  return Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+    if (entry === null || entry === undefined || entry === '') return ''
+    if (typeof entry === 'object') return Object.entries(entry as Record<string, unknown>).map(([nestedKey, nestedValue]) => nestedValue == null ? '' : nestedKey + ': ' + String(nestedValue)).filter(Boolean).join(', ')
+    return key.replace(/_/g, ' ') + ': ' + String(entry)
+  }).filter(Boolean).join(' · ')
+}
+
 export function AccountPage() {
   const { t } = useI18n()
   const { configured, loading, user, isAdmin, error: authError, avatarUrl, displayName } = useAuth()
@@ -280,12 +289,6 @@ export function AccountPage() {
     }
   }
 
-  async function viewEvidence(path: string) {
-    const url = await getEvidenceSignedUrl(path)
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
-    else push(t('The evidence file could not be opened.'), 'error')
-  }
-
   return <div className="page-shell account-dashboard">
     <header className="account-dashboard__header">
       <div className="account-dashboard__identity">
@@ -405,7 +408,7 @@ export function AccountPage() {
       {!casesLoading && !casesError && cases.length > 0 && <div className="case-list">
         {cases.map((item) => <article className="case-card" key={item.id}>
           <div className="case-card__head"><div><strong>{t(item.case_type)}</strong><span>{item.order_number || orderNumbers.get(item.order_id) || item.order_id}</span></div><span className={statusClass(item.status)}>{t(item.status)}</span></div>
-          {item.product_name && <div className="case-card__product">{item.product_image_url && <img src={item.product_image_url} alt={item.product_name} />}<div><strong>{item.product_name}</strong>{item.product_sku && <span>SKU: {item.product_sku}</span>}{item.product_quantity !== null && item.product_quantity !== undefined && <span>{t('Qty')} {item.product_quantity}</span>}{item.product_variant && <span>{JSON.stringify(item.product_variant)}</span>}</div></div>}
+          {item.product_name && <div className="case-card__product">{item.product_image_url && <img src={item.product_image_url} alt={item.product_name} />}<div><strong>{item.product_name}</strong>{item.product_sku && <span>SKU: {item.product_sku}</span>}{item.product_quantity !== null && item.product_quantity !== undefined && <span>{t('Qty')} {item.product_quantity}</span>}{item.product_variant && <span>{formatCaseVariant(item.product_variant)}</span>}</div></div>}
           <p>{item.reason}</p>
           {item.seller_response && <div className="case-card__response"><span className="eyebrow">{t('Seller response')}</span><p>{item.seller_response}</p></div>}
           {item.admin_decision && <div className="case-card__response"><span className="eyebrow">{t('Marketplace decision')}</span><p>{item.admin_decision}</p></div>}
