@@ -155,7 +155,7 @@ export async function createMarketplaceCase(input: {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before opening a case.')
-  if (!input.orderId || !input.orderItemId || !input.sellerId) throw new Error('Select the exact product from your order before submitting a case.')
+  if (!input.orderId || !input.orderItemId) throw new Error('Select the exact product from your order before submitting a case.')
   if (input.reason.trim().length < 3 || input.reason.trim().length > 2000) throw new Error('Enter a reason between 3 and 2,000 characters.')
   if (!input.evidencePath || !input.evidencePath.startsWith(user.id + '/' + input.orderId + '-')) throw new Error('A valid product evidence image is required.')
   const { data, error } = await client
