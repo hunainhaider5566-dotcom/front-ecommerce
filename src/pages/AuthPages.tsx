@@ -294,7 +294,7 @@ export function VerifyEmailPage() {
     if (!emailPattern.test(email)) { setError('The registered email address is invalid. Please return to registration and try again.'); return }
     setError(''); setStatus('loading'); setMessage('')
     try {
-      throwIfAuthError(await authService.resendSignupVerification(email.trim()))
+      throwIfAuthError(await authService.resendSignupConfirmation(email.trim()))
       setResendCooldown(60)
       setStatus('success'); setMessage('A new verification email has been requested. If it does not arrive, wait 60 seconds and try again.')
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
@@ -350,6 +350,7 @@ export function AuthCallbackPage() {
 
         const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
         if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
+        clearPendingSignupEmail()
         return getSafeAuthRedirect('', { from: params.get('next') })
       })()
     }
