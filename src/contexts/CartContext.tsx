@@ -4,6 +4,7 @@ import { useCatalog } from './CatalogContext'
 import { getSupabase } from '../lib/supabase'
 import type { CartLine } from '../types/cart'
 import type { Product } from '../types/product'
+import { getCartLineMaxQuantity } from '../utils/cart'
 
 interface CartContextValue {
   lines: CartLine[]
@@ -16,17 +17,20 @@ interface CartContextValue {
   clear: () => Promise<void>
 }
 
+const CART_STORAGE_KEY = 'jtbazar-guest-cart-v2'
+function readGuestCart(): CartLine[] { try { const parsed: unknown = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed.filter((item): item is CartLine => Boolean(item) && typeof item.productId === 'string' && Number.isFinite(item.quantity)).map((item) => ({ ...item, quantity: Math.max(1, Math.min(99, Math.floor(item.quantity))) })) : [] } catch { return [] } }
 const CartContext = createContext<CartContextValue | null>(null)
 
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
-  const { findProductById } = useCatalog()
-  const [lines, setLines] = useState<CartLine[]>([])
+  const { findProductById, status: catalogStatus } = useCatalog()
+  const [lines, setLines] = useState<CartLine[]>(readGuestCart)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const guestLinesRef = useRef<CartLine[]>([])
+  const guestLinesRef = useRef<CartLine[]>(readGuestCart())
   const previousUserIdRef = useRef<string | null>(null)
+  const skipGuestPersistRef = useRef(false)
 
   const loadCart = useCallback(async (userId: string) => {
     const client = getSupabase()
@@ -48,48 +52,63 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (authLoading) return () => { active = false }
     if (!user) {
       if (previousUserIdRef.current) {
-        setLines([])
-        guestLinesRef.current = []
+        skipGuestPersistRef.current = true
+        const guest = readGuestCart()
+        setLines(guest)
+        guestLinesRef.current = guest
       }
       previousUserIdRef.current = null
       setLoading(false)
       return () => { active = false }
     }
 
+    if (catalogStatus !== 'ready') { setLoading(catalogStatus === 'loading'); if (catalogStatus === 'error') setMessage('Stock could not be checked. Refresh the catalog before using your cart.'); return () => { active = false } }
     previousUserIdRef.current = user.id
     setLoading(true)
     void (async () => {
       try {
         const client = getSupabase()
-        const guestLines = guestLinesRef.current
-        if (guestLines.length) {
-          const { data: existingRows, error: readError } = await client.from('cart_items')
-            .select('product_id, variant_id, quantity')
-            .eq('user_id', user.id)
-          if (readError) throw new Error(readError.message)
-          const merged = new Map<string, { user_id: string; product_id: string; variant_id: string | null; quantity: number }>()
-          for (const row of existingRows ?? []) {
-            merged.set(row.product_id + ':' + (row.variant_id ?? ''), {
-              user_id: user.id, product_id: row.product_id, variant_id: row.variant_id, quantity: row.quantity,
-            })
+        const guestLines = guestLinesRef.current.length ? guestLinesRef.current : readGuestCart()
+        const { data: existingRows, error: readError } = await client.from('cart_items')
+          .select('product_id, variant_id, quantity').eq('user_id', user.id)
+        if (readError) throw new Error(readError.message)
+        const merged = new Map<string, { user_id: string; product_id: string; variant_id: string | null; quantity: number }>()
+        for (const row of existingRows ?? []) {
+          const product = findProductById(row.product_id)
+          const rowLine = { productId: row.product_id, variantId: row.variant_id ?? undefined, quantity: row.quantity }
+          const max = product ? getCartLineMaxQuantity(product, rowLine) : row.quantity
+          if (product && max < 1) {
+            let removeQuery = client.from('cart_items').delete().eq('user_id', user.id).eq('product_id', row.product_id)
+            removeQuery = row.variant_id ? removeQuery.eq('variant_id', row.variant_id) : removeQuery.is('variant_id', null)
+            const { error: removeError } = await removeQuery
+            if (removeError) throw new Error(removeError.message)
+            continue
           }
-          for (const line of guestLines) {
-            const key = line.productId + ':' + (line.variantId ?? '')
-            const current = merged.get(key)
-            merged.set(key, {
-              user_id: user.id, product_id: line.productId, variant_id: line.variantId ?? null,
-              quantity: Math.min(99, (current?.quantity ?? 0) + line.quantity),
-            })
-          }
-          const { error: upsertError } = await client.from('cart_items').upsert([...merged.values()], {
-            onConflict: 'user_id,product_id,variant_id',
+          merged.set(row.product_id + ':' + (row.variant_id ?? ''), {
+            user_id: user.id, product_id: row.product_id, variant_id: row.variant_id, quantity: Math.max(1, Math.min(max || row.quantity, row.quantity)),
           })
+        }
+        for (const line of guestLines) {
+          const product = findProductById(line.productId)
+          if (!product || (line.variantId && !product.variants.some((variant) => variant.id === line.variantId)) || (product.variants.length > 0 && !line.variantId)) continue
+          const max = getCartLineMaxQuantity(product, line)
+          if (max < 1) continue
+          const key = line.productId + ':' + (line.variantId ?? '')
+          const current = merged.get(key)
+          merged.set(key, {
+            user_id: user.id, product_id: line.productId, variant_id: line.variantId ?? null,
+            quantity: Math.min(max, (current?.quantity ?? 0) + line.quantity),
+          })
+        }
+        if (merged.size) {
+          const { error: upsertError } = await client.from('cart_items').upsert([...merged.values()], { onConflict: 'user_id,product_id,variant_id' })
           if (upsertError) throw new Error(upsertError.message)
         }
         const saved = await loadCart(user.id)
         if (!active) return
         setLines(saved)
         guestLinesRef.current = []
+        try { localStorage.removeItem(CART_STORAGE_KEY) } catch { /* ignore */ }
         setMessage('')
       } catch (cause) {
         if (!active) return
@@ -99,7 +118,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     })()
     return () => { active = false }
-  }, [user?.id, authLoading, loadCart])
+  }, [user?.id, authLoading, catalogStatus, findProductById, loadCart])
+
+  useEffect(() => { if (!user && !authLoading) { if (skipGuestPersistRef.current) { skipGuestPersistRef.current = false; return } guestLinesRef.current = lines; try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(lines)) } catch { /* guest storage is optional */ } } }, [lines, user, authLoading])
 
   const add = useCallback<CartContextValue['add']>(async (product, requested, variantId, variantLabel) => {
     if (authLoading) {
@@ -109,7 +130,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const currentProduct = findProductById(product.id)
     const selectedVariant = currentProduct?.variants.find((variant) => variant.id === variantId)
     const availability = selectedVariant?.availabilityStatus ?? currentProduct?.availabilityStatus
-    if (!currentProduct || !currentProduct.isPublished || availability === 'unavailable' || availability === 'out-of-stock') {
+    if (!currentProduct || !currentProduct.isPublished || (variantId && !selectedVariant) || availability === 'unavailable' || availability === 'out-of-stock') {
       setMessage(`${product.name} is not currently available to add.`)
       return false
     }
@@ -117,18 +138,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setMessage(`Choose an option for ${product.name} before adding it.`)
       return false
     }
-    const quantity = Math.max(1, Math.min(99, Math.floor(requested) || 1))
+    const stockLine: CartLine = { productId: product.id, quantity: 1, ...(variantId ? { variantId } : {}), ...(variantLabel ? { variantLabel } : {}) }
+    const maxStock = getCartLineMaxQuantity(currentProduct, stockLine)
+    if (maxStock < 1) { setMessage('This option is out of stock.'); return false }
+    const quantity = Math.max(1, Math.min(maxStock, Math.floor(requested) || 1))
     const newLine: CartLine = { productId: product.id, quantity, ...(variantId ? { variantId } : {}), ...(variantLabel ? { variantLabel } : {}) }
 
     if (!user) {
       const current = guestLinesRef.current
       const existing = current.find((line) => line.productId === product.id && line.variantId === variantId)
       const next = existing
-        ? current.map((line) => line === existing ? { ...line, quantity: Math.min(99, line.quantity + quantity) } : line)
+        ? current.map((line) => line === existing ? { ...line, quantity: Math.min(maxStock, line.quantity + quantity) } : line)
         : [...current, newLine]
       guestLinesRef.current = next
       setLines(next)
-      setMessage('Guest cart is temporary. Sign in to save it to your account.')
+      setMessage('Guest cart saved in this browser. It will merge into your account when you sign in.')
       return true
     }
 
@@ -138,7 +162,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       query = variantId ? query.eq('variant_id', variantId) : query.is('variant_id', null)
       const { data: existing, error: readError } = await query.maybeSingle()
       if (readError) throw new Error(readError.message)
-      const nextQuantity = Math.min(99, (existing?.quantity ?? 0) + quantity)
+      const nextQuantity = Math.min(maxStock, (existing?.quantity ?? 0) + quantity)
       const { error } = await client.from('cart_items').upsert({
         user_id: user.id, product_id: product.id, variant_id: variantId ?? null, quantity: nextQuantity,
       }, { onConflict: 'user_id,product_id,variant_id' })
@@ -153,39 +177,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [authLoading, findProductById, user, loadCart])
 
   const setQuantity = useCallback<CartContextValue['setQuantity']>(async (productId, variantId, quantity) => {
-    if (!user) {
-      if (quantity <= 0) {
+    if (quantity <= 0) {
+      if (!user) {
         const next = guestLinesRef.current.filter((line) => !(line.productId === productId && line.variantId === variantId))
         guestLinesRef.current = next
         setLines(next)
         return
       }
-      const safeQuantity = Math.max(1, Math.min(99, Math.floor(quantity)))
+      let removeQuery = getSupabase().from('cart_items').delete().eq('user_id', user.id).eq('product_id', productId)
+      removeQuery = variantId ? removeQuery.eq('variant_id', variantId) : removeQuery.is('variant_id', null)
+      const { error } = await removeQuery
+      if (error) setMessage(error.message)
+      else setLines(await loadCart(user.id))
+      return
+    }
+    const product = findProductById(productId)
+    const maxStock = getCartLineMaxQuantity(product, { productId, variantId, quantity })
+    if (maxStock < 1) { setMessage('This option is out of stock.'); return }
+    const safeQuantity = Math.max(1, Math.min(maxStock, 99, Math.floor(quantity)))
+    if (safeQuantity < quantity) setMessage('Quantity adjusted to the available stock: ' + maxStock + '.')
+    else setMessage('')
+    if (!user) {
       const next = guestLinesRef.current.map((line) => line.productId === productId && line.variantId === variantId ? { ...line, quantity: safeQuantity } : line)
       guestLinesRef.current = next
       setLines(next)
       return
     }
     try {
-      const client = getSupabase()
-      let query = client.from('cart_items').delete().eq('user_id', user.id).eq('product_id', productId)
-      if (quantity > 0) {
-        let update = client.from('cart_items').update({ quantity: Math.max(1, Math.min(99, Math.floor(quantity))) })
-          .eq('user_id', user.id).eq('product_id', productId)
-        update = variantId ? update.eq('variant_id', variantId) : update.is('variant_id', null)
-        const { error } = await update
-        if (error) throw new Error(error.message)
-      } else {
-        query = variantId ? query.eq('variant_id', variantId) : query.is('variant_id', null)
-        const { error } = await query
-        if (error) throw new Error(error.message)
-      }
+      let update = getSupabase().from('cart_items').update({ quantity: safeQuantity }).eq('user_id', user.id).eq('product_id', productId)
+      update = variantId ? update.eq('variant_id', variantId) : update.is('variant_id', null)
+      const { error } = await update
+      if (error) throw new Error(error.message)
       setLines(await loadCart(user.id))
-      setMessage('')
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'The cart could not be updated.')
-    }
-  }, [user, loadCart])
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'The cart could not be updated.') }
+  }, [user, loadCart, findProductById])
 
   const remove = useCallback<CartContextValue['remove']>(async (productId, variantId) => {
     if (!user) {

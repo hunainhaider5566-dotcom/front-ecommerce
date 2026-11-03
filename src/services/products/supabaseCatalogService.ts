@@ -9,6 +9,7 @@ type CategoryRow = Database['public']['Tables']['categories']['Row']
 type ProductImageRow = Database['public']['Tables']['product_images']['Row']
 type ProductVariantRow = Database['public']['Tables']['product_variants']['Row']
 type AvailabilityRow = Database['public']['Functions']['get_public_availability']['Returns'][number]
+type PublicInventoryRow = Database['public']['Functions']['get_public_inventory']['Returns'][number]
 type PublicShopRow = Database['public']['Functions']['list_public_shops']['Returns'][number]
 
 function throwIfError(error: { message: string } | null) {
@@ -78,10 +79,12 @@ function mapProduct(
   variants: ProductVariantRow[],
   availabilityRows: AvailabilityRow[] | null,
   availabilityKnown: boolean,
+  inventoryRows: PublicInventoryRow[] | null,
   shopsById: Map<string, PublicShop>,
 ): Product {
   const productAvailability = availabilityRows?.filter((item) => item.product_id === row.id) ?? []
   const availabilityByVariant = new Map(productAvailability.map((item) => [item.variant_id, item.is_available]))
+  const inventoryByVariant = new Map((inventoryRows ?? []).filter((item) => item.product_id === row.id).map((item) => [item.variant_id, item.available_quantity]))
   const discountPercent = Number(row.discount_percent ?? 0)
   const originalProductPrice = row.food_unit_price === null ? Number(row.price) : Number(row.food_unit_price)
   const mappedVariants: ProductVariant[] = variants
@@ -93,6 +96,7 @@ function mapProduct(
       ...(variant.price_override !== null ? { price: Number(variant.price_override) * (1 - discountPercent / 100), originalPrice: Number(variant.price_override) } : {}),
       ...(variant.sku ? { sku: variant.sku } : {}),
       availabilityStatus: productStatus(availabilityByVariant.get(variant.id), availabilityKnown),
+      stockQuantity: inventoryByVariant.get(variant.id),
     }))
 
   let status: AvailabilityStatus
@@ -130,6 +134,7 @@ function mapProduct(
     availabilityStatus: status,
     isFeatured: row.is_featured,
     trackInventory: row.track_inventory,
+    stockQuantity: mappedVariants.length ? undefined : inventoryByVariant.get(null),
     sellerId: row.seller_id,
     sellerName: shop?.shopName,
     sellerSlug: shop?.slug,
@@ -164,7 +169,7 @@ async function loadSupabaseCatalog() {
   if (productRows.length === 0) return { products: [] as Product[], categories, shops }
 
   const productIds = productRows.map((product) => product.id)
-  const [imageResult, variantResult, availabilityResult] = await Promise.all([
+  const [imageResult, variantResult, availabilityResult, inventoryResult] = await Promise.all([
     client.from('product_images')
       .select('id, product_id, image_url, storage_path, alt_text, sort_order, is_primary, created_at')
       .in('product_id', productIds)
@@ -175,6 +180,7 @@ async function loadSupabaseCatalog() {
       .eq('is_active', true)
       .order('sort_order', { ascending: true }),
     client.rpc('get_public_availability', { product_ids: productIds }),
+    client.rpc('get_public_inventory', { product_ids: productIds }),
   ])
   throwIfError(imageResult.error)
   throwIfError(variantResult.error)
@@ -183,6 +189,7 @@ async function loadSupabaseCatalog() {
   const variants = (variantResult.data ?? []) as ProductVariantRow[]
   const availabilityRows = availabilityResult.error ? null : availabilityResult.data as AvailabilityRow[]
   const availabilityKnown = !availabilityResult.error
+  const inventoryRows = inventoryResult.error ? null : inventoryResult.data as PublicInventoryRow[]
   const imagesByProduct = new Map<string, ProductImageRow[]>()
   const variantsByProduct = new Map<string, ProductVariantRow[]>()
   for (const image of images) imagesByProduct.set(image.product_id, [...(imagesByProduct.get(image.product_id) ?? []), image])
@@ -195,6 +202,7 @@ async function loadSupabaseCatalog() {
       variantsByProduct.get(product.id) ?? [],
       availabilityRows,
       availabilityKnown,
+      inventoryRows,
       shopsById,
     )),
     categories,
