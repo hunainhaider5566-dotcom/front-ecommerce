@@ -19,7 +19,7 @@ export const authService = {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: callbackRedirect('/account?verified=1'),
+        emailRedirectTo: callbackRedirect('/account'),
       },
     })
   },
@@ -34,6 +34,10 @@ export const authService = {
 
   exchangeCodeForSession(code: string) {
     return getSupabase().auth.exchangeCodeForSession(code)
+  },
+
+  getCurrentUser() {
+    return getSupabase().auth.getUser()
   },
 
   sendPasswordRecovery(email: string) {
