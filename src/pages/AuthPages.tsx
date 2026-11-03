@@ -141,7 +141,7 @@ export function LoginPage() {
     event.preventDefault()
     const next: FieldErrors = {}
     if (!form.email.trim()) next.email = 'Email is required.'
-    else if (!emailPattern.test(form.email)) next.email = 'Enter a valid email address.'
+    else if (!emailPattern(form.email)) next.email = 'Enter a valid email address.'
     if (!form.password) next.password = 'Password is required.'
     setErrors(next)
     if (Object.keys(next).length) return
@@ -194,7 +194,7 @@ export function RegisterPage() {
     const next: FieldErrors = {}
     if (!form.name.trim()) next.name = 'Full name is required.'
     if (!form.email.trim()) next.email = 'Email is required.'
-    else if (!emailPattern.test(form.email)) next.email = 'Enter a valid email address.'
+    else if (!emailPattern(form.email)) next.email = 'Enter a valid email address.'
     if (!form.password) next.password = 'Password is required.'
     else if (form.password.length < 8) next.password = 'Password must be at least 8 characters.'
     if (!form.confirmation) next.confirmation = 'Password confirmation is required.'
@@ -233,7 +233,7 @@ export function ForgotPasswordPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!email.trim()) { setError('Email is required.'); return }
-    if (!emailPattern.test(email)) { setError('Enter a valid email address.'); return }
+    if (!emailPattern(email)) { setError('Enter a valid email address.'); return }
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.sendPasswordRecovery(email.trim()))
@@ -292,7 +292,7 @@ export function VerifyEmailPage() {
     event.preventDefault()
     if (resendCooldown > 0) return
     if (!email.trim()) { setError('Your registered email address could not be found. Please return to registration and try again.'); return }
-    if (!emailPattern.test(email)) { setError('The registered email address is invalid. Please return to registration and try again.'); return }
+    if (!emailPattern(email)) { setError('The registered email address is invalid. Please return to registration and try again.'); return }
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.resendSignupConfirmation(email.trim()))
