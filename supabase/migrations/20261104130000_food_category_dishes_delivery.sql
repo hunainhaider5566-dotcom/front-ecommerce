@@ -288,6 +288,33 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.set_daily_food_availability_date()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $
+DECLARE
+  v_today date := (now() AT TIME ZONE 'Asia/Karachi')::date;
+BEGIN
+  IF NOT NEW.is_daily_item THEN
+    NEW.daily_available_on := NULL;
+  ELSIF NEW.daily_status = 'available' AND NEW.daily_available_quantity > 0 THEN
+    NEW.daily_available_on := v_today;
+  ELSIF NEW.daily_status = 'coming_soon' THEN
+    NEW.daily_available_on := NULL;
+  ELSE
+    NEW.daily_available_on := v_today - 1;
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS products_set_daily_food_date ON public.products;
+CREATE TRIGGER products_set_daily_food_date
+BEFORE INSERT OR UPDATE OF is_daily_item, daily_status, daily_available_quantity
+ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.set_daily_food_availability_date();
+
 CREATE OR REPLACE FUNCTION public.reset_daily_food_availability()
 RETURNS void
 LANGUAGE plpgsql
