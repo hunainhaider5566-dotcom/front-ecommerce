@@ -30,6 +30,10 @@ export interface Product {
   originalFoodUnitPrice?: number | null
   foodQuantityIncrement?: number | null
   foodMinimumQuantity?: number | null
+  isDailyItem?: boolean
+  dailyStatus?: 'available' | 'not_today' | 'coming_soon'
+  dailyAvailableOn?: string | null
+  dailyAvailableQuantity?: number
   currency: string
   categoryId: string
   images: string[]
