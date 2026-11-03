@@ -24,12 +24,8 @@ export const authService = {
     })
   },
 
-  resendSignupVerification(email: string) {
+  resendSignupConfirmation(email: string) {
     return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: callbackRedirect('/account') } })
-  },
-
-  verifySignupOtp(email: string, token: string) {
-    return getSupabase().auth.verifyOtp({ email, token, type: 'signup' })
   },
 
   exchangeCodeForSession(code: string) {
