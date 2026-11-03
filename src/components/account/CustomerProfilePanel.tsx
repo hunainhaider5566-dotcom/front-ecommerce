@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useI18n } from '../../i18n/LocaleContext'
 import { useToast } from '../../contexts/ToastContext'
 import { saveMyProfile } from '../../services/account/profileService'
+import { isValidPakistaniMobile } from '../../utils/contactValidation'
 
 export function CustomerProfilePanel() {
   const { t } = useI18n()
@@ -26,6 +27,7 @@ export function CustomerProfilePanel() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!user) return
+    if (phone.trim() && !isValidPakistaniMobile(phone)) { push(t('Enter exactly 03001234567 or +923001234567.'), 'error'); return }
     setSaving(true)
     try {
       await saveMyProfile({ fullName, phone, avatarFile: photo })
@@ -46,7 +48,7 @@ export function CustomerProfilePanel() {
       <div className="form-grid">
         <div className="form-field"><label htmlFor="customer-profile-name">{t('Full name')} <span>*</span></label><input id="customer-profile-name" autoComplete="name" maxLength={120} value={fullName} onChange={event => setFullName(event.target.value)} required /></div>
         <div className="form-field"><label htmlFor="customer-profile-email">{t('Email address')}</label><input id="customer-profile-email" value={user?.email ?? ''} readOnly disabled /><p className="form-help">{t('Email changes are managed through account security.')}</p></div>
-        <div className="form-field"><label htmlFor="customer-profile-phone">{t('Phone number')}</label><input id="customer-profile-phone" autoComplete="tel" maxLength={30} value={phone} onChange={event => setPhone(event.target.value)} /></div>
+        <div className="form-field"><label htmlFor="customer-profile-phone">{t('Phone number')}</label><input id="customer-profile-phone" type="tel" autoComplete="tel" maxLength={13} pattern="(03[0-9]{9}|\\+923[0-9]{9})" placeholder="03001234567 or +923001234567" value={phone} onChange={event => setPhone(event.target.value)} /></div>
       </div>
       <div className="customer-profile-form__footer"><p>{t('Your profile and personal details are visible only to your signed-in account.')}</p><button className="button button--dark" type="submit" disabled={saving}>{saving ? t('Saving…') : t('Save changes')}</button></div>
     </form>
