@@ -9,13 +9,15 @@ export type MarketplaceCase = Database['public']['Tables']['marketplace_cases'][
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
 export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
-const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
+const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, current_address, complete_address, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
   shop_name: string
   slug: string
   description: string
+  current_address: string
+  complete_address: string
   contact_email: string | null
   phone: string | null
   shop_image_url?: string | null
@@ -94,6 +96,9 @@ export async function applyAsSeller(input: VendorShopInput & { document_path?: s
     shop_name: input.shop_name,
     slug: input.slug,
     description: input.description,
+    current_address: input.current_address,
+    complete_address: input.complete_address,
+    shop_location_label: input.current_address,
     contact_email: input.contact_email,
     phone: input.phone,
     ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
