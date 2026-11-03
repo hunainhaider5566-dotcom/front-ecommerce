@@ -269,7 +269,7 @@ export function CheckoutPage() {
           <h2>{t('Contact details')}</h2>
           <div className="form-grid">
             <div className="form-field"><label htmlFor="fullName">{t('Full name')} <span>*</span></label><input id="fullName" name="fullName" value={form.fullName} onChange={setField} autoComplete="name" required /></div>
-            <div className="form-field"><label htmlFor="phone">{t('Mobile number')} <span>*</span></label><input id="phone" name="phone" type="tel" placeholder="03001234567 or +923001234567" maxLength={13} pattern="(03[0-9]{9}|\\+923[0-9]{9})" value={form.phone} onChange={setField} autoComplete="tel" required /></div>
+            <div className="form-field"><label htmlFor="phone">{t('Mobile number')} <span>*</span></label><input id="phone" name="phone" type="tel" placeholder="03001234567 or +923001234567" maxLength={13} pattern="(03[0-9]{9}|\+923[0-9]{9})" value={form.phone} onChange={setField} autoComplete="tel" required /></div>
             <div className="form-field"><label htmlFor="email">{t('Email address')}</label><input id="email" name="email" type="email" value={form.email} onChange={setField} autoComplete="email" /></div>
           </div>
         </section>
