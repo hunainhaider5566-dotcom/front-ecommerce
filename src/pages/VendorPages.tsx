@@ -28,6 +28,9 @@ import {
   setVendorDailyAvailability,
   setVendorFoodProductDetails,
   setVendorProductVisibility,
+  setOwnProductInventory,
+  requestOwnProductDeletion,
+  listOwnProductDeletionRequests,
   markVendorOrderReady,
   uploadOwnProductImage,
   uploadVendorDocument,
@@ -263,6 +266,15 @@ export function VendorDashboardPage() {
   const [stockMinimum, setStockMinimum] = useState('1')
   const [stockMinimumValue, setStockMinimumValue] = useState('0')
   const [savingStock, setSavingStock] = useState(false)
+  const [deletionRequests, setDeletionRequests] = useState<Array<{ product_id: string; status: string }>>([])
+  const [visibilityTarget, setVisibilityTarget] = useState<VendorProduct | null>(null)
+  const [deletionTarget, setDeletionTarget] = useState<VendorProduct | null>(null)
+  const [deletionReason, setDeletionReason] = useState('')
+  const [inventoryAddOpen, setInventoryAddOpen] = useState(false)
+  const [inventoryAddProductId, setInventoryAddProductId] = useState('')
+  const [inventoryAddQuantity, setInventoryAddQuantity] = useState('0')
+  const [inventoryAddNote, setInventoryAddNote] = useState('')
+  const [savingProductAction, setSavingProductAction] = useState(false)
   usePageMeta(t('Vendor dashboard'), t('Manage listings, stock, fulfilment and customer cases.'))
 
   async function load() {
@@ -275,15 +287,16 @@ export function VendorDashboardPage() {
       const nextProfile = await getOwnSellerProfile()
       setProfile(nextProfile)
       if (nextProfile?.status === 'approved') {
-        const results = await Promise.allSettled([listOwnProducts(), listOwnInventory(), listOwnCases(), listOwnOrderItems()] as const)
-        const [productsResult, inventoryResult, casesResult, ordersResult] = results
+        const results = await Promise.allSettled([listOwnProducts(), listOwnInventory(), listOwnCases(), listOwnOrderItems(), listOwnProductDeletionRequests()] as const)
+        const [productsResult, inventoryResult, casesResult, ordersResult, deletionResult] = results
         setProducts(productsResult.status === 'fulfilled' ? productsResult.value : [])
         setInventory(inventoryResult.status === 'fulfilled' ? inventoryResult.value : [])
         setCases(casesResult.status === 'fulfilled' ? casesResult.value : [])
         setOrderItems(ordersResult.status === 'fulfilled' ? ordersResult.value : [])
+        setDeletionRequests(deletionResult.status === 'fulfilled' ? deletionResult.value : [])
         const failures = [
           { label: 'Listings', result: productsResult }, { label: 'Inventory', result: inventoryResult },
-          { label: 'Cases', result: casesResult }, { label: 'Fulfilment', result: ordersResult },
+          { label: 'Cases', result: casesResult }, { label: 'Fulfilment', result: ordersResult }, { label: 'Deletion requests', result: deletionResult },
         ].flatMap(({ label, result }) => result.status === 'rejected' ? [`${label}: ${result.reason instanceof Error ? result.reason.message : 'could not be loaded'}`] : [])
         setError(failures.length ? failures.join(' · ') : null)
       }
@@ -374,7 +387,7 @@ export function VendorDashboardPage() {
         onSaved={async (message) => { push(message, 'success'); setCreatingProduct(false); setEditingProduct(null); await load() }}
       />}
       {products.length === 0 && !creatingProduct && <div className="empty-state"><Package size={28} /><h2>{t('No listings yet')}</h2><p>{t('Submit a listing for moderation. It will appear in the catalog once approved.')}</p></div>}
-      {products.length > 0 && <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Price')}</th><th>{t('Publication')}</th><th>{t('Moderation')}</th><th>{t('Costs')}</th><th>{t('Actions')}</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td data-label={t('Product')}><strong>{product.name}</strong><small>{categoriesById.get(product.category_id ?? '') ?? t('No category')}</small></td><td data-label={t('Price')}>{formatPKR(Number(product.food_unit_price ?? product.price))}{product.food_selling_unit ? ` / ${product.food_selling_unit}` : ''}</td><td data-label={t('Publication')}><StatusBadge status={product.publication_status} /></td><td data-label={t('Moderation')}><StatusBadge status={product.moderation_status} /></td><td data-label={t('Costs')}><small>{t('Supplier')}: {product.supplier_cost === null ? '—' : formatPKR(Number(product.supplier_cost))}<br />{t('Fulfilment')}: {formatPKR(Number(product.fulfillment_expense))}</small></td><td data-label={t('Actions')}><button type="button" className="text-button" onClick={() => { setEditingProduct(product); setCreatingProduct(false) }}><Pencil size={14} /> {t('Edit')}</button>{product.moderation_status === 'approved' && <button type="button" className="text-button" onClick={() => void setVendorProductVisibility(product.id, !product.vendor_hidden).then(() => load()).catch((cause) => push(cause instanceof Error ? cause.message : t('Visibility update failed.'), 'error'))}>{product.vendor_hidden ? t('Unhide') : t('Hide')}</button>}{isFoodCategoryId(product.category_id) && <button type="button" className="text-button" onClick={() => { setStockProduct(product); setStockQuantity(String(product.daily_available_quantity ?? 0)); setStockMinimum(String(product.daily_minimum_quantity ?? 1)); setStockMinimumValue('0') }}>{t('Set today’s stock')}</button>}</td></tr>)}</tbody></table></div>}
+      {products.length > 0 && <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Price')}</th><th>{t('Publication')}</th><th>{t('Moderation')}</th><th>{t('Costs')}</th><th>{t('Actions')}</th></tr></thead><tbody>{products.map((product) => <tr key={product.id}><td data-label={t('Product')}><strong>{product.name}</strong><small>{categoriesById.get(product.category_id ?? '') ?? t('No category')}</small></td><td data-label={t('Price')}>{formatPKR(Number(product.food_unit_price ?? product.price))}{product.food_selling_unit ? ` / ${product.food_selling_unit}` : ''}</td><td data-label={t('Publication')}><StatusBadge status={product.publication_status} /></td><td data-label={t('Moderation')}><StatusBadge status={product.moderation_status} /></td><td data-label={t('Costs')}><small>{t('Supplier')}: {product.supplier_cost === null ? '—' : formatPKR(Number(product.supplier_cost))}<br />{t('Fulfilment')}: {formatPKR(Number(product.fulfillment_expense))}</small></td><td data-label={t('Actions')}><button type="button" className="text-button" onClick={() => { setEditingProduct(product); setCreatingProduct(false) }}><Pencil size={14} /> {t('Edit')}</button>{product.moderation_status === 'approved' && <button type="button" className="text-button" onClick={() => setVisibilityTarget(product)}>{product.vendor_hidden ? t('Unhide') : t('Hide')}</button>}{!deletionRequests.some((request) => request.product_id === product.id && request.status === 'pending') && <button type="button" className="text-button text-button--danger" onClick={() => { setDeletionTarget(product); setDeletionReason('') }}>{t('Request deletion')}</button>}{deletionRequests.some((request) => request.product_id === product.id && request.status === 'pending') && <StatusBadge status="pending" />}{isFoodCategoryId(product.category_id) && <button type="button" className="text-button" onClick={() => { setStockProduct(product); setStockQuantity(String(product.daily_available_quantity ?? 0)); setStockMinimum(String(product.daily_minimum_quantity ?? 1)); setStockMinimumValue('0') }}>{t('Set today’s stock')}</button>}</td></tr>)}</tbody></table></div>}
     </section>}
 
     {stockProduct && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingStock) setStockProduct(null) }}>
@@ -387,10 +400,13 @@ export function VendorDashboardPage() {
       </section>
     </div>}
     {tab === 'inventory' && <section className="account-panel">
-      <div className="account-panel__heading"><div><h2>{t('Inventory')}</h2><p>{t('Stock changes are recorded in the inventory movement log.')}</p></div><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div>
+      <div className="account-panel__heading"><div><h2>{t('Inventory')}</h2><p>{t('Stock changes are recorded in the inventory movement log.')}</p></div><div className="vendor-form__actions"><button type="button" className="button button--dark" onClick={() => { setInventoryAddProductId(products[0]?.id ?? ''); setInventoryAddQuantity('0'); setInventoryAddNote(''); setInventoryAddOpen(true) }} disabled={!products.length}><Plus size={15} /> {t('Add stock')}</button><button type="button" className="button button--outline" onClick={() => void load()}><RefreshCw size={15} /> {t('Refresh')}</button></div></div>
       {inventory.length === 0 ? <div className="empty-state"><Boxes size={28} /><h2>{t('No stock records')}</h2><p>{t('Stock records appear when a listing with inventory tracking is created.')}</p></div> : <div className="admin-table-wrap"><table className="admin-table vendor-table"><thead><tr><th>{t('Product')}</th><th>{t('Variant')}</th><th>{t('Quantity')}</th><th>{t('Updated')}</th><th>{t('Adjust')}</th></tr></thead><tbody>{inventory.map((item) => <InventoryRow key={item.id} item={item} onSaved={async (message) => { push(message, 'success'); await load() }} onError={(message) => push(message, 'error')} />)}</tbody></table></div>}
     </section>}
 
+    {inventoryAddOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingProductAction) setInventoryAddOpen(false) }}><section className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="vendor-add-stock-title"><div className="account-panel__heading"><div><h2 id="vendor-add-stock-title">{t('Add or update stock')}</h2><p>{t('Choose one of your own products and set its current stock.')}</p></div><button type="button" className="icon-button" onClick={() => setInventoryAddOpen(false)} disabled={savingProductAction}><X size={18}/></button></div><label className="form-field"><span>{t('Product')}</span><select value={inventoryAddProductId} onChange={(event) => setInventoryAddProductId(event.target.value)}>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="form-field"><span>{t('Available quantity')}</span><input type="number" min="0" step="1" value={inventoryAddQuantity} onChange={(event) => setInventoryAddQuantity(event.target.value)}/></label><label className="form-field"><span>{t('Adjustment note')}</span><input value={inventoryAddNote} onChange={(event) => setInventoryAddNote(event.target.value)} required minLength={2}/></label><div className="dialog-actions"><button type="button" className="button button--outline" onClick={() => setInventoryAddOpen(false)} disabled={savingProductAction}>{t('Cancel')}</button><button type="button" className="button button--dark" disabled={savingProductAction || !inventoryAddProductId || !Number.isInteger(Number(inventoryAddQuantity)) || Number(inventoryAddQuantity)<0 || inventoryAddNote.trim().length<2} onClick={async () => { setSavingProductAction(true); try { await setOwnProductInventory(inventoryAddProductId,Number(inventoryAddQuantity),inventoryAddNote); push(t('Inventory updated.'),'success'); setInventoryAddOpen(false); await load() } catch(cause) { push(cause instanceof Error ? cause.message : t('Inventory could not be updated.'),'error') } finally { setSavingProductAction(false) } }}>{savingProductAction ? t('Saving…') : t('Save stock')}</button></div></section></div>}
+    {visibilityTarget && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if(event.target===event.currentTarget && !savingProductAction) setVisibilityTarget(null) }}><section className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="vendor-visibility-title"><h2 id="vendor-visibility-title">{visibilityTarget.vendor_hidden ? t('Unhide product?') : t('Hide product?')}</h2><p>{visibilityTarget.name}</p><p>{t('This changes storefront visibility only. It does not change moderation approval.')}</p><div className="dialog-actions"><button className="button button--outline" type="button" onClick={() => setVisibilityTarget(null)} disabled={savingProductAction}>{t('Cancel')}</button><button className="button button--dark" type="button" disabled={savingProductAction} onClick={async()=>{setSavingProductAction(true);try{await setVendorProductVisibility(visibilityTarget.id,!visibilityTarget.vendor_hidden);setVisibilityTarget(null);push(t('Product visibility updated.'),'success');await load()}catch(cause){push(cause instanceof Error?cause.message:t('Visibility update failed.'),'error')}finally{setSavingProductAction(false)}}}>{t('Confirm')}</button></div></section></div>}
+    {deletionTarget && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if(event.target===event.currentTarget && !savingProductAction) setDeletionTarget(null) }}><section className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="vendor-delete-request-title"><h2 id="vendor-delete-request-title">{t('Request product deletion')}</h2><p>{deletionTarget.name}</p><label className="form-field"><span>{t('Reason for deletion')} *</span><textarea rows={4} value={deletionReason} onChange={(event)=>setDeletionReason(event.target.value)} minLength={3} required placeholder={t('Tell the JTBazar admin why this product should be removed.')}/></label><p className="form-help">{t('The product will not be deleted until an admin approves this request.')}</p><div className="dialog-actions"><button className="button button--outline" type="button" onClick={()=>setDeletionTarget(null)} disabled={savingProductAction}>{t('Cancel')}</button><button className="button button--dark" type="button" disabled={savingProductAction || deletionReason.trim().length<3} onClick={async()=>{setSavingProductAction(true);try{await requestOwnProductDeletion(deletionTarget.id,deletionReason);push(t('Deletion request sent to admin.'),'success');setDeletionTarget(null);await load()}catch(cause){push(cause instanceof Error?cause.message:t('Deletion request failed.'),'error')}finally{setSavingProductAction(false)}}}>{savingProductAction?t('Submitting…'):t('Submit request')}</button></div></section></div>}
     {tab === 'orders' && <VendorOrdersPanel items={orderItems} products={products} onError={(message) => push(message, 'error')} />}
 
     {tab === 'cases' && <section className="account-panel">
@@ -466,6 +482,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     setSaving(true)
     setError(null)
     try {
+      let specifications: unknown = []; let dimensions: unknown = {}
+      try { specifications = JSON.parse(String(data.get('specifications') || '[]')); dimensions = JSON.parse(String(data.get('dimensions') || '{}')) } catch { throw new Error(t('Specifications and dimensions must be valid JSON.')) }
       const input = {
         name: String(data.get('name') ?? '').trim(),
         slug: String(data.get('slug') ?? '').trim(),
@@ -476,13 +494,18 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         supplier_cost: supplierCost,
         fulfillment_expense: fulfillmentExpense,
         minimum_profit: minimumProfit,
+        discount_percent: Number(data.get('discount_percent') ?? 0),
+        weight_grams: data.get('weight_grams') ? Number(data.get('weight_grams')) : null,
+        specifications, dimensions,
+        seo_title: String(data.get('seo_title') ?? '').trim() || null,
+        seo_description: String(data.get('seo_description') ?? '').trim() || null,
       }
       const wasEditing = Boolean(product || createdProductId)
       let productId = product?.id ?? createdProductId
       if (productId) {
         await updateVendorProduct(productId, input)
       } else {
-        productId = await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on' })
+        productId = await createVendorProduct({ ...input, category_id: String(data.get('category_id') ?? '') || null, track_inventory: data.get('track_inventory') === 'on', initial_stock: Number(data.get('initial_stock') ?? 0) })
         setCreatedProductId(productId)
       }
       if (isFoodCategory && productId) await setVendorFoodProductDetails({ productId, sellingUnit, unitPrice: Number(unitPrice), quantityIncrement: foodIncrement, minimumQuantity: foodMinimum })
@@ -506,7 +529,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-name">{t('Product name')} <span>*</span></label><input id="product-name" name="name" required defaultValue={product?.name ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-slug">{t('Slug')} <span>*</span></label><input id="product-slug" name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" defaultValue={product?.slug ?? ''} /></div>
     <div className="form-field"><label htmlFor="product-sku">{t('SKU')}</label><input id="product-sku" name="sku" defaultValue={product?.sku ?? ''} /></div>
-    <div className="form-field"><label htmlFor="product-category">{t('Category')}</label><select id="product-category" name="category_id" value={selectedCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)}>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
+    <div className="form-field"><label htmlFor="product-category">{t('Category')} <span>*</span></label><select id="product-category" name="category_id" required value={selectedCategoryId} onChange={(event) => setSelectedCategoryId(event.target.value)}><option value="">{t('Select a category')}</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></div>
     <div className="form-field"><label htmlFor="product-price">{t('Selling price')} <span>*</span></label><input id="product-price" name="price" type="number" min="0" step="0.01" required value={isFoodCategory ? unitPrice : regularPrice} onChange={(event) => isFoodCategory ? setUnitPrice(event.target.value) : setRegularPrice(event.target.value)} /><small className="form-help">{isFoodCategory ? t('Price per selected selling unit') : t('Price per product')}</small></div>
     {isFoodCategory && <section className="form-field form-field--wide food-unit-config" aria-label={t('Food selling unit configuration')}>
       <h3>{t('Selling unit & quantity')}</h3>
@@ -515,14 +538,20 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       <div className="form-field"><label htmlFor="food-quantity-increment">{t('Customer quantity step')}</label><input id="food-quantity-increment" type="number" min="1" step="1" value={quantityIncrement} onChange={(event) => setQuantityIncrement(event.target.value)} /><small className="form-help">{t('For kg or litre, enter the step in grams or millilitres (e.g. 250). For piece, dozen or pack, enter number of units.')}</small></div>
       <div className="form-field"><label htmlFor="food-minimum-quantity">{t('Minimum purchase steps')}</label><input id="food-minimum-quantity" type="number" min="1" step="1" value={minimumQuantity} onChange={(event) => setMinimumQuantity(event.target.value)} /></div>
     </section>}
+    <div className="form-field"><label htmlFor="product-discount">{t('Discount (%)')}</label><input id="product-discount" name="discount_percent" type="number" min="0" max="100" step="0.01" defaultValue={product?.discount_percent ?? 0}/></div>
+    <div className="form-field"><label htmlFor="product-weight">{t('Shipping weight (grams)')}</label><input id="product-weight" name="weight_grams" type="number" min="0" step="1" defaultValue={product?.weight_grams ?? ''}/></div>
     <div className="form-field"><label htmlFor="product-supplier-cost">{t('Supplier cost')} <span>{t('private')}</span></label><input id="product-supplier-cost" name="supplier_cost" type="number" min="0" step="0.01" defaultValue={product?.supplier_cost == null ? '' : String(product.supplier_cost)} /></div>
     <div className="form-field"><label htmlFor="product-fulfilment">{t('Fulfilment expense')}</label><input id="product-fulfilment" name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue={product ? String(product.fulfillment_expense) : '0'} /></div>
     <div className="form-field"><label htmlFor="product-profit">{t('Minimum profit')}</label><input id="product-profit" name="minimum_profit" type="number" min="0" step="0.01" defaultValue={product ? String(product.minimum_profit) : '0'} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. You can add another image when editing the listing.')}</p></div>
     <div className="form-field form-field--wide"><label htmlFor="product-short">{t('Short description')}</label><input id="product-short" name="short_description" maxLength={300} defaultValue={product?.short_description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-description">{t('Full description')}</label><textarea id="product-description" name="description" rows={5} defaultValue={product?.description ?? ''} /></div>
-    {!editing && <label className="checkout-save-address"><input type="checkbox" name="track_inventory" defaultChecked /> {t('Track inventory for this listing')}</label>}
-    <div className="vendor-form__actions"><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(editing ? 'Save changes' : 'Submit listing')}</button><button type="button" className="button button--outline" onClick={onCancel}>{t('Cancel')}</button></div>
+    <div className="form-field form-field--wide"><label htmlFor="product-specifications">{t('Specifications (JSON array)')}</label><textarea id="product-specifications" name="specifications" rows={3} defaultValue={JSON.stringify(product?.specifications ?? [],null,2)} /></div>
+    <div className="form-field form-field--wide"><label htmlFor="product-dimensions">{t('Dimensions (JSON object)')}</label><textarea id="product-dimensions" name="dimensions" rows={3} defaultValue={JSON.stringify(product?.dimensions ?? {},null,2)} /></div>
+    <div className="form-field"><label htmlFor="product-seo-title">{t('SEO title')}</label><input id="product-seo-title" name="seo_title" defaultValue={product?.seo_title ?? ''}/></div>
+    <div className="form-field"><label htmlFor="product-seo-description">{t('SEO description')}</label><textarea id="product-seo-description" name="seo_description" rows={2} defaultValue={product?.seo_description ?? ''}/></div>
+    {!editing && <><label className="checkout-save-address"><input type="checkbox" name="track_inventory" defaultChecked /> {t('Track inventory for this listing')}</label><div className="form-field"><label htmlFor="product-initial-stock">{t('Initial stock quantity')}</label><input id="product-initial-stock" name="initial_stock" type="number" min="0" step="1" defaultValue="0"/></div></>}
+    <div className="vendor-form__actions form-field--wide"><button type="submit" className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(editing ? 'Save changes' : 'Submit listing')}</button><button type="button" className="button button--outline" onClick={onCancel}>{t('Cancel')}</button></div>
   </form>
 }
 
