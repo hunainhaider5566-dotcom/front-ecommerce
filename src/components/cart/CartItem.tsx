@@ -7,7 +7,7 @@ import type { CartLine } from '../../types/cart'
 import { useCatalog } from '../../contexts/CatalogContext'
 import { formatPKR } from '../../utils/money'
 import { QuantitySelector } from '../products/QuantitySelector'
-import { getFoodQuantityLabel, isCartLineAvailable } from '../../utils/cart'
+import { getCartLineMaxQuantity, getFoodQuantityLabel, isCartLineAvailable } from '../../utils/cart'
 import { getCartLineUnitPrice } from '../../utils/cart'
 
 export function CartItem({ line, onQuantity, onRemove, compact = false }: { line: CartLine; onQuantity: (quantity: number) => void; onRemove: () => void; compact?: boolean }) {
@@ -53,7 +53,7 @@ export function CartItem({ line, onQuantity, onRemove, compact = false }: { line
         <strong className="cart-item__price">{formatPKR(unitPrice * line.quantity)}</strong>
       </div>
       <div className="cart-item__controls">
-        <QuantitySelector value={line.quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, line.quantity) : undefined} onChange={onQuantity} label={`${t('Quantity for')} ${name}`} />
+        <QuantitySelector value={line.quantity} min={Math.min(product.foodMinimumQuantity ?? 1, getCartLineMaxQuantity(product, line) || 1)} max={getCartLineMaxQuantity(product, line)} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, line.quantity) : undefined} onChange={onQuantity} label={`${t('Quantity for')} ${name}`} />
         <button type="button" className="text-button" onClick={handleRemove}><Trash2 size={14} /> {t('Remove')}</button>
       </div>
     </div>
