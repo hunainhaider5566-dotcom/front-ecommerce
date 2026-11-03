@@ -99,8 +99,9 @@ export async function uploadComplaintEvidence(orderId: string, file: File): Prom
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before uploading evidence.')
-  if (file.size > 10 * 1024 * 1024) throw new Error('Evidence files must be 10 MB or smaller.')
-  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Evidence must be a JPG, PNG, WebP or AVIF image.')
+  if (file.size <= 0 || file.size > 10 * 1024 * 1024) throw new Error('Evidence images must be between 1 byte and 10 MB.')
+  const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' } as Record<string, string>)[file.type]
   const path = `${user.id}/${orderId}-${crypto.randomUUID()}.${ext}`
   const { error } = await client.storage.from('complaint-evidence').upload(path, file, {
     cacheControl: '3600',
@@ -122,6 +123,9 @@ export async function createMarketplaceCase(input: {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before opening a case.')
+  if (input.reason.trim().length < 3) throw new Error('A case reason of at least 3 characters is required.')
+  if (input.caseType !== 'refund' && !input.evidencePath) throw new Error('A product evidence image is required for complaints and returns.')
+  if (input.evidencePath && !input.evidencePath.startsWith(user.id + '/' + input.orderId + '-')) throw new Error('The evidence image does not belong to this order or account.')
   const { data, error } = await client
     .from('marketplace_cases')
     .insert({
