@@ -4,6 +4,7 @@ import { useCatalog } from './CatalogContext'
 import { getSupabase } from '../lib/supabase'
 import type { CartLine } from '../types/cart'
 import type { Product } from '../types/product'
+import { getCartLineMaxQuantity } from '../utils/cart'
 
 interface CartContextValue {
   lines: CartLine[]
@@ -16,16 +17,18 @@ interface CartContextValue {
   clear: () => Promise<void>
 }
 
+const CART_STORAGE_KEY = 'jtbazar-guest-cart-v2'
+function readGuestCart(): CartLine[] { try { const parsed: unknown = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]'); return Array.isArray(parsed) ? parsed.filter((item): item is CartLine => Boolean(item) && typeof item.productId === 'string' && Number.isFinite(item.quantity)).map((item) => ({ ...item, quantity: Math.max(1, Math.min(99, Math.floor(item.quantity))) })) : [] } catch { return [] } }
 const CartContext = createContext<CartContextValue | null>(null)
 
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const { findProductById } = useCatalog()
-  const [lines, setLines] = useState<CartLine[]>([])
+  const [lines, setLines] = useState<CartLine[]>(readGuestCart)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const guestLinesRef = useRef<CartLine[]>([])
+  const guestLinesRef = useRef<CartLine[]>(readGuestCart())
   const previousUserIdRef = useRef<string | null>(null)
 
   const loadCart = useCallback(async (userId: string) => {
@@ -78,7 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             const current = merged.get(key)
             merged.set(key, {
               user_id: user.id, product_id: line.productId, variant_id: line.variantId ?? null,
-              quantity: Math.min(99, (current?.quantity ?? 0) + line.quantity),
+              quantity: Math.min(getCartLineMaxQuantity(findProductById(line.productId), line), (current?.quantity ?? 0) + line.quantity),
             })
           }
           const { error: upsertError } = await client.from('cart_items').upsert([...merged.values()], {
@@ -90,6 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (!active) return
         setLines(saved)
         guestLinesRef.current = []
+        try { localStorage.removeItem(CART_STORAGE_KEY) } catch { /* ignore */ }
         setMessage('')
       } catch (cause) {
         if (!active) return
@@ -100,6 +104,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })()
     return () => { active = false }
   }, [user?.id, authLoading, loadCart])
+
+  useEffect(() => { if (!user && !authLoading) { guestLinesRef.current = lines; try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(lines)) } catch { /* guest storage is optional */ } } }, [lines, user, authLoading])
 
   const add = useCallback<CartContextValue['add']>(async (product, requested, variantId, variantLabel) => {
     if (authLoading) {
@@ -117,14 +123,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setMessage(`Choose an option for ${product.name} before adding it.`)
       return false
     }
-    const quantity = Math.max(1, Math.min(99, Math.floor(requested) || 1))
+    const newLine: CartLine = { productId: product.id, quantity: 1, ...(variantId ? { variantId } : {}), ...(variantLabel ? { variantLabel } : {}) }
+    const maxStock = getCartLineMaxQuantity(currentProduct, newLine)
+    if (maxStock < 1) { setMessage('This option is out of stock.'); return false }
+    const quantity = Math.max(1, Math.min(maxStock, Math.floor(requested) || 1))
     const newLine: CartLine = { productId: product.id, quantity, ...(variantId ? { variantId } : {}), ...(variantLabel ? { variantLabel } : {}) }
 
     if (!user) {
       const current = guestLinesRef.current
       const existing = current.find((line) => line.productId === product.id && line.variantId === variantId)
       const next = existing
-        ? current.map((line) => line === existing ? { ...line, quantity: Math.min(99, line.quantity + quantity) } : line)
+        ? current.map((line) => line === existing ? { ...line, quantity: Math.min(maxStock, line.quantity + quantity) } : line)
         : [...current, newLine]
       guestLinesRef.current = next
       setLines(next)
@@ -138,7 +147,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       query = variantId ? query.eq('variant_id', variantId) : query.is('variant_id', null)
       const { data: existing, error: readError } = await query.maybeSingle()
       if (readError) throw new Error(readError.message)
-      const nextQuantity = Math.min(99, (existing?.quantity ?? 0) + quantity)
+      const nextQuantity = Math.min(maxStock, (existing?.quantity ?? 0) + quantity)
       const { error } = await client.from('cart_items').upsert({
         user_id: user.id, product_id: product.id, variant_id: variantId ?? null, quantity: nextQuantity,
       }, { onConflict: 'user_id,product_id,variant_id' })
@@ -160,7 +169,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setLines(next)
         return
       }
-      const safeQuantity = Math.max(1, Math.min(99, Math.floor(quantity)))
+      const product = findProductById(productId)
+      const maxStock = getCartLineMaxQuantity(product, { productId, variantId, quantity })
+      if (maxStock < 1) { setMessage('This option is out of stock.'); return }
+      const safeQuantity = Math.max(1, Math.min(maxStock, Math.floor(quantity)))
       const next = guestLinesRef.current.map((line) => line.productId === productId && line.variantId === variantId ? { ...line, quantity: safeQuantity } : line)
       guestLinesRef.current = next
       setLines(next)
@@ -170,7 +182,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const client = getSupabase()
       let query = client.from('cart_items').delete().eq('user_id', user.id).eq('product_id', productId)
       if (quantity > 0) {
-        let update = client.from('cart_items').update({ quantity: Math.max(1, Math.min(99, Math.floor(quantity))) })
+        let update = client.from('cart_items').update({ quantity: Math.max(1, Math.min(getCartLineMaxQuantity(findProductById(productId), { productId, variantId, quantity }), Math.floor(quantity))) })
           .eq('user_id', user.id).eq('product_id', productId)
         update = variantId ? update.eq('variant_id', variantId) : update.is('variant_id', null)
         const { error } = await update
@@ -185,7 +197,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'The cart could not be updated.')
     }
-  }, [user, loadCart])
+  }, [user, loadCart, findProductById])
 
   const remove = useCallback<CartContextValue['remove']>(async (productId, variantId) => {
     if (!user) {
