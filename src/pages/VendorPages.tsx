@@ -72,7 +72,6 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
       <StatusBadge status={profile.status} />
       {profile.rejection_reason && <p><strong>{t('Review note')}:</strong> {profile.rejection_reason}</p>}
       <p>{t('Submitted')} {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(profile.created_at))}.</p>
-      {profile.document_path && <p><FileUp size={15} /> {t('A private verification document is on file.')}</p>}
       <div className="vendor-status__actions">
         {approved && <Link className="button button--dark" to="/vendor">{t('Open vendor dashboard')} <ArrowRight size={15} /></Link>}
         {profile.status === 'suspended' ? <p role="alert">{t('Your seller account has been suspended. Contact marketplace support if you believe this is a mistake.')}</p> : !approved && <Link className="button button--dark" to={`/shops/${profile.slug}`}>{t('View public shop')} <ExternalLink size={15} /></Link>}
