@@ -3,13 +3,13 @@ import { useI18n } from '../../i18n/LocaleContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useWishlist } from '../../contexts/WishlistContext'
 
-export function WishlistButton({ productId, productName }: { productId: string; productName: string }) {
+export function WishlistButton({ productId, productName, variantId }: { productId: string; productName: string; variantId?: string }) {
   const { has, toggle } = useWishlist()
   const { t } = useI18n()
   const { push } = useToast()
-  const saved = has(productId)
+  const saved = has(productId, variantId)
   function handleToggle() {
-    toggle(productId)
+    void toggle(productId, variantId)
     push(t(saved ? 'Removed from wishlist.' : 'Added to wishlist.'))
   }
   return (
