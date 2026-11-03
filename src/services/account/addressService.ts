@@ -1,4 +1,5 @@
 import { getSupabase } from '../../lib/supabase'
+import { isValidPakistaniMobile, normalizePakistaniMobile } from '../../utils/contactValidation'
 
 export interface SavedAddress {
   id: string
@@ -42,6 +43,7 @@ export async function listMyAddresses(): Promise<SavedAddress[]> {
 }
 
 export async function createAddress(input: AddressInput): Promise<SavedAddress> {
+  if (!isValidPakistaniMobile(input.phone)) throw new Error('Enter exactly 03001234567 or +923001234567.')
   const { data: auth } = await getSupabase().auth.getUser()
   const userId = auth.user?.id
   if (!userId) throw new Error('Sign in before saving an address.')
@@ -50,7 +52,7 @@ export async function createAddress(input: AddressInput): Promise<SavedAddress> 
   }
   const { data, error } = await getSupabase()
     .from('customer_addresses')
-    .insert({ ...input, user_id: userId })
+    .insert({ ...input, phone: normalizePakistaniMobile(input.phone), user_id: userId })
     .select(ADDRESS_COLUMNS)
     .single()
   throwIfError(error)
@@ -59,6 +61,7 @@ export async function createAddress(input: AddressInput): Promise<SavedAddress> 
 }
 
 export async function updateAddress(id: string, input: AddressInput): Promise<SavedAddress> {
+  if (!isValidPakistaniMobile(input.phone)) throw new Error('Enter exactly 03001234567 or +923001234567.')
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before updating an address.')
@@ -67,7 +70,7 @@ export async function updateAddress(id: string, input: AddressInput): Promise<Sa
   }
   const { data, error } = await client
     .from('customer_addresses')
-    .update(input)
+    .update({ ...input, phone: normalizePakistaniMobile(input.phone) })
     .eq('id', id)
     .select(ADDRESS_COLUMNS)
     .single()
