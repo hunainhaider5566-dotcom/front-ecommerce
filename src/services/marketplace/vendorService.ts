@@ -242,6 +242,7 @@ export async function uploadOwnProductImage(productId: string, file: File, altTe
 }
 
 export async function updateVendorProduct(productId: string, input: {
+  category_id: string | null
   name: string
   slug: string
   sku: string | null
@@ -260,6 +261,7 @@ export async function updateVendorProduct(productId: string, input: {
 }): Promise<VendorProduct> {
   const { data, error } = await getSupabase().rpc('vendor_update_product', {
     p_product_id: productId,
+    p_category_id: input.category_id,
     p_name: input.name,
     p_slug: input.slug,
     p_sku: input.sku,
