@@ -12,7 +12,7 @@ import { usePageMeta } from '../hooks/usePageMeta'
 import { authService } from '../services/auth/authService'
 import { createAddress, deleteAddress, listMyAddresses, setDefaultAddress, updateAddress, type AddressInput, type SavedAddress } from '../services/account/addressService'
 import { hasRememberedAccountSuspension } from '../services/auth/accountAccessNotice'
-import { cancelCustomerOrder, createMarketplaceCase, getEvidenceSignedUrl, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
+import { cancelCustomerOrder, createMarketplaceCase, listMyCases, listMyOrders, listOrderItems, uploadComplaintEvidence } from '../services/orders/orderService'
 import type { MarketplaceCaseRecord, OrderItemRecord, OrderRecord } from '../types/order'
 import { formatPKR } from '../utils/money'
 import { isValidPakistaniMobile } from '../utils/contactValidation'
@@ -393,7 +393,7 @@ export function AccountPage() {
     {tab === 'cases' && <section className="account-panel" aria-labelledby="account-cases-title">
       <div className="account-panel__heading"><div><h2 id="account-cases-title">{t('Returns & complaints')}</h2><p>{t('Open a case from an order item and follow the seller response.')}</p></div><button type="button" className="button button--outline" onClick={() => void loadCases()} disabled={casesLoading}><RefreshCw size={15} className={casesLoading ? 'spin' : ''} /> {t('Refresh')}</button></div>
       {caseTarget && <form className="case-form shine-surface" onSubmit={submitCase}>
-        <div className="account-panel__heading"><div><h3>{t('New case for')} {caseTarget.order.order_number}</h3><p>{caseTarget.item ? caseTarget.item.product_name_snapshot : t('Whole order')}</p></div><button type="button" className="icon-button" aria-label={t('Close case form')} onClick={() => setCaseTarget(null)}><X size={17} /></button></div>
+        <div className="account-panel__heading"><div><h3>{t('New case for')} {caseTarget.order.order_number}</h3><p>{(itemsByOrder[caseTarget.order.id] ?? []).find((row) => row.id === caseItemId)?.product_name_snapshot ?? t('Select a product from this order')}</p></div><button type="button" className="icon-button" aria-label={t('Close case form')} onClick={() => setCaseTarget(null)}><X size={17} /></button></div>
         <div className="form-grid">
           <div className="form-field form-field--wide"><label htmlFor="case-product">{t('Product involved')} <span>*</span></label><select id="case-product" value={caseItemId} onChange={(event) => setCaseItemId(event.target.value)} required><option value="">{t('Select a product from this order')}</option>{(itemsByOrder[caseTarget.order.id] ?? []).map((orderItem) => <option key={orderItem.id} value={orderItem.id}>{orderItem.product_name_snapshot} · {t('Qty')} {orderItemQuantityLabel(orderItem)}</option>)}</select></div>
           <div className="form-field"><label htmlFor="case-type">{t('Case type')}</label><select id="case-type" value={caseType} onChange={(event) => setCaseType(event.target.value as typeof caseType)}><option value="complaint">{t('Complaint')}</option><option value="return">{t('Return')}</option><option value="refund">{t('Refund')}</option></select></div>
