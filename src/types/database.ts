@@ -28,6 +28,7 @@ type ProductImageRow = { id: string; product_id: string; image_url: string | nul
 type ProductVariantRow = { id: string; product_id: string; option_label: string; option_value: string; sku: string | null; price_override: number | null; attributes: Json; is_active: boolean; sort_order: number; created_at: string; updated_at: string }
 type ProductInventoryRow = { id: string; product_id: string; variant_id: string | null; quantity: number; low_stock_threshold: number | null; updated_at: string }
 type InventoryMovementRow = { id: string; product_id: string; variant_id: string | null; quantity_delta: number; movement_type: InventoryMovementType; reference_id: string | null; note: string | null; actor_id: string | null; created_at: string }
+type ProductDeletionRequestRow = { id: string; product_id: string; seller_id: string; requested_by: string; reason: string; status: 'pending' | 'approved' | 'rejected'; admin_note: string | null; reviewed_by: string | null; reviewed_at: string | null; created_at: string; updated_at: string }
 type CustomerAddressRow = { id: string; user_id: string; recipient_name: string; phone: string; address_line_1: string; address_line_2: string | null; city: string; province: string | null; postal_code: string | null; delivery_instructions: string | null; is_default: boolean; created_at: string; updated_at: string }
 type WishlistItemRow = { id: string; user_id: string; product_id: string; variant_id: string | null; added_at: string }
 type CartItemRow = { id: string; user_id: string; product_id: string; variant_id: string | null; quantity: number; created_at: string; updated_at: string }
@@ -82,6 +83,7 @@ export interface Database {
       product_images: Table<ProductImageRow, 'product_id'>
       product_variants: Table<ProductVariantRow, 'product_id' | 'option_label' | 'option_value'>
       product_inventory: Table<ProductInventoryRow, 'product_id'>
+      product_deletion_requests: Table<ProductDeletionRequestRow>
       inventory_movements: Table<InventoryMovementRow, 'product_id' | 'quantity_delta' | 'movement_type'>
       customer_addresses: Table<CustomerAddressRow, 'user_id' | 'recipient_name' | 'phone' | 'address_line_1' | 'city'>
       wishlist_items: Table<WishlistItemRow, 'user_id' | 'product_id'>
@@ -124,7 +126,7 @@ export interface Database {
       admin_list_product_deletion_requests: { Args: Record<string, never>; Returns: { id: string; product_id: string; product_name: string; product_image_url: string; seller_id: string; shop_name: string; reason: string; status: string; admin_note: string | null; created_at: string }[] }
       admin_delete_product: { Args: { p_product_id: string }; Returns: undefined }
       admin_review_product_deletion: { Args: { p_request_id: string; p_approve: boolean; p_admin_note?: string | null }; Returns: Json }
-      vendor_update_product: { Args: { p_product_id: string; p_name: string; p_slug: string; p_sku: string | null; p_short_description: string; p_description: string; p_price: number; p_supplier_cost: number | null; p_fulfillment_expense: number; p_minimum_profit: number; p_discount_percent?: number; p_weight_grams?: number | null; p_specifications?: Json; p_dimensions?: Json; p_seo_title?: string | null; p_seo_description?: string | null }; Returns: ProductRow }
+      vendor_update_product: { Args: { p_product_id: string; p_category_id: string | null; p_name: string; p_slug: string; p_sku: string | null; p_short_description: string; p_description: string; p_price: number; p_supplier_cost: number | null; p_fulfillment_expense: number; p_minimum_profit: number; p_discount_percent?: number; p_weight_grams?: number | null; p_specifications?: Json; p_dimensions?: Json; p_seo_title?: string | null; p_seo_description?: string | null }; Returns: ProductRow }
       vendor_order_items: { Args: Record<string, never>; Returns: VendorOrderItemRow[] }
       vendor_order_items_page: { Args: { p_limit?: number; p_offset?: number; p_search?: string | null; p_status?: string | null }; Returns: VendorOrderItemRow[] }
       vendor_update_order_item: { Args: { p_item_id: string; p_status: string; p_tracking_number?: string | null; p_tracking_url?: string | null; p_vendor_note?: string | null }; Returns: boolean }
