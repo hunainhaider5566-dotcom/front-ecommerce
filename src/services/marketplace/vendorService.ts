@@ -254,8 +254,8 @@ export async function updateVendorProduct(productId: string, input: {
   minimum_profit: number
   discount_percent: number
   weight_grams: number | null
-  specifications: unknown
-  dimensions: unknown
+  specifications: Json
+  dimensions: Json
   seo_title: string | null
   seo_description: string | null
 }): Promise<VendorProduct> {
