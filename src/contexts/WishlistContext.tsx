@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useCatalog } from './CatalogContext'
 import { useAuth } from './AuthContext'
 import { addWishlistProduct, listMyWishlistItems, removeWishlistProduct, type WishlistEntry } from '../services/account/wishlistService'
@@ -8,7 +8,7 @@ const WISHLIST_KEY = 'jtbazar-guest-wishlist-v2'
 const WishlistContext = createContext<WishlistValue | null>(null)
 function entryKey(productId: string, variantId?: string) { return productId + ':' + (variantId ?? '') }
 function readGuestWishlist(): WishlistEntry[] {
-  try { const parsed: unknown = JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]'); if (!Array.isArray(parsed)) return []; const entries = parsed.flatMap((entry): WishlistEntry[] => { if (typeof entry === 'string') return [{ productId: entry }]; if (!entry || typeof entry !== 'object' || typeof (entry as WishlistEntry).productId !== 'string') return []; const item = entry as WishlistEntry; return [{ productId: item.productId, ...(typeof item.variantId === 'string' ? { variantId: item.variantId } : {}) }] }); return [...new Map(entries.map((entry) => [entryKey(entry.productId, entry.variantId), entry])).values()] } catch { return [] }
+  try { const parsed: unknown = JSON.parse(localStorage.getItem(WISHLIST_KEY) || localStorage.getItem('meridion-wishlist-v1') || '[]'); if (!Array.isArray(parsed)) return []; const entries = parsed.flatMap((entry): WishlistEntry[] => { if (typeof entry === 'string') return [{ productId: entry }]; if (!entry || typeof entry !== 'object' || typeof (entry as WishlistEntry).productId !== 'string') return []; const item = entry as WishlistEntry; return [{ productId: item.productId, ...(typeof item.variantId === 'string' ? { variantId: item.variantId } : {}) }] }); return [...new Map(entries.map((entry) => [entryKey(entry.productId, entry.variantId), entry])).values()] } catch { return [] }
 }
 function writeGuestWishlist(items: WishlistEntry[]) { try { localStorage.setItem(WISHLIST_KEY, JSON.stringify(items)) } catch { /* guest storage is optional */ } }
 export function WishlistProvider({ children }: { children: ReactNode }) {
@@ -16,18 +16,19 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [items, setItems] = useState<WishlistEntry[]>(readGuestWishlist)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const previousUserIdRef = useRef<string | null>(null)
   const refresh = useCallback(async () => {
     if (!user) { setItems(readGuestWishlist()); return }
     try {
       const guest = readGuestWishlist()
       for (const item of guest) { const product = findProductById(item.productId); if (product && (!item.variantId || product.variants.some((variant) => variant.id === item.variantId))) await addWishlistProduct(item.productId, item.variantId) }
       const remote = await listMyWishlistItems()
-      if (guest.length) writeGuestWishlist([])
+      if (guest.length) { writeGuestWishlist([]); try { localStorage.removeItem('meridion-wishlist-v1') } catch { /* ignore */ } }
       setItems(remote); setSyncError(null)
     } catch (cause) { setSyncError(cause instanceof Error ? cause.message : 'Saved items could not be synchronized.') }
   }, [user, findProductById])
   useEffect(() => { if (status === 'ready') void refresh() }, [refresh, status])
-  useEffect(() => { if (!user) writeGuestWishlist(items) }, [items, user])
+  useEffect(() => { if (user) { previousUserIdRef.current = user.id; return } if (previousUserIdRef.current) { previousUserIdRef.current = null; setItems(readGuestWishlist()); return } writeGuestWishlist(items) }, [items, user])
   useEffect(() => { if (status !== 'ready') return; const available = new Set(products.filter((product) => product.isPublished).map((product) => product.id)); setItems((current) => current.filter((item) => available.has(item.productId))) }, [status, products])
   const toggle = useCallback(async (productId: string, variantId?: string) => {
     const product = findProductById(productId)
