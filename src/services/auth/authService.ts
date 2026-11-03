@@ -25,7 +25,7 @@ export const authService = {
   },
 
   resendSignupVerification(email: string) {
-    return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: callbackRedirect('/account?verified=1') } })
+    return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: callbackRedirect('/account') } })
   },
 
   verifySignupOtp(email: string, token: string) {
