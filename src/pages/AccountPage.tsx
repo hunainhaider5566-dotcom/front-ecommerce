@@ -80,6 +80,7 @@ export function AccountPage() {
   const [caseType, setCaseType] = useState<'return' | 'refund' | 'complaint'>('complaint')
   const [caseReason, setCaseReason] = useState('')
   const [caseEvidence, setCaseEvidence] = useState<File | null>(null)
+  const [caseItemId, setCaseItemId] = useState('')
   const [submittingCase, setSubmittingCase] = useState(false)
 
   usePageMeta(t('Your account'), t('Manage your orders, delivery addresses, returns and complaints.'))
@@ -243,21 +244,25 @@ export function AccountPage() {
     setCaseType('complaint')
     setCaseReason('')
     setCaseEvidence(null)
+    setCaseItemId(item?.id ?? itemsByOrder[order.id]?.[0]?.id ?? '')
     setTab('cases')
   }
 
   async function submitCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!caseTarget) return
-    if (caseReason.trim().length < 3) { push(t('Add a short reason for your case.'), 'error'); return }
+    const selectedItem = (itemsByOrder[caseTarget.order.id] ?? []).find((item) => item.id === caseItemId)
+    if (!selectedItem) { push(t('Select the product from this order.'), 'error'); return }
+    if (caseReason.trim().length < 3 || caseReason.trim().length > 2000) { push(t('Enter a reason between 3 and 2,000 characters.'), 'error'); return }
+    if (!caseEvidence) { push(t('A product evidence image is required.'), 'error'); return }
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(caseEvidence.type)) { push(t('Choose a JPG, PNG, WebP or AVIF image.'), 'error'); return }
     setSubmittingCase(true)
     try {
-      let evidencePath: string | null = null
-      if (caseEvidence) evidencePath = await uploadComplaintEvidence(caseTarget.order.id, caseEvidence)
+      const evidencePath = await uploadComplaintEvidence(caseTarget.order.id, caseEvidence)
       await createMarketplaceCase({
         orderId: caseTarget.order.id,
-        orderItemId: caseTarget.item?.id ?? null,
-        sellerId: caseTarget.item?.seller_id ?? null,
+        orderItemId: selectedItem.id,
+        sellerId: selectedItem.seller_id,
         caseType,
         reason: caseReason,
         evidencePath,
@@ -266,6 +271,7 @@ export function AccountPage() {
       setCaseTarget(null)
       setCaseReason('')
       setCaseEvidence(null)
+      setCaseItemId('')
       await loadCases()
     } catch (cause) {
       push(cause instanceof Error ? cause.message : t('The case could not be submitted.'), 'error')
@@ -386,9 +392,10 @@ export function AccountPage() {
       {caseTarget && <form className="case-form shine-surface" onSubmit={submitCase}>
         <div className="account-panel__heading"><div><h3>{t('New case for')} {caseTarget.order.order_number}</h3><p>{caseTarget.item ? caseTarget.item.product_name_snapshot : t('Whole order')}</p></div><button type="button" className="icon-button" aria-label={t('Close case form')} onClick={() => setCaseTarget(null)}><X size={17} /></button></div>
         <div className="form-grid">
+          <div className="form-field form-field--wide"><label htmlFor="case-product">{t('Product involved')} <span>*</span></label><select id="case-product" value={caseItemId} onChange={(event) => setCaseItemId(event.target.value)} required><option value="">{t('Select a product from this order')}</option>{(itemsByOrder[caseTarget.order.id] ?? []).map((orderItem) => <option key={orderItem.id} value={orderItem.id}>{orderItem.product_name_snapshot} · {t('Qty')} {orderItemQuantityLabel(orderItem)}</option>)}</select></div>
           <div className="form-field"><label htmlFor="case-type">{t('Case type')}</label><select id="case-type" value={caseType} onChange={(event) => setCaseType(event.target.value as typeof caseType)}><option value="complaint">{t('Complaint')}</option><option value="return">{t('Return')}</option><option value="refund">{t('Refund')}</option></select></div>
-          <div className="form-field form-field--wide"><label htmlFor="case-reason">{t('What happened?')} <span>*</span></label><textarea id="case-reason" rows={4} value={caseReason} onChange={(event) => setCaseReason(event.target.value)} placeholder={t('Describe the issue and what would resolve it.')} required /></div>
-          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{t('Evidence (optional)')}</label><input id="case-evidence" type="file" accept="image/*,application/pdf" onChange={(event) => setCaseEvidence(event.target.files?.[0] ?? null)} /><p className="form-help"><FileUp size={13} /> {t('Images or PDF, up to 10 MB.')}</p></div>
+          <div className="form-field form-field--wide"><label htmlFor="case-reason">{t('What happened?')} <span>*</span></label><textarea id="case-reason" rows={4} maxLength={2000} value={caseReason} onChange={(event) => setCaseReason(event.target.value)} placeholder={t('Describe the issue and what would resolve it.')} required /></div>
+          <div className="form-field form-field--wide"><label htmlFor="case-evidence">{caseType === 'return' ? t('Product image') : t('Evidence image')} <span>*</span></label><input id="case-evidence" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setCaseEvidence(event.target.files?.[0] ?? null)} required /><p className="form-help"><FileUp size={13} /> {t('Required JPG, PNG, WebP or AVIF image, up to 10 MB.')}</p>{caseEvidence && <p className="form-help">{caseEvidence.name}</p>}</div>
         </div>
         <div className="address-form__actions"><button type="submit" className="button button--dark" disabled={submittingCase}>{submittingCase ? t('Submitting…') : t('Submit case')}</button><button type="button" className="button button--outline" onClick={() => setCaseTarget(null)}>{t('Cancel')}</button></div>
       </form>}
@@ -397,11 +404,13 @@ export function AccountPage() {
       {!casesLoading && !casesError && cases.length === 0 && <EmptyState title={t('No returns or complaints')} description={t('Open a case from a delivered or shipped order item if something is wrong.')} actionLabel={t('View your orders')} onAction={() => setTab('orders')} />}
       {!casesLoading && !casesError && cases.length > 0 && <div className="case-list">
         {cases.map((item) => <article className="case-card" key={item.id}>
-          <div className="case-card__head"><div><strong>{t(item.case_type)}</strong><span>{orderNumbers.get(item.order_id) || item.order_id}</span></div><span className={statusClass(item.status)}>{t(item.status)}</span></div>
+          <div className="case-card__head"><div><strong>{t(item.case_type)}</strong><span>{item.order_number || orderNumbers.get(item.order_id) || item.order_id}</span></div><span className={statusClass(item.status)}>{t(item.status)}</span></div>
+          {item.product_name && <div className="case-card__product">{item.product_image_url && <img src={item.product_image_url} alt={item.product_name} />}<div><strong>{item.product_name}</strong>{item.product_sku && <span>SKU: {item.product_sku}</span>}{item.product_quantity !== null && item.product_quantity !== undefined && <span>{t('Qty')} {item.product_quantity}</span>}{item.product_variant && <span>{JSON.stringify(item.product_variant)}</span>}</div></div>}
           <p>{item.reason}</p>
           {item.seller_response && <div className="case-card__response"><span className="eyebrow">{t('Seller response')}</span><p>{item.seller_response}</p></div>}
           {item.admin_decision && <div className="case-card__response"><span className="eyebrow">{t('Marketplace decision')}</span><p>{item.admin_decision}</p></div>}
-          <div className="case-card__footer"><span>{new Date(item.created_at).toLocaleString()}</span>{item.evidence_path && <button type="button" className="text-button" onClick={() => void viewEvidence(item.evidence_path!)}><FileUp size={14} /> {t('View evidence')}</button>}</div>
+          {item.evidence_url && <a className="case-card__evidence" href={item.evidence_url} target="_blank" rel="noreferrer"><img src={item.evidence_url} alt={t('Submitted case evidence')} /><span><FileUp size={14} /> {t('View evidence image')}</span></a>}
+          <div className="case-card__footer"><span>{new Date(item.created_at).toLocaleString()}</span></div>
         </article>)}
       </div>}
       {!caseTarget && orders.length > 0 && <p className="account-panel__hint"><AlertCircle size={14} /> {t('To open a new case, expand an order in the Orders tab and choose an item.')}</p>}
