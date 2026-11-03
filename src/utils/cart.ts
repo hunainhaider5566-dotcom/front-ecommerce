@@ -39,3 +39,13 @@ export function isCartLineAvailable(product: Product | undefined, line: CartLine
   const status = variant?.availabilityStatus ?? product.availabilityStatus
   return status !== 'out-of-stock' && status !== 'unavailable'
 }
+
+export function getCartLineMaxQuantity(product: Product | undefined, line: CartLine): number {
+  if (!product || !product.isPublished) return 0
+  if (product.trackInventory === false) return 99
+  const variant = product.variants.find((item) => item.id === line.variantId)
+  if (product.variants.length > 0 && !variant) return 0
+  const stock = variant ? variant.stockQuantity : product.stockQuantity
+  if (stock === undefined || stock === null) return 99
+  return Math.max(0, Math.min(99, Math.floor(stock)))
+}
