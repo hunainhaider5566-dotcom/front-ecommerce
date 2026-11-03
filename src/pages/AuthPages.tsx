@@ -314,27 +314,28 @@ export function AuthCallbackPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [message, setMessage] = useState('Completing your secure sign-in…')
+  const completionRef = useRef<Promise<string> | null>(null)
 
   useEffect(() => {
     let active = true
-    const complete = async () => {
-      const params = new URLSearchParams(location.search)
-      const providerError = params.get('error_description') || params.get('error')
-      if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
+    if (!completionRef.current) {
+      completionRef.current = (async () => {
+        const params = new URLSearchParams(location.search)
+        const providerError = params.get('error_description') || params.get('error')
+        if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
 
-      const code = params.get('code')
-      if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
+        const code = params.get('code')
+        if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
 
-      const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
-      if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
-
-      if (active) {
-        const next = getSafeAuthRedirect('', { from: params.get('next') })
-        navigate(next, { replace: true })
-      }
+        const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
+        if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
+        return getSafeAuthRedirect('', { from: params.get('next') })
+      })()
     }
 
-    void complete().catch((cause: unknown) => {
+    completionRef.current.then((next) => {
+      if (active) navigate(next, { replace: true })
+    }).catch((cause: unknown) => {
       if (!active) return
       setStatus('error')
       setMessage(friendlyAuthError(cause))
