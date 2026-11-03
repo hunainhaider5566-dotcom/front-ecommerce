@@ -62,7 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return () => { active = false }
     }
 
-    if (catalogStatus !== 'ready') { setLoading(catalogStatus === 'loading'); return () => { active = false } }
+    if (catalogStatus !== 'ready') { setLoading(catalogStatus === 'loading'); if (catalogStatus === 'error') setMessage('Stock could not be checked. Refresh the catalog before using your cart.'); return () => { active = false } }
     previousUserIdRef.current = user.id
     setLoading(true)
     void (async () => {
@@ -152,7 +152,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         : [...current, newLine]
       guestLinesRef.current = next
       setLines(next)
-      setMessage('Guest cart is temporary. Sign in to save it to your account.')
+      setMessage('Guest cart saved in this browser. It will merge into your account when you sign in.')
       return true
     }
 
