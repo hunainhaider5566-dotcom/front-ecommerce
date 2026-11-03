@@ -86,26 +86,59 @@ export async function listOrderItems(orderId: string): Promise<OrderItemRecord[]
 }
 
 export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
-  const { data, error } = await getSupabase()
-    .from('marketplace_cases')
-    .select(CASE_COLUMNS)
-    .order('created_at', { ascending: false })
-    .limit(100)
+  const client = getSupabase()
+  const { data, error } = await client.from('marketplace_cases').select(CASE_COLUMNS).order('created_at', { ascending: false }).limit(100)
   throwIfError(error)
-  return (data ?? []) as MarketplaceCaseRecord[]
+  const cases = (data ?? []) as MarketplaceCaseRecord[]
+  if (!cases.length) return []
+  const orderIds = [...new Set(cases.map((item) => item.order_id))]
+  const itemIds = [...new Set(cases.map((item) => item.order_item_id).filter((id): id is string => Boolean(id)))]
+  const [ordersResult, itemsResult] = await Promise.all([
+    client.from('orders').select('id, order_number').in('id', orderIds),
+    itemIds.length ? client.from('order_items').select('id, order_id, product_id, product_name_snapshot, sku_snapshot, variant_snapshot, quantity, unit_price, line_total').in('id', itemIds) : Promise.resolve({ data: [], error: null }),
+  ])
+  throwIfError(ordersResult.error); throwIfError(itemsResult.error)
+  const orderNumbers = new Map((ordersResult.data ?? []).map((row) => [row.id, row.order_number]))
+  const orderItems = new Map((itemsResult.data ?? []).map((row) => [row.id, row]))
+  const productIds = [...new Set((itemsResult.data ?? []).map((row) => row.product_id).filter((id): id is string => Boolean(id)))]
+  const imagesResult = productIds.length ? await client.from('product_images').select('product_id, image_url, storage_path, is_primary, sort_order').in('product_id', productIds).order('sort_order') : { data: [], error: null }
+  throwIfError(imagesResult.error)
+  const imageByProduct = new Map<string, string>()
+  for (const image of imagesResult.data ?? []) {
+    if (imageByProduct.has(image.product_id)) continue
+    const url = image.image_url || (image.storage_path ? client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl : '')
+    if (url) imageByProduct.set(image.product_id, url)
+  }
+  return Promise.all(cases.map(async (item) => {
+    const orderItem = item.order_item_id ? orderItems.get(item.order_item_id) : undefined
+    return {
+      ...item,
+      order_number: orderNumbers.get(item.order_id) ?? item.order_id,
+      product_name: orderItem?.product_name_snapshot ?? null,
+      product_sku: orderItem?.sku_snapshot ?? null,
+      product_variant: orderItem?.variant_snapshot ?? null,
+      product_quantity: orderItem?.quantity ?? null,
+      product_unit_price: orderItem?.unit_price ?? null,
+      product_line_total: orderItem?.line_total ?? null,
+      product_image_url: orderItem?.product_id ? imageByProduct.get(orderItem.product_id) ?? null : null,
+      evidence_url: item.evidence_path ? await getEvidenceSignedUrl(item.evidence_path) : null,
+    }
+  }))
 }
 
 export async function uploadComplaintEvidence(orderId: string, file: File): Promise<string> {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before uploading evidence.')
-  if (file.size > 10 * 1024 * 1024) throw new Error('Evidence files must be 10 MB or smaller.')
-  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '')
-  const path = `${user.id}/${orderId}-${crypto.randomUUID()}.${ext}`
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Choose a JPG, PNG, WebP or AVIF image.')
+  if (file.size <= 0 || file.size > 10 * 1024 * 1024) throw new Error('Evidence images must be between 1 byte and 10 MB.')
+  const extByType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' }
+  const ext = extByType[file.type]
+  const path = user.id + '/' + orderId + '-' + crypto.randomUUID() + '.' + ext
   const { error } = await client.storage.from('complaint-evidence').upload(path, file, {
     cacheControl: '3600',
     upsert: false,
-    contentType: file.type || undefined,
+    contentType: file.type,
   })
   throwIfError(error)
   return path
@@ -113,15 +146,18 @@ export async function uploadComplaintEvidence(orderId: string, file: File): Prom
 
 export async function createMarketplaceCase(input: {
   orderId: string
-  orderItemId: string | null
+  orderItemId: string
   sellerId: string | null
   caseType: MarketplaceCaseRecord['case_type']
   reason: string
-  evidencePath: string | null
+  evidencePath: string
 }): Promise<MarketplaceCaseRecord> {
   const client = getSupabase()
   const user = (await client.auth.getUser()).data.user
   if (!user) throw new Error('Sign in before opening a case.')
+  if (!input.orderId || !input.orderItemId || !input.sellerId) throw new Error('Select the exact product from your order before submitting a case.')
+  if (input.reason.trim().length < 3 || input.reason.trim().length > 2000) throw new Error('Enter a reason between 3 and 2,000 characters.')
+  if (!input.evidencePath || !input.evidencePath.startsWith(user.id + '/' + input.orderId + '-')) throw new Error('A valid product evidence image is required.')
   const { data, error } = await client
     .from('marketplace_cases')
     .insert({
