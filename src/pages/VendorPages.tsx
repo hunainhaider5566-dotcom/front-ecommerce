@@ -134,8 +134,8 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     const locationLabel = shopLocationLabel.trim()
     if (shopName.length < 2) { push(t('Enter a shop name of at least two characters.'), 'error'); return }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { push(t('Use a URL-safe slug, for example acme-traders.'), 'error'); return }
-    if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
-    if (phone && phone.replace(/\D/g, '').length < 7) { push(t('Enter a valid phone number.'), 'error'); return }
+    if (contactEmail && !isValidEmail(contactEmail)) { push(t('Enter a valid contact email.'), 'error'); return }
+    if (phone && !isValidPakistaniMobile(phone)) { push(t('Enter exactly 03001234567 or +923001234567.'), 'error'); return }
     if (!profile && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
     if (profile && !profile.document_path && !verificationDocument) { push(t('Upload an identity or business document before submitting your application.'), 'error'); return }
     if (showLocation && (latitude === null || longitude === null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || locationLabel.length < 2)) { push(t('Add valid coordinates and a public area label to show this shop on Explore.'), 'error'); return }
