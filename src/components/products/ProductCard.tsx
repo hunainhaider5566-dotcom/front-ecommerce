@@ -55,7 +55,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="product-card__title-row"><Link to={`/products/${product.slug}`} className="product-card__name">{name}</Link><span className="product-card__price">{product.discountPercent ? <><strong>{formatPKR(product.foodUnitPrice ?? product.price)}</strong><small className="product-card__old-price"><s>{formatPKR(product.foodUnitPrice ?? product.price)}</s> · {product.discountPercent}% off</small></> : formatPKR(product.foodUnitPrice ?? product.price)}{product.foodSellingUnit ? <small> / {product.foodSellingUnit}</small> : null}</span></div>
         <p className="product-card__description">{t(product.shortDescription)}</p>
         <div className="product-card__bottom">
-          {product.isDailyItem && product.dailyStatus !== 'available' && <span className="product-card__daily-status">{t(product.dailyStatus === 'coming_soon' ? 'Coming soon' : 'Not for today')}</span>}
+          {product.isDailyItem && <span className="product-card__daily-status">{t(product.dailyStatus === 'coming_soon' ? 'Coming soon' : product.dailyStatus === 'not_today' ? 'Not for today' : 'Available today')}</span>}
           <AvailabilityBadge status={product.availabilityStatus} />
           <button type="button" className="product-add" onClick={handleAdd} disabled={product.variants.length > 0 ? !product.isPublished || product.availabilityStatus === 'unavailable' : !canAdd || adding} aria-busy={adding} aria-label={product.variants.length ? `${t('Choose options for')} ${name}` : `${t('Add')} ${name} ${t('to cart')}`}>
             <ShoppingBag size={16} aria-hidden="true" /><span>{t(product.variants.length ? 'Choose options' : 'Add')}</span>
