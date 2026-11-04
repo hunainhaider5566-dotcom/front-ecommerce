@@ -292,7 +292,7 @@ CREATE OR REPLACE FUNCTION public.set_daily_food_availability_date()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = ''
-AS $
+AS $$
 DECLARE
   v_today date := (now() AT TIME ZONE 'Asia/Karachi')::date;
 BEGIN
@@ -309,7 +309,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS products_set_daily_food_date ON public.products;
 CREATE TRIGGER products_set_daily_food_date
@@ -479,7 +479,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $
+AS $$
 BEGIN
   IF NEW.product_id IS NULL THEN RETURN NEW; END IF;
   UPDATE public.products p
@@ -492,7 +492,7 @@ BEGIN
   WHERE p.id = NEW.product_id AND p.is_daily_item = true;
   RETURN NEW;
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.decrement_daily_food_quantity_after_order() FROM PUBLIC, anon, authenticated;
 
