@@ -9,7 +9,7 @@ export type MarketplaceCase = Database['public']['Tables']['marketplace_cases'][
 export type VendorOrderItem = Database['public']['Functions']['vendor_order_items']['Returns'][number]
 export type VendorSupportTicket = Database['public']['Tables']['support_tickets']['Row']
 
-const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, current_address, complete_address, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at'
+const SELLER_COLUMNS = 'id, user_id, shop_name, slug, description, current_address, complete_address, contact_email, phone, document_path, shop_image_url, shop_lat, shop_lng, shop_location_label, show_shop_on_map, status, rejection_reason, reviewed_by, reviewed_at, vendor_locked, vendor_locked_at, vendor_locked_by, vendor_lock_reason, created_at, updated_at'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, decided_by, decided_at, created_at, updated_at'
 
 export interface VendorShopInput {
