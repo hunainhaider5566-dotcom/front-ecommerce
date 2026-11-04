@@ -121,8 +121,8 @@ BEGIN
   DELETE FROM public.product_variants pv
   WHERE pv.product_id = p_product_id
     AND NOT EXISTS (
-      SELECT 1 FROM jsonb_array_elements(COALESCE(p_variants, '[]'::jsonb)) item
-      WHERE NULLIF(item->>'id', '') IS NOT NULL AND (item->>'id')::uuid = pv.id
+      SELECT 1 FROM jsonb_array_elements(COALESCE(p_variants, '[]'::jsonb)) AS entries(value)
+      WHERE NULLIF(value->>'id', '') IS NOT NULL AND (value->>'id')::uuid = pv.id
     );
 
   IF jsonb_array_length(COALESCE(p_variants, '[]'::jsonb)) > 0 THEN
