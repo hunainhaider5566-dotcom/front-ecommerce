@@ -24,8 +24,8 @@ export function BudgetPage() {
     (product) => product.isPublished && product.price <= selectedBudget && product.availabilityStatus === 'available',
   ), [products, selectedBudget])
 
-  const infoMessage = status === 'ready' && products.every((product) => product.price > 2000)
-    ? t('No published products currently fit these budget tiers. Check back as sellers add new items.')
+  const infoMessage = status === 'ready' && products.every((product) => product.price > selectedBudget)
+    ? t('No published products currently fit this budget. Try a higher amount or check back as sellers add new items.')
     : t('Delivery charges are calculated separately at checkout and are not included in your selected product budget.')
 
   return (
