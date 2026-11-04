@@ -22,6 +22,7 @@ import {
   listOwnInventory,
   listOwnOrderItems,
   listOwnProducts,
+  listOwnProductImageUrls,
   resubmitSellerApplication,
   respondToCase,
   updateOwnShop,
@@ -445,6 +446,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [error, setError] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
+  const [imagesLoading, setImagesLoading] = useState(false)
   const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState(product?.category_id ?? '')
   const [sellingUnit, setSellingUnit] = useState(product?.food_selling_unit ?? 'kg')
@@ -467,6 +470,17 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     { value: 'l', label: 'Litre (L)' }, { value: 'ml', label: 'Millilitre (ml)' },
     { value: 'piece', label: 'Piece' }, { value: 'dozen', label: 'Dozen' }, { value: 'pack', label: 'Pack' },
   ]
+
+  useEffect(() => {
+    let active = true
+    if (!product?.id) { setExistingImageUrls([]); return () => { active = false } }
+    setImagesLoading(true)
+    void listOwnProductImageUrls(product.id)
+      .then((urls) => { if (active) setExistingImageUrls(urls) })
+      .catch(() => { if (active) setExistingImageUrls([]) })
+      .finally(() => { if (active) setImagesLoading(false) })
+    return () => { active = false }
+  }, [product?.id])
 
   useEffect(() => {
     if (!imageFile) { setImagePreview(null); return }
@@ -555,7 +569,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-supplier-cost">{t('Supplier cost')} <span>{t('private')}</span></label><input id="product-supplier-cost" name="supplier_cost" type="number" min="0" step="0.01" defaultValue={product?.supplier_cost == null ? '' : String(product.supplier_cost)} /></div>
     <div className="form-field"><label htmlFor="product-fulfilment">{t('Fulfilment expense')}</label><input id="product-fulfilment" name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue={product ? String(product.fulfillment_expense) : '0'} /></div>
     <div className="form-field"><label htmlFor="product-profit">{t('Minimum profit')}</label><input id="product-profit" name="minimum_profit" type="number" min="0" step="0.01" defaultValue={product ? String(product.minimum_profit) : '0'} /></div>
-    <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. You can add another image when editing the listing.')}</p></div>
+    <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagesLoading && <p className="form-help">{t('Loading saved images…')}</p>}{!imageFile && existingImageUrls.map((url, index) => <img key={`${url}-${index}`} className="vendor-product-image-preview" src={url} alt={`${product?.name ?? t('Product')} ${index + 1}`} loading="lazy" />)}{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. Existing images are shown above.')}</p></div>
     <div className="form-field form-field--wide"><label htmlFor="product-short">{t('Short description')}</label><input id="product-short" name="short_description" maxLength={300} defaultValue={product?.short_description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-description">{t('Full description')}</label><textarea id="product-description" name="description" rows={5} defaultValue={product?.description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-specifications">{t('Specifications (JSON array)')}</label><textarea id="product-specifications" name="specifications" rows={3} defaultValue={JSON.stringify(product?.specifications ?? [],null,2)} /></div>
