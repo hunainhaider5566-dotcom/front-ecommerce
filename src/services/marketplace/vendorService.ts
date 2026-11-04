@@ -150,6 +150,19 @@ export async function listOwnProducts(): Promise<VendorProduct[]> {
   return (data ?? []) as VendorProduct[]
 }
 
+export async function listOwnProductImageUrls(productId: string): Promise<string[]> {
+  const client = getSupabase()
+  const { data, error } = await client.from('product_images')
+    .select('image_url, storage_path, sort_order')
+    .eq('product_id', productId)
+    .order('sort_order', { ascending: true })
+    .limit(3)
+  assertError(error)
+  return (data ?? []).map((image) => image.image_url || (image.storage_path
+    ? client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl
+    : '')).filter(Boolean)
+}
+
 export async function createVendorProduct(input: {
   category_id: string | null
   name: string
