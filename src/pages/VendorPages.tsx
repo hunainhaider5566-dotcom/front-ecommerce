@@ -318,7 +318,7 @@ export function VendorDashboardPage() {
   const isFoodCategoryId = (categoryId: string | null) => {
     let category = categories.find((item) => item.id === categoryId)
     while (category) {
-      if (category.is_food_category) return true
+      if (category.isFoodCategory) return true
       category = category.parentId ? categories.find((item) => item.id === category?.parentId) : undefined
     }
     return false
@@ -448,7 +448,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const isFoodCategory = (() => {
     let current = categoryById.get(selectedCategoryId)
     while (current) {
-      if (current.is_food_category) return true
+      if (current.isFoodCategory) return true
       current = current.parent_id ? categoryById.get(current.parent_id) : undefined
     }
     return false
