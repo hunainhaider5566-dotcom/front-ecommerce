@@ -427,7 +427,7 @@ export function VendorDashboardPage() {
 
 function ProductEditor({ product, categories, onCancel, onSaved }: {
   product: VendorProduct | null
-  categories: { id: string; name: string; slug: string; parent_id?: string | null }[]
+  categories: { id: string; name: string; slug: string; parent_id?: string | null; isFoodCategory?: boolean }[]
   onCancel: () => void
   onSaved: (message: string) => Promise<void>
 }) {
