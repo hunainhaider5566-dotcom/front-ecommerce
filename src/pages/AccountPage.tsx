@@ -321,7 +321,7 @@ export function AccountPage() {
       {ordersError && <><ErrorState message={ordersError} /><button type="button" className="button button--outline" onClick={() => void loadOrders()}>{t('Try again')}</button></>}
       {!ordersLoading && !ordersError && orders.length === 0 && <EmptyState title={t('No orders yet')} description={t('Your placed orders will appear here with their delivery and case status.')} actionLabel={t('Browse the catalog')} actionHref="/shop" />}
       {!ordersLoading && !ordersError && orders.length > 0 && <div className="order-list">
-        {orders.map((order) => {
+        {orders.map((order, orderIndex) => {
           const items = itemsByOrder[order.id] ?? []
           const open = expandedOrder === order.id
           const canCancel = ['pending', 'confirmed'].includes(order.order_status)
@@ -331,7 +331,7 @@ export function AccountPage() {
             && items.every((item) => ['pending', 'accepted'].includes(item.vendor_fulfillment_status))
           return <article className={`order-card${open ? ' is-open' : ''}`} key={order.id}>
             <button type="button" className="order-card__summary" onClick={() => setExpandedOrder(open ? null : order.id)} aria-expanded={open}>
-              <div><strong>{order.order_number}</strong><span>{new Date(order.created_at).toLocaleDateString()}</span></div>
+              <div><small className="order-card__serial">#{orderIndex + 1}</small><strong>{order.order_number}</strong><span>{new Date(order.created_at).toLocaleDateString()}</span></div>
               <div><span className={statusClass(order.order_status)}>{t(order.order_status)}</span><span className={statusClass(order.payment_status)}>{order.payment_method === 'cod' ? t('Cash on delivery') : t(order.payment_method)}</span></div>
               <div className="order-card__total"><strong>{formatPKR(Number(order.total))}</strong><span>{items.length} {items.length === 1 ? t('item') : t('items')}</span></div>
             </button>
