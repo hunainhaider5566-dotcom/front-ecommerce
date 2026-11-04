@@ -18,6 +18,7 @@ export function BudgetPage() {
   usePageMeta(t('Shop Within Your Budget'), t('Explore quality products under PKR 500, PKR 1,000, and PKR 2,000 budgets.'))
 
   const [selectedBudget, setSelectedBudget] = useState<number>(1000)
+  const [customBudget, setCustomBudget] = useState('')
 
   const eligibleProducts = useMemo(() => products.filter(
     (product) => product.isPublished && product.price <= selectedBudget && product.availabilityStatus === 'available',
@@ -46,8 +47,17 @@ export function BudgetPage() {
         <span className="budget-label"><Filter size={16} /> {t('Select Budget Limit:')}</span>
         <div className="budget-chips">
           {BUDGET_OPTIONS.map((amount) => (
-            <button key={amount} type="button" className={`budget-chip${selectedBudget === amount ? ' is-active' : ''}`} onClick={() => setSelectedBudget(amount)}>{formatPKR(amount)}</button>
+            <button key={amount} type="button" className={`budget-chip${selectedBudget === amount ? ' is-active' : ''}`} onClick={() => { setSelectedBudget(amount); setCustomBudget('') }}>{formatPKR(amount)}</button>
           ))}
+          <label className={`budget-custom${!BUDGET_OPTIONS.includes(selectedBudget as 500 | 1000 | 2000) ? ' is-active' : ''}`}>
+            <span>{t('Custom PKR')}</span>
+            <input aria-label={t('Enter custom budget in PKR')} type="number" inputMode="numeric" min="1" step="1" value={customBudget} placeholder={t('Any amount')} onChange={(event) => {
+              const value = event.target.value
+              setCustomBudget(value)
+              const amount = Number(value)
+              if (value.trim() && Number.isFinite(amount) && amount > 0) setSelectedBudget(Math.floor(amount))
+            }} />
+          </label>
         </div>
       </div>
 
