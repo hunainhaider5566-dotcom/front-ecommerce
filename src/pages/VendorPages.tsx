@@ -78,8 +78,8 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
       <p>{t('Submitted')} {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(profile.created_at))}.</p>
       <div className="vendor-status__actions">
         {approved && <Link className="button button--dark" to="/vendor">{t('Open vendor dashboard')} <ArrowRight size={15} /></Link>}
-        {profile.status === 'suspended' ? <p role="alert">{t('Your seller account has been suspended. Contact marketplace support if you believe this is a mistake.')}</p> : !approved && <Link className="button button--dark" to={`/shops/${profile.slug}`}>{t('View public shop')} <ExternalLink size={15} /></Link>}
-        {onEdit && <button type="button" className="button button--outline" onClick={onEdit}><Pencil size={15} /> {t('Update application details')}</button>}
+        {profile.vendor_locked && <p className="vendor-lock-notice" role="alert">{t('Your seller account is locked by the marketplace team. Shop, product and inventory changes are disabled until an administrator unlocks your account.')}</p>}
+        {onEdit && !profile.vendor_locked && <button type="button" className="button button--outline" onClick={onEdit}><Pencil size={15} /> {t('Update application details')}</button>}
         <Link className="text-link" to="/account">{t('Back to account')}</Link>
       </div>
     </div>
