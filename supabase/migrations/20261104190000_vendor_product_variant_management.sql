@@ -126,6 +126,9 @@ BEGIN
     );
 
   IF jsonb_array_length(COALESCE(p_variants, '[]'::jsonb)) > 0 THEN
+    -- Variant stock replaces the base-product stock row.
+    DELETE FROM public.product_inventory
+    WHERE product_id = p_product_id AND variant_id IS NULL;
     UPDATE public.products
     SET track_inventory = true,
         publication_status = 'draft',
@@ -133,6 +136,12 @@ BEGIN
         moderation_reason = NULL,
         updated_at = now()
     WHERE id = p_product_id;
+  ELSE
+    -- Keep simple-SKU products orderable when a vendor removes all variants.
+    IF NOT EXISTS (SELECT 1 FROM public.product_inventory WHERE product_id = p_product_id AND variant_id IS NULL) THEN
+      INSERT INTO public.product_inventory(product_id, variant_id, quantity, low_stock_threshold)
+      VALUES (p_product_id, NULL, 0, 5);
+    END IF;
   END IF;
 
   RETURN v_result;
