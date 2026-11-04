@@ -33,7 +33,7 @@ function describeError(error: unknown) {
 function friendlyAuthError(error: unknown) {
   const message = describeError(error)
   if (/already registered|already exists|user_already_exists|email_exists/i.test(message)) {
-    return 'An account with this email already exists. Please sign in instead or continue with Google.'
+    return 'We could not complete this request. If you already have an account, please sign in; otherwise try again shortly.'
   }
   return message
 }
@@ -205,11 +205,8 @@ export function RegisterPage() {
     setStatus('loading'); setMessage('')
     try {
       const response = throwIfAuthError(await authService.signUp(form.email.trim(), form.password, form.name.trim()))
-      if (response.data.user?.identities?.length === 0) {
-        setStatus('error')
-        setMessage('An account with this email already exists. Please sign in instead or continue with Google.')
-        return
-      }
+      // Avoid exposing whether an email is registered. Supabase returns an empty
+      // identities array for duplicate addresses when email confirmations are enabled.
       if (response.data.session) {
         clearPendingSignupEmail()
         navigate('/account')
