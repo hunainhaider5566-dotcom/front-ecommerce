@@ -668,3 +668,6 @@ img { display: block; max-width: 100%; }
 
 /* Food menu status chips */
 .product-card__daily-status { display: inline-flex; align-items: center; width: fit-content; margin: 0.35rem 0; padding: 0.25rem 0.55rem; border: 1px solid var(--line, #d8d5ce); border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.02em; }
+
+
+.order-card__serial{display:inline-flex;align-items:center;justify-content:center;margin-right:8px;padding:2px 7px;border-radius:999px;background:var(--surface-muted,#f1f3f5);color:var(--text-muted,#626b78);font-size:11px;font-weight:700;vertical-align:middle}
