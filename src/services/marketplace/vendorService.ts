@@ -189,7 +189,7 @@ export async function listOwnProductVariants(productId: string): Promise<VendorP
     option_value: row.option_value,
     sku: row.sku,
     price_override: row.price_override,
-    attributes: row.attributes as Record<string, unknown>,
+    attributes: row.attributes as unknown as Record<string, unknown>,
     quantity: stockByVariant.get(row.id) ?? 0,
   }))
 }
@@ -207,7 +207,7 @@ export async function saveOwnProductVariants(productId: string, variants: Vendor
     if (!Number.isInteger(variant.quantity) || variant.quantity < 0) throw new Error('Variant stock must be a whole number of zero or more.')
     if (variant.price_override !== null && (!Number.isFinite(variant.price_override) || variant.price_override < 0)) throw new Error('Enter a valid variant price.')
   }
-  const { error } = await getSupabase().rpc('vendor_save_product_variants', {
+  const { error } = await (getSupabase() as any).rpc('vendor_save_product_variants', {
     p_product_id: productId,
     p_variants: variants.map((variant) => ({
       id: variant.id && !variant.id.startsWith('new-') ? variant.id : null,
