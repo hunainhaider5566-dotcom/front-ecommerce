@@ -1,11 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import nodemailer from 'npm:nodemailer@^9'
 
-const smtpUser = Deno.env.get('SMTP_USERNAME') ?? ''
-const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? ''
-const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? 'smtp.gmail.com'
+const smtpUser = Deno.env.get('SMTP_USERNAME') ?? Deno.env.get('SMTP_USER') ?? Deno.env.get('SMTP_LOGIN') ?? ''
+const smtpPassword = Deno.env.get('SMTP_PASSWORD') ?? Deno.env.get('SMTP_PASS') ?? Deno.env.get('SMTP_APP_PASSWORD') ?? ''
+const smtpHost = Deno.env.get('SMTP_HOSTNAME') ?? Deno.env.get('SMTP_HOST') ?? 'smtp.gmail.com'
 const smtpPort = Number(Deno.env.get('SMTP_PORT') ?? '465')
-const smtpFrom = Deno.env.get('SMTP_FROM') || (smtpUser ? '"JTBazar" <' + smtpUser + '>' : '')
+const smtpFrom = Deno.env.get('SMTP_FROM') || Deno.env.get('SMTP_FROM_EMAIL') || (smtpUser ? '"JTBazar" <' + smtpUser + '>' : '')
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   if (!smtpUser || !smtpPassword) throw new Error('SMTP credentials are not configured for this Edge Function.')
@@ -44,6 +44,8 @@ Deno.serve(async (request) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const inbox = Deno.env.get('SUPPORT_INBOX_EMAIL')
   if (!url || !anon || !serviceKey) return json({ error: 'Email service is not configured.' }, 503)
+  const missingSmtp = [!smtpUser ? 'SMTP_USERNAME (or SMTP_USER)' : '', !smtpPassword ? 'SMTP_PASSWORD (or SMTP_PASS)' : ''].filter(Boolean)
+  if (missingSmtp.length) return json({ error: 'SMTP credentials are missing from Supabase Edge Function secrets.', missing: missingSmtp }, 503)
 
   const caller = createClient(url, anon, { global: { headers: { Authorization: authorization } }, auth: { persistSession: false } })
   const { data: authData, error: authError } = await caller.auth.getUser()
@@ -61,6 +63,11 @@ Deno.serve(async (request) => {
   let emailOrderNumber = ''
   let emailTotal = 0
   let emailItems: EmailOrderItem[] = []
+  let sellerShopImageUrl = ''
+  let sellerShopName = ''
+  let sellerReviewNote = ''
+  let sellerEmailActionUrl = ''
+  let sellerEmailActionLabel = ''
 
   const requireAdmin = async () => {
     const { data, error } = await caller.rpc('current_user_is_admin')
@@ -70,6 +77,21 @@ Deno.serve(async (request) => {
     if (!id) return null
     const { data } = await admin.auth.admin.getUserById(id)
     return data.user?.email ?? null
+  }
+
+  const resolveShopImage = async (seller: { user_id: string; shop_image_url: string | null }) => {
+    const savedImage = seller.shop_image_url?.trim()
+    if (savedImage) {
+      if (savedImage.startsWith('https://') || savedImage.startsWith('http://')) return savedImage
+      return admin.storage.from('shop-images').getPublicUrl(savedImage).data.publicUrl
+    }
+    // Resolve only files belonging to this seller; never use another shop's image.
+    const { data: files, error } = await admin.storage.from('shop-images').list(seller.user_id, {
+      limit: 1,
+      sortBy: { column: 'created_at', order: 'desc' },
+    })
+    if (error || !files?.length) return null
+    return admin.storage.from('shop-images').getPublicUrl(seller.user_id + '/' + files[0].name).data.publicUrl
   }
 
   if (event === 'order_placed' || event === 'order_status') {
@@ -159,19 +181,33 @@ Deno.serve(async (request) => {
     subject = 'Order update: ' + (order?.order_number ?? '')
     body = 'The seller has ' + label + ' your order ' + (order?.order_number ?? '') + '.'
     eventType = input.status === 'accepted' ? 'vendor_accepted_' + seller.user_id : 'order_' + input.status
-  } else if (event === 'seller_approved') {
+  } else if (event === 'seller_approved' || event === 'seller_rejected') {
     if (!input.seller_profile_id) return json({ error: 'Seller application is required.' }, 400)
     if (!(await requireAdmin())) return json({ error: 'Administrator access is required.' }, 403)
     entityId = input.seller_profile_id
     const { data: seller, error } = await admin.from('seller_profiles')
-      .select('id,user_id,shop_name,status').eq('id', entityId).maybeSingle()
+      .select('id,user_id,shop_name,status,shop_image_url,rejection_reason').eq('id', entityId).maybeSingle()
     if (error || !seller) return json({ error: 'Seller application was not found.' }, 404)
-    if (seller.status !== 'approved') return json({ error: 'Seller application is not approved.' }, 409)
+    if (event === 'seller_approved' && seller.status !== 'approved') return json({ error: 'Seller application is not approved.' }, 409)
+    if (event === 'seller_rejected' && seller.status !== 'rejected') return json({ error: 'Seller application is not rejected.' }, 409)
     const email = await userEmail(seller.user_id)
     if (email) recipients.push(email)
-    subject = 'Your JTBazar seller shop is approved'
-    body = seller.shop_name + ' is approved. You can now open your vendor dashboard and manage listings.'
-    eventType = 'seller_approved'
+    sellerShopName = seller.shop_name
+    sellerShopImageUrl = await resolveShopImage({ user_id: seller.user_id, shop_image_url: seller.shop_image_url })
+    sellerReviewNote = seller.rejection_reason ?? ''
+    if (event === 'seller_approved') {
+      subject = 'Your JTBazar seller shop is approved'
+      body = 'Congratulations! ' + seller.shop_name + ' has been approved. Your seller dashboard is now ready, and you can start managing your shop and products.'
+      sellerEmailActionUrl = 'https://front-ecommerce-gamma.vercel.app/vendor'
+      sellerEmailActionLabel = 'Open Seller Dashboard'
+      eventType = 'seller_approved'
+    } else {
+      subject = 'An update about your JTBazar seller application'
+      body = 'Thank you for your interest in selling on JTBazar. After reviewing your application for ' + seller.shop_name + ', our marketplace team could not approve it at this time. Please review the note below and contact our team if you need clarification.'
+      sellerEmailActionUrl = 'https://front-ecommerce-gamma.vercel.app/account'
+      sellerEmailActionLabel = 'View Application'
+      eventType = 'seller_rejected'
+    }
   } else {
     return json({ error: 'Unsupported email event.' }, 400)
   }
@@ -194,7 +230,7 @@ Deno.serve(async (request) => {
     }
 
     try {
-      const statusLabel = eventType === 'order_placed' ? 'Order received' : eventType.replace('order_', '').replace(/_/g, ' ')
+      const statusLabel = eventType === 'order_placed' ? 'Order received' : eventType === 'seller_approved' ? 'Application approved' : eventType === 'seller_rejected' ? 'Application update' : eventType.replace('order_', '').replace(/_/g, ' ')
       const statusColors: Record<string, { bg: string; fg: string }> = {
         'order received': { bg: '#fff4db', fg: '#8a5a00' },
         confirmed: { bg: '#e8f7ee', fg: '#176b3a' },
@@ -203,6 +239,8 @@ Deno.serve(async (request) => {
         delivered: { bg: '#e8f7ee', fg: '#176b3a' },
         cancelled: { bg: '#fff0ee', fg: '#a83224' },
         rejected: { bg: '#fff0ee', fg: '#a83224' },
+        'application approved': { bg: '#e8f7ee', fg: '#176b3a' },
+        'application update': { bg: '#fff4db', fg: '#8a5a00' },
       }
       const tone = statusColors[statusLabel] ?? { bg: '#eef2f7', fg: '#344054' }
       const itemRows = emailItems.map((item) => {
@@ -223,7 +261,7 @@ Deno.serve(async (request) => {
         (itemRows || '<tr><td colspan="3" style="padding:14px">Order items are being prepared.</td></tr>') +
         '</tbody></table>'
       const orderReference = emailOrderNumber || entityId
-      const html = '<!doctype html><html><body style="margin:0;padding:0;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#182230">' +
+      let html = '<!doctype html><html><body style="margin:0;padding:0;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#182230">' +
         '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' + escapeHtml(body) + '</div>' +
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f8;padding:28px 10px"><tr><td align="center">' +
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fff;border:1px solid #e6eaf0;border-radius:16px;overflow:hidden">' +
@@ -241,6 +279,31 @@ Deno.serve(async (request) => {
         '<p style="font-size:12px;line-height:1.6;color:#667085;margin:23px 0 0">We will keep you updated as your order moves through each stage. Thank you for shopping with JTBazar.</p>' +
         '</td></tr><tr><td style="padding:18px 30px;border-top:1px solid #edf0f4;background:#fafbfc;font-size:11px;color:#98a2b3">' +
         'This is an automated order notification from JTBazar.</td></tr></table></td></tr></table></body></html>'
+
+      if (eventType === 'seller_approved' || eventType === 'seller_rejected') {
+        const shopImageBlock = sellerShopImageUrl
+          ? '<div style="margin:0 0 24px;text-align:center"><img src="' + escapeHtml(sellerShopImageUrl) + '" alt="' + escapeHtml(sellerShopName) + '" width="520" style="display:block;width:100%;max-width:520px;max-height:250px;object-fit:cover;border-radius:12px;border:1px solid #e7ece7"></div>'
+          : ''
+        const reviewNoteBlock = eventType === 'seller_rejected' && sellerReviewNote
+          ? '<div style="margin-top:20px;padding:16px 18px;border:1px solid #f1dfb8;border-radius:10px;background:#fffaf0"><div style="font-size:10px;color:#8a5a00;text-transform:uppercase;letter-spacing:1px;font-weight:700">Marketplace team note</div><p style="font-size:13px;line-height:1.7;color:#684b1c;margin:8px 0 0">' + escapeHtml(sellerReviewNote) + '</p></div>'
+          : ''
+        const ctaBlock = '<div style="text-align:center;margin:28px 0 8px"><a href="' + escapeHtml(sellerEmailActionUrl) + '" style="display:inline-block;background:#173f32;color:#fff;text-decoration:none;padding:14px 26px;border-radius:8px;font-size:14px;font-weight:700">' + escapeHtml(sellerEmailActionLabel) + '</a></div>'
+        html = '<!doctype html><html><body style="margin:0;padding:0;background:#f4f6f3;font-family:Arial,Helvetica,sans-serif;color:#26352d">' +
+          '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' + escapeHtml(body) + '</div>' +
+          '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f3;padding:32px 12px"><tr><td align="center">' +
+          '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e7ece7;border-radius:16px;overflow:hidden">' +
+          '<tr><td style="background:#173f32;padding:28px 30px;text-align:center"><div style="font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-.6px;color:#fff">JTBazar</div><div style="margin-top:7px;color:#d8e7dc;font-size:12px;letter-spacing:.5px">Your marketplace, your choice</div></td></tr>' +
+          '<tr><td style="padding:32px 30px 34px">' +
+          '<div style="text-align:center;margin-bottom:22px"><span style="display:inline-block;padding:7px 13px;border-radius:30px;background:' + tone.bg + ';color:' + tone.fg + ';font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase">' + escapeHtml(statusLabel) + '</span></div>' +
+          shopImageBlock +
+          '<h1 style="font-size:25px;line-height:1.3;text-align:center;color:#173f32;margin:0 0 14px">' + escapeHtml(subject) + '</h1>' +
+          '<p style="font-size:14px;line-height:1.8;color:#647168;margin:0;text-align:center">' + escapeHtml(body) + '</p>' +
+          '<div style="margin:24px 0 0;padding:17px 18px;border:1px solid #e7ece7;border-radius:11px;background:#f8faf8"><div style="font-size:10px;color:#89938c;text-transform:uppercase;letter-spacing:1px">Shop application</div><div style="font-size:18px;font-weight:700;color:#173f32;margin-top:6px">' + escapeHtml(sellerShopName) + '</div></div>' +
+          reviewNoteBlock + ctaBlock +
+          '<p style="font-size:12px;line-height:1.7;color:#89938c;text-align:center;margin:25px 0 0">If you have questions, please contact the JTBazar marketplace team. This is an automated notification; please do not reply directly.</p>' +
+          '</td></tr><tr><td style="background:#f7f9f7;border-top:1px solid #e7ece7;padding:18px 24px;text-align:center;color:#89938c;font-size:11px">© JTBazar. All rights reserved.</td></tr></table>' +
+          '</td></tr></table></body></html>'
+      }
 
       const provider = await sendEmail(recipient, subject, html)
       if (provider) {
