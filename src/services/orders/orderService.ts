@@ -11,7 +11,7 @@ import type {
 } from '../../types/order'
 
 const ORDER_COLUMNS = 'id, order_number, customer_name, customer_phone, customer_email, shipping_address_snapshot, customer_note, currency, subtotal, delivery_fee, discount_amount, total, order_status, payment_method, payment_status, delivery_lat, delivery_lng, delivery_location_name, delivery_location_captured_at, created_at, updated_at'
-const ITEM_COLUMNS = 'id, order_id, product_id, variant_id, seller_id, seller_name_snapshot, product_name_snapshot, product_image_url, sku_snapshot, variant_snapshot, product_snapshot, quantity, unit_price, line_total, vendor_fulfillment_status'
+const ITEM_COLUMNS = 'id, order_id, product_id, variant_id, seller_id, seller_name_snapshot, product_name_snapshot, sku_snapshot, variant_snapshot, product_snapshot, quantity, unit_price, line_total, vendor_fulfillment_status'
 const CASE_COLUMNS = 'id, order_id, order_item_id, buyer_id, seller_id, case_type, status, reason, evidence_path, seller_response, admin_decision, created_at, updated_at'
 
 function throwIfError(error: { message: string } | null) {
@@ -76,13 +76,29 @@ export async function getMyOrderByNumber(orderNumber: string): Promise<OrderReco
 }
 
 export async function listOrderItems(orderId: string): Promise<OrderItemRecord[]> {
-  const { data, error } = await getSupabase()
+  const client = getSupabase()
+  const { data, error } = await client
     .from('order_items')
     .select(ITEM_COLUMNS)
     .eq('order_id', orderId)
     .order('created_at', { ascending: true })
   throwIfError(error)
-  return (data ?? []) as OrderItemRecord[]
+  const rows = (data ?? []) as Omit<OrderItemRecord, 'product_image_url'>[]
+  const productIds = [...new Set(rows.map((item) => item.product_id).filter((id): id is string => Boolean(id)))]
+  if (!productIds.length) return rows.map((item) => ({ ...item, product_image_url: null }))
+  const { data: images, error: imageError } = await client.from('product_images')
+    .select('product_id, image_url, storage_path, is_primary, sort_order')
+    .in('product_id', productIds)
+    .order('is_primary', { ascending: false })
+    .order('sort_order', { ascending: true })
+  throwIfError(imageError)
+  const imageByProduct = new Map<string, string>()
+  for (const image of images ?? []) {
+    if (imageByProduct.has(image.product_id)) continue
+    const url = image.image_url || (image.storage_path ? client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl : '')
+    if (url) imageByProduct.set(image.product_id, url)
+  }
+  return rows.map((item) => ({ ...item, product_image_url: item.product_id ? imageByProduct.get(item.product_id) ?? null : null }))
 }
 
 export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
@@ -95,7 +111,7 @@ export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
   const itemIds = [...new Set(cases.map((item) => item.order_item_id).filter((id): id is string => Boolean(id)))]
   const [ordersResult, itemsResult] = await Promise.all([
     client.from('orders').select('id, order_number').in('id', orderIds),
-    itemIds.length ? client.from('order_items').select('id, order_id, product_id, product_name_snapshot, product_image_url, sku_snapshot, variant_snapshot, quantity, unit_price, line_total').in('id', itemIds) : Promise.resolve({ data: [], error: null }),
+    itemIds.length ? client.from('order_items').select('id, order_id, product_id, product_name_snapshot, sku_snapshot, variant_snapshot, quantity, unit_price, line_total').in('id', itemIds) : Promise.resolve({ data: [], error: null }),
   ])
   throwIfError(ordersResult.error); throwIfError(itemsResult.error)
   const orderNumbers = new Map((ordersResult.data ?? []).map((row) => [row.id, row.order_number]))
@@ -120,7 +136,7 @@ export async function listMyCases(): Promise<MarketplaceCaseRecord[]> {
       product_quantity: orderItem?.quantity ?? null,
       product_unit_price: orderItem?.unit_price ?? null,
       product_line_total: orderItem?.line_total ?? null,
-      product_image_url: orderItem?.product_image_url ?? (orderItem?.product_id ? imageByProduct.get(orderItem.product_id) ?? null : null),
+      product_image_url: orderItem?.product_id ? imageByProduct.get(orderItem.product_id) ?? null : null,
       evidence_url: item.evidence_path ? await getEvidenceSignedUrl(item.evidence_path) : null,
     }
   }))
