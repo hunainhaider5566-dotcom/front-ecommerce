@@ -138,6 +138,7 @@ export interface Database {
       admin_list_vendor_pickups: { Args: { p_order_id?: string | null }; Returns: VendorPickupAdminRow[] }
       admin_mark_vendor_picked_up: { Args: { p_pickup_id: string }; Returns: VendorOrderPickupRow }
       admin_review_seller: { Args: { p_seller_id: string; p_status: SellerStatus; p_reason?: string | null }; Returns: SellerProfileRow }
+      admin_set_vendor_lock: { Args: { p_seller_id: string; p_locked: boolean; p_reason?: string | null }; Returns: SellerProfileRow }
       seller_resubmit_application: { Args: Record<string, never>; Returns: SellerProfileRow }
       admin_decide_marketplace_case: { Args: { p_case_id: string; p_status: string; p_decision: string }; Returns: MarketplaceCaseRow }
       admin_moderate_product: { Args: { p_product_id: string; p_status: ModerationStatus; p_reason?: string | null }; Returns: ProductRow }
