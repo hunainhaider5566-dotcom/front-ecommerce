@@ -55,7 +55,7 @@ export function BudgetPage() {
               const value = event.target.value
               setCustomBudget(value)
               const amount = Number(value)
-              if (value.trim() && Number.isFinite(amount) && amount > 0) setSelectedBudget(Math.floor(amount))
+              if (value.trim() && Number.isSafeInteger(Math.floor(amount)) && amount >= 1) setSelectedBudget(Math.floor(amount))
             }} />
           </label>
         </div>
