@@ -163,6 +163,65 @@ export async function listOwnProductImageUrls(productId: string): Promise<string
     : '')).filter(Boolean)
 }
 
+export type VendorProductVariantInput = {
+  id?: string | null
+  option_label: string
+  option_value: string
+  sku: string | null
+  price_override: number | null
+  attributes?: Record<string, unknown>
+  quantity: number
+}
+
+export async function listOwnProductVariants(productId: string): Promise<VendorProductVariantInput[]> {
+  const client = getSupabase()
+  const [variants, inventory] = await Promise.all([
+    client.from('product_variants').select('id, option_label, option_value, sku, price_override, attributes, sort_order')
+      .eq('product_id', productId).order('sort_order').limit(100),
+    client.from('product_inventory').select('variant_id, quantity').eq('product_id', productId).limit(100),
+  ])
+  assertError(variants.error)
+  assertError(inventory.error)
+  const stockByVariant = new Map((inventory.data ?? []).map((row) => [row.variant_id, row.quantity]))
+  return (variants.data ?? []).map((row) => ({
+    id: row.id,
+    option_label: row.option_label,
+    option_value: row.option_value,
+    sku: row.sku,
+    price_override: row.price_override,
+    attributes: row.attributes as Record<string, unknown>,
+    quantity: stockByVariant.get(row.id) ?? 0,
+  }))
+}
+
+export async function saveOwnProductVariants(productId: string, variants: VendorProductVariantInput[]): Promise<void> {
+  if (variants.length > 100) throw new Error('A product can have no more than 100 variants.')
+  const seen = new Set<string>()
+  for (const variant of variants) {
+    const label = variant.option_label.trim()
+    const value = variant.option_value.trim()
+    const key = `${label.toLocaleLowerCase()}::${value.toLocaleLowerCase()}`
+    if (!label || !value) throw new Error('Every variant needs an option name and value.')
+    if (seen.has(key)) throw new Error('Duplicate variant option and value. Please make each variant unique.')
+    seen.add(key)
+    if (!Number.isInteger(variant.quantity) || variant.quantity < 0) throw new Error('Variant stock must be a whole number of zero or more.')
+    if (variant.price_override !== null && (!Number.isFinite(variant.price_override) || variant.price_override < 0)) throw new Error('Enter a valid variant price.')
+  }
+  const { error } = await getSupabase().rpc('vendor_save_product_variants', {
+    p_product_id: productId,
+    p_variants: variants.map((variant) => ({
+      id: variant.id && !variant.id.startsWith('new-') ? variant.id : null,
+      option_label: variant.option_label.trim(),
+      option_value: variant.option_value.trim(),
+      sku: variant.sku?.trim() || null,
+      price_override: variant.price_override,
+      attributes: variant.attributes ?? {},
+      quantity: variant.quantity,
+    })),
+  })
+  assertError(error)
+}
+
 export async function createVendorProduct(input: {
   category_id: string | null
   name: string
