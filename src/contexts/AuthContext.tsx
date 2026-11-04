@@ -21,7 +21,6 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
-const IDLE_LOGOUT_MS = 30 * 60 * 1000
 const USER_RECHECK_MS = 5 * 60 * 1000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -101,26 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
-    }
-  }, [session?.user?.id])
-
-  // Automatically sign out after 30 minutes without user activity.
-  useEffect(() => {
-    if (!session?.user) return
-    let timeout = 0
-    const resetIdleTimer = () => {
-      window.clearTimeout(timeout)
-      timeout = window.setTimeout(() => {
-        void authService.signOutLocal()
-      }, IDLE_LOGOUT_MS)
-    }
-    const activityEvents: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'touchstart', 'scroll']
-    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetIdleTimer, { passive: true }))
-    resetIdleTimer()
-
-    return () => {
-      window.clearTimeout(timeout)
-      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetIdleTimer))
     }
   }, [session?.user?.id])
 
