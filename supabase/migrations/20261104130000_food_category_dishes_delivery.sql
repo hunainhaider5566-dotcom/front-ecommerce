@@ -362,6 +362,27 @@ BEGIN
 END;
 $$;
 
+-- Private JTBazar-owned food hub configuration. Orders stay blocked until coordinates are set.
+CREATE TABLE IF NOT EXISTS public.jtbazar_food_delivery_settings (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton = true),
+  hub_lat numeric,
+  hub_lng numeric,
+  radius_km numeric NOT NULL DEFAULT 5 CHECK (radius_km > 0 AND radius_km <= 50),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT jtbazar_food_hub_coordinates_pair CHECK (
+    (hub_lat IS NULL AND hub_lng IS NULL)
+    OR (
+      hub_lat BETWEEN -90 AND 90
+      AND hub_lng BETWEEN -180 AND 180
+    )
+  )
+);
+INSERT INTO public.jtbazar_food_delivery_settings(singleton)
+VALUES (true)
+ON CONFLICT (singleton) DO NOTHING;
+ALTER TABLE public.jtbazar_food_delivery_settings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.jtbazar_food_delivery_settings FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.enforce_food_delivery_radius()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -372,12 +393,13 @@ DECLARE
   v_product public.products%ROWTYPE;
   v_order public.orders%ROWTYPE;
   v_seller public.seller_profiles%ROWTYPE;
+  v_hub public.jtbazar_food_delivery_settings%ROWTYPE;
   v_category_id uuid;
   v_is_food boolean := false;
   v_distance_km numeric;
 BEGIN
   IF NEW.product_id IS NULL THEN RETURN NEW; END IF;
-  SELECT * INTO v_product FROM public.products WHERE id = NEW.product_id;
+  SELECT * INTO v_product FROM public.products WHERE id = NEW.product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN NEW; END IF;
 
   v_category_id := v_product.category_id;
@@ -399,14 +421,30 @@ BEGIN
       MESSAGE='This daily food item is not available in the requested quantity today.';
   END IF;
 
-  IF v_product.seller_id IS NULL THEN
-    RETURN NEW;
-  END IF;
-
   SELECT * INTO v_order FROM public.orders WHERE id = NEW.order_id;
   IF v_order.delivery_lat IS NULL OR v_order.delivery_lng IS NULL THEN
     RAISE EXCEPTION USING ERRCODE='22023',
       MESSAGE='Food delivery requires a confirmed delivery location. Select your location at checkout.';
+  END IF;
+
+  IF v_product.seller_id IS NULL THEN
+    SELECT * INTO v_hub
+    FROM public.jtbazar_food_delivery_settings
+    WHERE singleton = true;
+    IF NOT FOUND OR v_hub.hub_lat IS NULL OR v_hub.hub_lng IS NULL THEN
+      RAISE EXCEPTION USING ERRCODE='55000',
+        MESSAGE='JTBazar food delivery hub location is not configured. Please contact support.';
+    END IF;
+    v_distance_km := 6371 * 2 * asin(sqrt(
+      power(sin(radians(v_order.delivery_lat - v_hub.hub_lat) / 2), 2) +
+      cos(radians(v_hub.hub_lat)) * cos(radians(v_order.delivery_lat)) *
+      power(sin(radians(v_order.delivery_lng - v_hub.hub_lng) / 2), 2)
+    ));
+    IF v_distance_km > v_hub.radius_km THEN
+      RAISE EXCEPTION USING ERRCODE='22023',
+        MESSAGE='JTBazar food delivery is available only within the configured nearby delivery radius.';
+    END IF;
+    RETURN NEW;
   END IF;
 
   SELECT * INTO v_seller FROM public.seller_profiles WHERE id = v_product.seller_id;
