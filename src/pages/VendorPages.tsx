@@ -23,6 +23,8 @@ import {
   listOwnOrderItems,
   listOwnProducts,
   listOwnProductImageUrls,
+  listOwnProductVariants,
+  saveOwnProductVariants,
   resubmitSellerApplication,
   respondToCase,
   updateOwnShop,
@@ -46,6 +48,7 @@ import {
   type VendorInventory,
   type VendorOrderItem,
   type VendorProduct,
+  type VendorProductVariantInput,
   type VendorSupportTicket,
 } from '../services/marketplace/vendorService'
 
@@ -207,7 +210,7 @@ function ShopForm({ profile, onSaved, mode = 'apply' }: { profile: SellerProfile
     {mode === 'settings' && <div className="form-field form-field--wide"><label htmlFor="shop-image">{t('Public shop picture')}</label>{(shopPreview || profile?.shop_image_url) && <img className="vendor-shop-image-preview" src={shopPreview ?? profile?.shop_image_url ?? ''} alt={t('Current shop picture')} />}<input id="shop-image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setShopImage(event.target.files?.[0] ?? null)} /><p className="form-help"><Store size={13} /> {t('Shown on your public shop page. JPG, PNG, WebP or AVIF up to 5 MB.')}</p></div>}
     {mode === 'settings' && <div className="form-field form-field--wide vendor-map-settings"><h3><MapPin size={17} /> {t('Explore map location')}</h3><p>{t('Add your shop location and choose whether customers may see its approximate area on the Explore map. Exact coordinates are rounded before publication.')}</p><button type="button" className="button button--outline" onClick={useShopLocation} disabled={locationLoading}><LocateFixed size={15} /> {t(locationLoading ? 'Getting location…' : shopLatitude && shopLongitude ? 'Refresh my location' : 'Use this device location')}</button><ShopLocationPicker point={shopLatitude && shopLongitude ? { latitude: Number(shopLatitude), longitude: Number(shopLongitude) } : null} onChange={({ latitude, longitude }) => { setShopLatitude(latitude.toFixed(6)); setShopLongitude(longitude.toFixed(6)) }} /><div className="form-field"><label htmlFor="shop-location-label">{t('Public area label')}</label><input id="shop-location-label" value={shopLocationLabel} onChange={(event) => setShopLocationLabel(event.target.value)} maxLength={120} placeholder={t('e.g. Gulberg, Lahore')} /></div><label className="vendor-map-opt-in"><input type="checkbox" name="show_shop_on_map" checked={showShopOnMap} onChange={(event) => setShowShopOnMap(event.target.checked)} /> <span>{t('Show my approximate shop location to customers on Explore')}</span></label></div>}
     {(!profile || profile.status === 'rejected' || !profile.document_path) && <div className="form-field form-field--wide"><label htmlFor="application-document">{t('Identity or business registration document')} <span>*</span></label><input id="application-document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required={!profile?.document_path || profile.status === 'rejected'} onChange={(event) => setVerificationDocument(event.target.files?.[0] ?? null)} /><p className="form-help"><ShieldCheck size={13} /> {t('Required for review. PDF, JPG, PNG or WebP up to 10 MB. Only marketplace administrators can open this file.')}</p></div>}
-    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving}>{saving ? t('Saving…') : t(profile?.status === 'rejected' ? 'Correct & resubmit application' : mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
+    <div className="vendor-form__actions"><button className="button button--dark" disabled={saving || variantsLoading}>{saving ? t('Saving…') : t(profile?.status === 'rejected' ? 'Correct & resubmit application' : mode === 'settings' ? 'Save shop settings' : profile ? 'Save application' : 'Submit for verification')}</button><Link className="text-link" to="/account">{t('Back to account')}</Link></div>
   </form>
 }
 
@@ -448,6 +451,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
   const [imagesLoading, setImagesLoading] = useState(false)
+  const [variantRows, setVariantRows] = useState<VendorProductVariantInput[]>([])
+  const [variantsLoading, setVariantsLoading] = useState(false)
   const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState(product?.category_id ?? '')
   const [sellingUnit, setSellingUnit] = useState(product?.food_selling_unit ?? 'kg')
@@ -483,6 +488,17 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   }, [product?.id])
 
   useEffect(() => {
+    let active = true
+    if (!product?.id) { setVariantRows([]); return () => { active = false } }
+    setVariantsLoading(true)
+    void listOwnProductVariants(product.id)
+      .then((rows) => { if (active) setVariantRows(rows) })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : t('Product variants could not be loaded.')) })
+      .finally(() => { if (active) setVariantsLoading(false) })
+    return () => { active = false }
+  }, [product?.id, t])
+
+  useEffect(() => {
     if (!imageFile) { setImagePreview(null); return }
     const previewUrl = URL.createObjectURL(imageFile)
     setImagePreview(previewUrl)
@@ -503,6 +519,9 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     if (supplierCost !== null && (!Number.isFinite(supplierCost) || supplierCost < 0)) { setError(t('Enter a valid supplier cost.')); return }
     if (!Number.isFinite(fulfillmentExpense) || fulfillmentExpense < 0 || !Number.isFinite(minimumProfit) || minimumProfit < 0) { setError(t('Enter valid fulfilment and profit values.')); return }
     if (isFoodCategory && (!Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0 || !Number.isInteger(foodIncrement) || foodIncrement < 1 || !Number.isInteger(foodMinimum) || foodMinimum < 1)) { setError(t('Enter a valid food unit price, quantity increment and minimum purchase quantity.')); return }
+    if (variantRows.some((row) => !row.option_label.trim() || !row.option_value.trim() || !Number.isInteger(row.quantity) || row.quantity < 0 || (row.price_override !== null && (!Number.isFinite(row.price_override) || row.price_override < 0)))) { setError(t('Every variant needs an option name, value, valid price and whole-number stock.')); return }
+    const variantKeys = variantRows.map((row) => row.option_label.trim().toLowerCase() + '::' + row.option_value.trim().toLowerCase())
+    if (new Set(variantKeys).size !== variantKeys.length) { setError(t('Duplicate variant option and value. Please make each variant unique.')); return }
     setSaving(true)
     setError(null)
     try {
@@ -534,6 +553,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         productId = await createVendorProduct(createInput)
         setCreatedProductId(productId)
       }
+      if (productId) await saveOwnProductVariants(productId, variantRows)
       if (isFoodCategory && productId) await setVendorFoodProductDetails({ productId, sellingUnit, unitPrice: Number(unitPrice), quantityIncrement: foodIncrement, minimumQuantity: foodMinimum })
       if (imageFile && productId) {
         await uploadOwnProductImage(productId, imageFile, input.name)
@@ -569,6 +589,20 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
     <div className="form-field"><label htmlFor="product-supplier-cost">{t('Supplier cost')} <span>{t('private')}</span></label><input id="product-supplier-cost" name="supplier_cost" type="number" min="0" step="0.01" defaultValue={product?.supplier_cost == null ? '' : String(product.supplier_cost)} /></div>
     <div className="form-field"><label htmlFor="product-fulfilment">{t('Fulfilment expense')}</label><input id="product-fulfilment" name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue={product ? String(product.fulfillment_expense) : '0'} /></div>
     <div className="form-field"><label htmlFor="product-profit">{t('Minimum profit')}</label><input id="product-profit" name="minimum_profit" type="number" min="0" step="0.01" defaultValue={product ? String(product.minimum_profit) : '0'} /></div>
+    <section className="form-field form-field--wide vendor-product-variants">
+      <div className="account-panel__heading"><div><h3>{t('Product variants')}</h3><p className="form-help">{t('Add options such as Size, Color or Material. Each option value can have its own SKU, price and stock.')}</p></div><button type="button" className="button button--outline" onClick={() => setVariantRows((rows) => [...rows, { id: 'new-' + crypto.randomUUID(), option_label: 'Size', option_value: '', sku: null, price_override: null, attributes: {}, quantity: 0 }])}><Plus size={15} /> {t('Add variant')}</button></div>
+      {variantsLoading && <p className="form-help">{t('Loading saved variants…')}</p>}
+      {variantRows.length === 0 && !variantsLoading && <p className="form-help">{t('No variants added. Leave empty for a single-option product.')}</p>}
+      {variantRows.map((row, index) => <div className="vendor-product-variant-row" key={row.id ?? ('variant-' + index)}>
+        <label>{t('Option name')}<input value={row.option_label} onChange={(event) => setVariantRows((rows) => rows.map((item, i) => i === index ? { ...item, option_label: event.target.value } : item))} placeholder="Size / Color / Material" /></label>
+        <label>{t('Option value')}<input value={row.option_value} onChange={(event) => setVariantRows((rows) => rows.map((item, i) => i === index ? { ...item, option_value: event.target.value } : item))} placeholder="18x18 / Sage Green / Cotton" /></label>
+        <label>{t('Variant SKU')}<input value={row.sku ?? ''} onChange={(event) => setVariantRows((rows) => rows.map((item, i) => i === index ? { ...item, sku: event.target.value || null } : item))} placeholder="Optional SKU" /></label>
+        <label>{t('Price override (PKR)')}<input type="number" min="0" step="0.01" value={row.price_override ?? ''} onChange={(event) => setVariantRows((rows) => rows.map((item, i) => i === index ? { ...item, price_override: event.target.value === '' ? null : Number(event.target.value) } : item))} placeholder={t('Use base price')} /></label>
+        <label>{t('Stock quantity')}<input type="number" min="0" step="1" value={row.quantity} onChange={(event) => setVariantRows((rows) => rows.map((item, i) => i === index ? { ...item, quantity: Number(event.target.value) } : item))} /></label>
+        <button type="button" className="icon-button" aria-label={t('Remove variant')} onClick={() => setVariantRows((rows) => rows.filter((_, i) => i !== index))}><X size={15} /></button>
+      </div>)}
+      <p className="form-help">{t('Variant changes are sent to JTBazar moderation before publication. Supplier costs and fulfilment details remain private.')}</p>
+    </section>
     <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagesLoading && <p className="form-help">{t('Loading saved images…')}</p>}{!imageFile && existingImageUrls.map((url, index) => <img key={`${url}-${index}`} className="vendor-product-image-preview" src={url} alt={`${product?.name ?? t('Product')} ${index + 1}`} loading="lazy" />)}{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. Existing images are shown above.')}</p></div>
     <div className="form-field form-field--wide"><label htmlFor="product-short">{t('Short description')}</label><input id="product-short" name="short_description" maxLength={300} defaultValue={product?.short_description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-description">{t('Full description')}</label><textarea id="product-description" name="description" rows={5} defaultValue={product?.description ?? ''} /></div>
