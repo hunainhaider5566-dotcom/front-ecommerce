@@ -70,20 +70,29 @@ function VendorStatusCard({ profile, onEdit }: { profile: SellerProfile; onEdit?
   const { t } = useI18n()
   const approved = profile.status === 'approved'
   const rejected = profile.status === 'rejected'
+  const pending = profile.status === 'pending'
   return <section className="page-shell info-page">
-    <header className="info-page__heading"><span className="eyebrow">{t('Seller application')}</span><h1>{profile.shop_name} <em>{t(profile.status)}.</em></h1><p>{approved ? t('Your seller tools are active. Keep product, stock and fulfilment information current.') : rejected ? t('Your application needs attention before seller tools can be enabled.') : t('Your shop details are with the marketplace team for review.')}</p></header>
+    <header className="info-page__heading">
+      <span className="eyebrow">{t('Seller application')}</span>
+      <h1>{profile.shop_name} <em>{t(pending ? 'Application under review' : profile.status)}.</em></h1>
+      <p>{pending ? t('Your application is in process. Our marketplace team is verifying your shop details.') : rejected ? t('Your application needs attention before seller tools can be enabled.') : t('Your seller tools are active. Keep product and stock information current.')}</p>
+    </header>
     <div className="placeholder-panel vendor-status">
-      <StatusBadge status={profile.status} />
-      {profile.rejection_reason && <p><strong>{t('Review note')}:</strong> {profile.rejection_reason}</p>}
+      {pending ? <>
+        <StatusBadge status="pending" />
+        <h2>{t('Application Under Review')}</h2>
+        <p>{t('Thank you for applying to become a JTBazar seller. Your application has been received and is currently being verified by our marketplace team.')}</p>
+        <p>{t('Once your application is approved, we will send you an email and you will be able to access your seller dashboard to manage your shop and products.')}</p>
+        <p>{t('If we need any additional information or your application is not approved, we will notify you by email.')}</p>
+      </> : <StatusBadge status={profile.status} />}
+      {rejected && profile.rejection_reason && <p><strong>{t('Review note')}:</strong> {profile.rejection_reason}</p>}
       <p>{t('Submitted')} {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(profile.created_at))}.</p>
       <div className="vendor-status__actions">
         {approved && <Link className="button button--dark" to="/vendor">{t('Open vendor dashboard')} <ArrowRight size={15} /></Link>}
-        {profile.vendor_locked && <p className="vendor-lock-notice" role="alert">{t('Your seller account is locked by the marketplace team. Shop, product and inventory changes are disabled until an administrator unlocks your account.')}</p>}
-        {onEdit && !profile.vendor_locked && <button type="button" className="button button--outline" onClick={onEdit}><Pencil size={15} /> {t('Update application details')}</button>}
+        {onEdit && !approved && !profile.vendor_locked && <button type="button" className="button button--outline" onClick={onEdit}><Pencil size={15} /> {t('Update application details')}</button>}
         <Link className="text-link" to="/account">{t('Back to account')}</Link>
       </div>
     </div>
-
   </section>
 }
 
