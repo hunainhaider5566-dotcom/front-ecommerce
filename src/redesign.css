@@ -1614,3 +1614,5 @@ button { font-family: var(--font-body); }
 .cart-item-group__option-info > strong { white-space:nowrap; }
 .cart-item-group__option .cart-item__controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; }
 @media (max-width: 560px) { .cart-item-group__option .cart-item__controls { align-items:flex-start; flex-wrap:wrap; } }
+
+.budget-custom{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12px;font-weight:700}.budget-custom input{width:118px;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}.budget-custom:focus-within,.budget-custom.is-active{border-color:var(--ink);box-shadow:0 0 0 2px rgba(32,35,31,.08)}.budget-custom input::placeholder{color:var(--muted);font-weight:400}
