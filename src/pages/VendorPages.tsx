@@ -622,31 +622,6 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   </form>
 }
 
-function InventoryRow({ item, onSaved, onError }: { item: VendorInventory; onSaved: (message: string) => Promise<void>; onError: (message: string) => void }) {
-  const { t } = useI18n()
-  const [editing, setEditing] = useState(false)
-  const [quantity, setQuantity] = useState(String(item.quantity))
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const value = Number(quantity)
-    if (!Number.isInteger(value) || value < 0) { onError(t('Stock must be a whole number of zero or more.')); return }
-    if (!note.trim()) { onError(t('Add a reason for this stock adjustment.')); return }
-    setSaving(true)
-    try { await adjustOwnInventory(item.id, value, note.trim()); setEditing(false); setNote(''); await onSaved(t('Inventory updated.')) }
-    catch (cause) { onError(cause instanceof Error ? cause.message : t('Inventory could not be updated.')) }
-    finally { setSaving(false) }
-  }
-  return <tr>
-    <td data-label={t('Product')}><strong>{item.product_name}</strong></td>
-    <td data-label={t('Variant')}>{item.variant_name ?? t('Default')}</td>
-    <td data-label={t('Quantity')}>{item.quantity}</td>
-    <td data-label={t('Updated')}><small>{new Date(item.updated_at).toLocaleDateString()}</small></td>
-    <td data-label={t('Adjust')}>{editing ? <form className="inline-form" onSubmit={save}><input aria-label={t('New quantity')} type="number" min="0" step="1" autoFocus value={quantity} onChange={(event) => setQuantity(event.target.value)} /><input aria-label={t('Adjustment reason')} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('Reason')} /><button type="submit" className="text-button" disabled={saving}>{saving ? t('Saving…') : t('Save')}</button><button type="button" className="text-button" onClick={() => setEditing(false)}>{t('Cancel')}</button></form> : <button type="button" className="text-button" onClick={() => setEditing(true)}><Pencil size={14} /> {t('Adjust')}</button>}</td>
-  </tr>
-}
-
 function formatVariantSnapshot(variant: unknown): string {
   if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return '—'
   const snapshot = variant as Record<string, unknown>
