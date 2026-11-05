@@ -49,7 +49,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
 export async function listMyOrders(): Promise<OrderRecord[]> {
   const { data, error } = await getSupabase()
     .from('orders')
-    .select(ORDER_COLUMNS)
+    .select(ORDER_COLUMNS as any)
     .order('created_at', { ascending: false })
     .limit(100)
   throwIfError(error)
