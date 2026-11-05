@@ -38,6 +38,17 @@ function addressSummary(value: unknown): string {
   return [address.address_line_1, address.address_line_2, address.area, address.city, address.province, address.postal_code, address.country].filter((part) => typeof part === 'string' && part.trim()).join(', ')
 }
 
+function formatDeliveryDate(value: string): string {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function formatDeliveryTime(value: string): string {
+  const [hourText, minuteText] = value.slice(0, 5).split(':')
+  const hour = Number(hourText)
+  return `${hour % 12 || 12}:${minuteText} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
 function statusClass(status: string): string {
   return `order-status order-status--${status.replace(/_/g, '-')}`
 }
@@ -341,13 +352,13 @@ export function AccountPage() {
             {open && <div className="order-card__detail">
               <ul className="order-line-list">
                 {items.map((item) => <li key={item.id}>
-                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(item.vendor_fulfillment_status)}>{t(item.vendor_fulfillment_status)}</span></div>
+                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}>{t(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}</span></div>
                   <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
                   {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && items.findIndex((candidate) => candidate.seller_id === item.seller_id) === items.indexOf(item) && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
                 </li>)}
               </ul>
               <div className="order-card__meta">
-                {(order as any).expected_delivery_date && <div className="order-card__delivery-eta"><span className="eyebrow">{t('Estimated delivery')}</span><p><strong>{new Date((order as any).expected_delivery_date).toLocaleDateString()}</strong></p>{(order as any).delivery_window_start && (order as any).delivery_window_end && <p>{String((order as any).delivery_window_start).slice(0,5)} – {String((order as any).delivery_window_end).slice(0,5)}</p>}{(order as any).delivery_note && <p>{(order as any).delivery_note}</p>}</div>}
+                {order.expected_delivery_date && order.delivery_timing_confirmed_at && <div className="order-card__delivery-eta"><span className="eyebrow">{t('Confirmed delivery schedule')}</span><p><strong>{formatDeliveryDate(order.expected_delivery_date)}</strong></p>{order.delivery_window_start && order.delivery_window_end && <p>{formatDeliveryTime(order.delivery_window_start)} – {formatDeliveryTime(order.delivery_window_end)}</p>}{order.delivery_note && <p>{order.delivery_note}</p>}<small>{t('This is the delivery time confirmed by JTBazar.')}</small></div>}
                 <div className="order-card__delivery"><span className="eyebrow"><MapPin size={13} /> {t('Delivery address')}</span><p><strong>{order.customer_name}</strong> · {order.customer_phone}</p><p>{addressSummary(order.shipping_address_snapshot) || t('Address on file')}</p>{order.delivery_location_name && <p className="order-card__location-name"><MapPin size={13} /> {order.delivery_location_name}</p>}{typeof (order.shipping_address_snapshot as Record<string, unknown> | null)?.delivery_instructions === 'string' && <p><strong>{t('Delivery instructions')}:</strong> {(order.shipping_address_snapshot as Record<string, string>).delivery_instructions}</p>}</div>
                 <div><span className="eyebrow">{t('Payment')}</span><p>{t('Item subtotal')}: {formatPKR(Number(order.subtotal))}</p><p>{t('Delivery fee')}: {formatPKR(Number(order.delivery_fee))}</p><p><strong>{t('Total')}: {formatPKR(Number(order.total))}</strong></p></div>
               </div>
