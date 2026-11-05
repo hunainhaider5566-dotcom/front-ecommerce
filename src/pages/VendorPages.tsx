@@ -447,8 +447,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const { t } = useI18n()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([])
   const [imagesLoading, setImagesLoading] = useState(false)
   const [variantRows, setVariantRows] = useState<VendorProductVariantInput[]>([])
@@ -499,11 +499,10 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   }, [product?.id, t])
 
   useEffect(() => {
-    if (!imageFile) { setImagePreview(null); return }
-    const previewUrl = URL.createObjectURL(imageFile)
-    setImagePreview(previewUrl)
-    return () => URL.revokeObjectURL(previewUrl)
-  }, [imageFile])
+    const previewUrls = imageFiles.map((file) => URL.createObjectURL(file))
+    setImagePreviews(previewUrls)
+    return () => previewUrls.forEach((url) => URL.revokeObjectURL(url))
+  }, [imageFiles])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -555,14 +554,14 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       }
       if (productId) await saveOwnProductVariants(productId, variantRows)
       if (isFoodCategory && productId) await setVendorFoodProductDetails({ productId, sellingUnit, unitPrice: Number(unitPrice), quantityIncrement: foodIncrement, minimumQuantity: foodMinimum })
-      if (imageFile && productId) {
-        await uploadOwnProductImage(productId, imageFile, input.name)
+      if (productId) {
+        for (const imageFile of imageFiles) await uploadOwnProductImage(productId, imageFile, input.name)
       }
       await onSaved(t(wasEditing ? 'Product changes submitted for moderation.' : 'Listing submitted for moderation.'))
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : t('The listing could not be saved.')
       setError(createdProductId && !product
-        ? `${t('The listing was created, but its image could not be saved. Correct the image and submit again; the listing will not be duplicated.')} ${message}`
+        ? `${t('The listing was created, but its images could not be saved. Correct the images and submit again; the listing will not be duplicated.')} ${message}`
         : message)
     } finally {
       setSaving(false)
@@ -603,7 +602,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       </div>)}
       <p className="form-help">{t('Variant changes are sent to JTBazar moderation before publication. Supplier costs and fulfilment details remain private.')}</p>
     </section>
-    <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product image')} {imageFile && <span>· {imageFile.name}</span>}</label>{imagesLoading && <p className="form-help">{t('Loading saved images…')}</p>}{!imageFile && existingImageUrls.map((url, index) => <img key={`${url}-${index}`} className="vendor-product-image-preview" src={url} alt={`${product?.name ?? t('Product')} ${index + 1}`} loading="lazy" />)}{imagePreview && <img className="vendor-product-image-preview" src={imagePreview} alt={t('Selected product preview')} />}<input id="product-image" name="product_image" type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} /><p className="form-help">{t('JPG, PNG, WebP or AVIF · maximum 10 MB. Existing images are shown above.')}</p></div>
+    <div className="form-field form-field--wide"><label htmlFor="product-image">{t('Product images')} <span>({existingImageUrls.length + imageFiles.length}/8)</span></label>{imagesLoading && <p className="form-help">{t('Loading saved images…')}</p>}<div className="vendor-product-image-gallery">{existingImageUrls.map((url, index) => <img key={`${url}-${index}`} className="vendor-product-image-preview" src={url} alt={`${product?.name ?? t('Product')} ${index + 1}`} loading="lazy" />)}{imagePreviews.map((url, index) => <div className="vendor-product-image-selected" key={`${url}-${index}`}><img className="vendor-product-image-preview" src={url} alt={`${t('Selected product image')} ${index + 1}`} /><button type="button" className="icon-button" aria-label={t('Remove selected image')} onClick={() => setImageFiles((files) => files.filter((_, fileIndex) => fileIndex !== index))}><X size={14} /></button></div>)}</div><input id="product-image" name="product_images" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={existingImageUrls.length + imageFiles.length >= 8} onChange={(event) => { const selected = Array.from(event.target.files ?? []); const remaining = Math.max(0, 8 - existingImageUrls.length - imageFiles.length); const valid = selected.filter((file) => file.size <= 10 * 1024 * 1024 && ['image/jpeg','image/png','image/webp','image/avif'].includes(file.type)); if (valid.length !== selected.length) setError(t('Only JPG, PNG, WebP or AVIF images up to 10 MB each are allowed.')); if (selected.length > remaining) setError(t('You can add up to 8 product images in total.')); setImageFiles((files) => [...files, ...valid.slice(0, remaining)]) ; event.target.value = '' }} /><p className="form-help">{t('Select multiple JPG, PNG, WebP or AVIF images · maximum 10 MB each · up to 8 images total. Existing images are kept when you add more.')}</p></div>
     <div className="form-field form-field--wide"><label htmlFor="product-short">{t('Short description')}</label><input id="product-short" name="short_description" maxLength={300} defaultValue={product?.short_description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-description">{t('Full description')}</label><textarea id="product-description" name="description" rows={5} defaultValue={product?.description ?? ''} /></div>
     <div className="form-field form-field--wide"><label htmlFor="product-specifications">{t('Specifications (JSON array)')}</label><textarea id="product-specifications" name="specifications" rows={3} defaultValue={JSON.stringify(product?.specifications ?? [],null,2)} /></div>
