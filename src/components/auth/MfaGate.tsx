@@ -18,7 +18,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
     if (!session?.user || !supabase) {
-      setMode('checking')
+      setMode('complete')
       return () => { active = false }
     }
 
@@ -28,7 +28,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
       const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
       if (assurance.error) throw assurance.error
       if (assurance.data.currentLevel === 'aal2') {
-        if (active) setMode('checking')
+        if (active) setMode('complete')
         return
       }
 
@@ -104,7 +104,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
       setCode('')
       setQrCode('')
       setSecret('')
-      setMode('checking')
+      setMode('complete')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The verification code was not accepted.')
     } finally {
@@ -129,7 +129,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
           : 'We could not start secure verification. Please retry or sign out and contact support.'}</p>
       {mode === 'enroll' && qrCode && <div style={qrWrap}><img src={qrCode} alt="Authenticator setup QR code" style={{ width: 190, height: 190 }} /></div>}
       {mode === 'enroll' && secret && <details style={secretBox}><summary>Can’t scan the QR code?</summary><code style={{ wordBreak: 'break-all' }}>{secret}</code></details>}
-      <form onSubmit={verify} style={{ display: 'grid', gap: 14 }}>
+      {mode === 'error' ? <button type="button" onClick={() => setAttempt((value) => value + 1)} style={primaryButton}>Retry security setup</button> : <form onSubmit={verify} style={{ display: 'grid', gap: 14 }}>
         {(mode === 'enroll' || mode === 'challenge') && <label style={label}>6-digit authenticator code
           <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" style={codeInput} required />
         </label>}
@@ -137,7 +137,8 @@ export function MfaGate({ children }: { children: ReactNode }) {
         <button type="submit" disabled={busy || (mode !== 'error' && code.length !== 6)} style={primaryButton}>
           {busy ? 'Verifying…' : mode === 'enroll' ? 'Verify and secure account' : 'Verify and continue'}
         </button>
-      </form>
+      </form>}
+      {mode === 'error' && error && <p role="alert" style={errorStyle}>{error}</p>}
       <button type="button" onClick={() => void signOut()} style={secondaryButton}>Sign out</button>
       <p style={footnote}>Your account and marketplace data stay protected until verification is complete.</p>
     </section>
@@ -145,16 +146,16 @@ export function MfaGate({ children }: { children: ReactNode }) {
 }
 
 const shell: CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, background: '#f7f5ef' }
-const panel: React.CSSProperties = { width: 'min(100%, 480px)', padding: 32, border: '1px solid #e6e1d7', borderRadius: 16, background: '#fff', boxShadow: '0 24px 70px rgba(31,36,29,.09)' }
-const mark: React.CSSProperties = { width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 13, color: '#fff', background: '#27382d', fontWeight: 800, letterSpacing: '-.04em' }
-const eyebrow: React.CSSProperties = { margin: '22px 0 8px', color: '#9b634a', fontSize: 11, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase' }
-const heading: React.CSSProperties = { margin: 0, color: '#202820', fontSize: 30, lineHeight: 1.12, letterSpacing: '-.04em' }
-const copy: React.CSSProperties = { margin: '12px 0 22px', color: '#697168', fontSize: 14, lineHeight: 1.7 }
-const qrWrap: React.CSSProperties = { display: 'grid', placeItems: 'center', margin: '0 0 18px', padding: 16, border: '1px solid #ece8df', borderRadius: 12, background: '#fff' }
-const secretBox: React.CSSProperties = { margin: '0 0 18px', padding: 12, borderRadius: 8, background: '#f7f5ef', color: '#394238', fontSize: 12 }
-const label: React.CSSProperties = { display: 'grid', gap: 8, color: '#394238', fontSize: 12, fontWeight: 700 }
-const codeInput: React.CSSProperties = { width: '100%', padding: '14px 16px', border: '1px solid #d9dcd4', borderRadius: 9, outlineColor: '#9b634a', fontSize: 24, fontWeight: 700, letterSpacing: '.35em', textAlign: 'center' }
-const primaryButton: React.CSSProperties = { minHeight: 48, border: 0, borderRadius: 9, color: '#fff', background: '#27382d', fontSize: 13, fontWeight: 800, cursor: 'pointer' }
-const secondaryButton: React.CSSProperties = { width: '100%', marginTop: 10, minHeight: 42, border: '1px solid #e6e1d7', borderRadius: 9, color: '#4e594f', background: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }
-const errorStyle: React.CSSProperties = { margin: 0, padding: 11, borderRadius: 8, color: '#9a3f35', background: '#fff0ed', fontSize: 12 }
-const footnote: React.CSSProperties = { margin: '18px 0 0', color: '#92988f', fontSize: 11, lineHeight: 1.5 }
+const panel: CSSProperties = { width: 'min(100%, 480px)', padding: 32, border: '1px solid #e6e1d7', borderRadius: 16, background: '#fff', boxShadow: '0 24px 70px rgba(31,36,29,.09)' }
+const mark: CSSProperties = { width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 13, color: '#fff', background: '#27382d', fontWeight: 800, letterSpacing: '-.04em' }
+const eyebrow: CSSProperties = { margin: '22px 0 8px', color: '#9b634a', fontSize: 11, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase' }
+const heading: CSSProperties = { margin: 0, color: '#202820', fontSize: 30, lineHeight: 1.12, letterSpacing: '-.04em' }
+const copy: CSSProperties = { margin: '12px 0 22px', color: '#697168', fontSize: 14, lineHeight: 1.7 }
+const qrWrap: CSSProperties = { display: 'grid', placeItems: 'center', margin: '0 0 18px', padding: 16, border: '1px solid #ece8df', borderRadius: 12, background: '#fff' }
+const secretBox: CSSProperties = { margin: '0 0 18px', padding: 12, borderRadius: 8, background: '#f7f5ef', color: '#394238', fontSize: 12 }
+const label: CSSProperties = { display: 'grid', gap: 8, color: '#394238', fontSize: 12, fontWeight: 700 }
+const codeInput: CSSProperties = { width: '100%', padding: '14px 16px', border: '1px solid #d9dcd4', borderRadius: 9, outlineColor: '#9b634a', fontSize: 24, fontWeight: 700, letterSpacing: '.35em', textAlign: 'center' }
+const primaryButton: CSSProperties = { minHeight: 48, border: 0, borderRadius: 9, color: '#fff', background: '#27382d', fontSize: 13, fontWeight: 800, cursor: 'pointer' }
+const secondaryButton: CSSProperties = { width: '100%', marginTop: 10, minHeight: 42, border: '1px solid #e6e1d7', borderRadius: 9, color: '#4e594f', background: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+const errorStyle: CSSProperties = { margin: 0, padding: 11, borderRadius: 8, color: '#9a3f35', background: '#fff0ed', fontSize: 12 }
+const footnote: CSSProperties = { margin: '18px 0 0', color: '#92988f', fontSize: 11, lineHeight: 1.5 }
