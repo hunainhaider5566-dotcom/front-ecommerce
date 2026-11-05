@@ -52,7 +52,7 @@ BEGIN
     IF position('JTBazar MFA verification is required.' IN definition) = 0 THEN
       guarded_definition := regexp_replace(
         definition,
-        E'\\nBEGIN\\n',
+        E'\nBEGIN\n',
         E'\nBEGIN\n  IF (auth.jwt() ->> ''aal'') IS DISTINCT FROM ''aal2'' THEN\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar MFA verification is required.'';\n  END IF;\n',
         ''
       );
