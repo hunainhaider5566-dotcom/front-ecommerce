@@ -53,7 +53,7 @@ export async function listMyOrders(): Promise<OrderRecord[]> {
     .order('created_at', { ascending: false })
     .limit(100)
   throwIfError(error)
-  return (data ?? []) as OrderRecord[]
+  return (data ?? []) as unknown as OrderRecord[]
 }
 
 export async function cancelCustomerOrder(orderId: string): Promise<void> {
@@ -70,7 +70,7 @@ export async function getMyOrderByNumber(orderNumber: string): Promise<OrderReco
     .maybeSingle()
   throwIfError(error)
   if (!data) return null
-  const order = data as OrderRecord
+  const order = data as unknown as OrderRecord
   order.items = await listOrderItems(order.id)
   return order
 }
