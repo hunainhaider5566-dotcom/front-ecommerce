@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }
-  }, [session?.user?.id])
+  }, [session?.user?.id, session?.access_token])
 
   useEffect(() => {
     let active = true
