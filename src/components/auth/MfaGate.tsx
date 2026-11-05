@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
-type GateMode = 'checking' | 'enroll' | 'challenge' | 'error'
+type GateMode = 'checking' | 'enroll' | 'challenge' | 'error' | 'complete'
 
-export function MfaGate({ children }: { children: React.ReactNode }) {
+export function MfaGate({ children }: { children: ReactNode }) {
   const { session, signOut } = useAuth()
   const [mode, setMode] = useState<GateMode>('checking')
   const [factorId, setFactorId] = useState('')
@@ -13,6 +13,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -71,7 +72,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
     })
 
     return () => { active = false }
-  }, [session?.user?.id, session?.access_token])
+  }, [session?.user?.id, session?.access_token, attempt])
 
   const verify = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -111,7 +112,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (!session?.user || !supabase) return <>{children}</>
+  if (mode === 'complete') return <>{children}</>
   if (mode === 'checking') {
     return <main style={shell}><section style={panel}><div style={mark}>JT</div><p style={eyebrow}>JTBazar account security</p><h1 style={heading}>Checking your security…</h1><p style={copy}>Please wait while we verify your second authentication factor.</p></section></main>
   }
@@ -143,7 +144,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
   </main>
 }
 
-const shell: React.CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, background: '#f7f5ef' }
+const shell: CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, background: '#f7f5ef' }
 const panel: React.CSSProperties = { width: 'min(100%, 480px)', padding: 32, border: '1px solid #e6e1d7', borderRadius: 16, background: '#fff', boxShadow: '0 24px 70px rgba(31,36,29,.09)' }
 const mark: React.CSSProperties = { width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 13, color: '#fff', background: '#27382d', fontWeight: 800, letterSpacing: '-.04em' }
 const eyebrow: React.CSSProperties = { margin: '22px 0 8px', color: '#9b634a', fontSize: 11, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase' }
