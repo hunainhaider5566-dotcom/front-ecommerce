@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { CartProvider } from '../contexts/CartContext'
 import { CatalogProvider } from '../contexts/CatalogContext'
 import { AuthProvider } from '../contexts/AuthContext'
+import { MfaGate } from '../components/auth/MfaGate'
 import { WishlistProvider } from '../contexts/WishlistContext'
 import { ToastProvider } from '../contexts/ToastContext'
 import { LocaleProvider, useI18n } from '../i18n/LocaleContext'
@@ -93,5 +94,5 @@ function Storefront() {
 }
 
 export function App() {
-  return <BrowserRouter><LocaleProvider><ToastProvider><CatalogProvider><AuthProvider><CartProvider><WishlistProvider><Storefront /></WishlistProvider></CartProvider></AuthProvider></CatalogProvider></ToastProvider></LocaleProvider></BrowserRouter>
+  return <BrowserRouter><LocaleProvider><ToastProvider><CatalogProvider><AuthProvider><MfaGate><CartProvider><WishlistProvider><Storefront /></WishlistProvider></CartProvider></MfaGate></AuthProvider></CatalogProvider></ToastProvider></LocaleProvider></BrowserRouter>
 }
