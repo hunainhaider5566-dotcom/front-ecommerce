@@ -22,17 +22,18 @@ export function MfaGate({ children }: { children: ReactNode }) {
       return () => { active = false }
     }
 
+    const client = supabase
     const prepare = async () => {
       setMode('checking')
       setError('')
-      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel()
       if (assurance.error) throw assurance.error
       if (assurance.data.currentLevel === 'aal2') {
         if (active) setMode('complete')
         return
       }
 
-      const listed = await supabase.auth.mfa.listFactors()
+      const listed = await client.auth.mfa.listFactors()
       if (listed.error) throw listed.error
       const verified = listed.data.totp.find((factor) => factor.status === 'verified')
       if (verified) {
@@ -47,11 +48,11 @@ export function MfaGate({ children }: { children: ReactNode }) {
       }
 
       for (const pending of listed.data.totp.filter((factor) => factor.status !== 'verified')) {
-        const removed = await supabase.auth.mfa.unenroll({ factorId: pending.id })
+        const removed = await client.auth.mfa.unenroll({ factorId: pending.id })
         if (removed.error) throw removed.error
       }
 
-      const enrolled = await supabase.auth.mfa.enroll({
+      const enrolled = await client.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'JTBazar Authenticator',
       })
@@ -83,20 +84,20 @@ export function MfaGate({ children }: { children: ReactNode }) {
     setBusy(true)
     setError('')
     try {
-      const challenge = await supabase.auth.mfa.challenge({ factorId })
+      const challenge = await client.auth.mfa.challenge({ factorId })
       if (challenge.error) throw challenge.error
-      const result = await supabase.auth.mfa.verify({
+      const result = await client.auth.mfa.verify({
         factorId,
         challengeId: challenge.data.id,
         code,
       })
       if (result.error) throw result.error
-      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel()
       if (assurance.error) throw assurance.error
       if (assurance.data.currentLevel !== 'aal2') {
         const refreshed = await supabase.auth.refreshSession()
         if (refreshed.error) throw refreshed.error
-        const confirmed = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        const confirmed = await client.auth.mfa.getAuthenticatorAssuranceLevel()
         if (confirmed.error || confirmed.data.currentLevel !== 'aal2') {
           throw confirmed.error || new Error('Second-factor verification was not confirmed.')
         }
