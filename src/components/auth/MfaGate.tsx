@@ -77,7 +77,8 @@ export function MfaGate({ children }: { children: ReactNode }) {
 
   const verify = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!supabase || !factorId || !/^\d{6}$/.test(code)) {
+    const client = supabase
+    if (!client || !factorId || !/^\d{6}$/.test(code)) {
       setError('Enter the 6-digit code from your authenticator app.')
       return
     }
@@ -95,7 +96,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
       const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel()
       if (assurance.error) throw assurance.error
       if (assurance.data.currentLevel !== 'aal2') {
-        const refreshed = await supabase.auth.refreshSession()
+        const refreshed = await client.auth.refreshSession()
         if (refreshed.error) throw refreshed.error
         const confirmed = await client.auth.mfa.getAuthenticatorAssuranceLevel()
         if (confirmed.error || confirmed.data.currentLevel !== 'aal2') {
