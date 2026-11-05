@@ -69,6 +69,7 @@ export function AccountPage() {
   const [knownSuspendedAccount] = useState(hasRememberedAccountSuspension)
 
   const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [orderHistoryDate, setOrderHistoryDate] = useState(new Date().toLocaleDateString('en-CA'))
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, OrderItemRecord[]>>({})
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(true)
@@ -172,6 +173,8 @@ export function AccountPage() {
   }, [user?.id, emailVerified])
 
   const orderNumbers = useMemo(() => new Map(orders.map((order) => [order.id, order.order_number])), [orders])
+
+  const visibleOrders = useMemo(() => orders.filter((order) => order.created_at.slice(0, 10) === orderHistoryDate), [orders, orderHistoryDate])
 
   if (loading || (user && !verificationCheckDone)) return <section className="account-page"><div className="account-page__inner"><span className="auth-eyebrow">{t('Account security')}</span><h1>{t('Verifying account access')}</h1><p role="status">{t('Checking your verified email and secure session…')}</p></div></section>
 
@@ -308,7 +311,7 @@ export function AccountPage() {
 
     <nav className="account-tabs" aria-label={t('Account sections')}>
       <button type="button" className={tab === 'profile' ? 'is-active' : ''} onClick={() => setTab('profile')}><UserRound size={16} /> {t('Profile')}</button>
-      <button type="button" className={tab === 'orders' ? 'is-active' : ''} onClick={() => setTab('orders')}><Package size={16} /> {t('Orders')}{orders.length > 0 ? ` · ${orders.length}` : ''}</button>
+      <button type="button" className={tab === 'orders' ? 'is-active' : ''} onClick={() => setTab('orders')}><Package size={16} /> {t('Orders')}{visibleOrders.length > 0 ? ` · ${visibleOrders.length}` : ''}</button>
       <button type="button" className={tab === 'addresses' ? 'is-active' : ''} onClick={() => setTab('addresses')}><Home size={16} /> {t('Addresses')}</button>
       <button type="button" className={tab === 'cases' ? 'is-active' : ''} onClick={() => setTab('cases')}><ClipboardList size={16} /> {t('Returns & complaints')}{cases.length > 0 ? ` · ${cases.length}` : ''}</button>
     </nav>
@@ -320,8 +323,8 @@ export function AccountPage() {
       {ordersLoading && <LoadingState label={t('Loading your orders…')} centered={false} />}
       {ordersError && <><ErrorState message={ordersError} /><button type="button" className="button button--outline" onClick={() => void loadOrders()}>{t('Try again')}</button></>}
       {!ordersLoading && !ordersError && orders.length === 0 && <EmptyState title={t('No orders yet')} description={t('Your placed orders will appear here with their delivery and case status.')} actionLabel={t('Browse the catalog')} actionHref="/shop" />}
-      {!ordersLoading && !ordersError && orders.length > 0 && <div className="order-list">
-        {orders.map((order, orderIndex) => {
+      {!ordersLoading && !ordersError && orders.length > 0 && <><div className="order-history-filter"><label htmlFor="order-history-date">{t('Orders for date')}</label><input id="order-history-date" type="date" value={orderHistoryDate} max={new Date().toLocaleDateString('en-CA')} onChange={(event) => setOrderHistoryDate(event.target.value)} /><span>{visibleOrders.length ? `${visibleOrders.length} ${t('orders')}` : t('No orders on this date')}</span></div>{visibleOrders.length > 0 ? <div className="order-list">
+        {visibleOrders.map((order, orderIndex) => {
           const items = itemsByOrder[order.id] ?? []
           const open = expandedOrder === order.id
           const canCancel = ['pending', 'confirmed'].includes(order.order_status)
@@ -352,7 +355,7 @@ export function AccountPage() {
             </div>}
           </article>
         })}
-      </div>}
+      </div> : <EmptyState title={t('No orders for this date')} description={t('Choose another date to view your previous orders.')} />}</>}
     </section>}
 
     {tab === 'addresses' && <section className="account-panel" aria-labelledby="account-addresses-title">
