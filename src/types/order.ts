@@ -52,6 +52,11 @@ export interface OrderRecord {
   delivery_lng: number | null
   delivery_location_name: string | null
   delivery_location_captured_at: string | null
+  expected_delivery_date: string | null
+  delivery_window_start: string | null
+  delivery_window_end: string | null
+  delivery_note: string | null
+  delivery_timing_confirmed_at: string | null
   created_at: string
   updated_at: string
   items?: OrderItemRecord[]
