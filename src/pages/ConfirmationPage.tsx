@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Clock3, PackageCheck, PhoneCall, ShieldCheck, Truck } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Clock3, PackageCheck, PhoneCall, ShieldCheck } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useI18n } from '../i18n/LocaleContext'
@@ -26,8 +26,6 @@ export function ConfirmationPage() {
           <h2>{t('What happens next?')}</h2>
           <div className="confirmation-steps">
             <div><span><PhoneCall size={18} /></span><section><strong>{t('We confirm your order')}</strong><p>{t('Our team will call you to verify your phone number and delivery address.')}</p></section></div>
-            <div><span><PackageCheck size={18} /></span><section><strong>{t('We prepare your items')}</strong><p>{t('Our team coordinates with the shop to arrange your products.')}</p></section></div>
-            <div><span><Truck size={18} /></span><section><strong>{t('Your order is delivered')}</strong><p>{t('We deliver to your address. Pay cash when your order arrives.')}</p></section></div>
           </div>
         </div>
         <div className="confirmation-payment"><span><Clock3 size={17} /> {t('Payment on delivery')}</span><strong>{t('Cash on Delivery (COD)')}</strong></div>
