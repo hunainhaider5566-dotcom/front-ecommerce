@@ -1,0 +1,159 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
+
+type GateMode = 'checking' | 'enroll' | 'challenge' | 'error'
+
+export function MfaGate({ children }: { children: React.ReactNode }) {
+  const { session, signOut } = useAuth()
+  const [mode, setMode] = useState<GateMode>('checking')
+  const [factorId, setFactorId] = useState('')
+  const [qrCode, setQrCode] = useState('')
+  const [secret, setSecret] = useState('')
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (!session?.user || !supabase) {
+      setMode('checking')
+      return () => { active = false }
+    }
+
+    const prepare = async () => {
+      setMode('checking')
+      setError('')
+      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (assurance.error) throw assurance.error
+      if (assurance.data.currentLevel === 'aal2') {
+        if (active) setMode('checking')
+        return
+      }
+
+      const listed = await supabase.auth.mfa.listFactors()
+      if (listed.error) throw listed.error
+      const verified = listed.data.totp.find((factor) => factor.status === 'verified')
+      if (verified) {
+        if (active) {
+          setFactorId(verified.id)
+          setQrCode('')
+          setSecret('')
+          setCode('')
+          setMode('challenge')
+        }
+        return
+      }
+
+      for (const pending of listed.data.totp.filter((factor) => factor.status !== 'verified')) {
+        const removed = await supabase.auth.mfa.unenroll({ factorId: pending.id })
+        if (removed.error) throw removed.error
+      }
+
+      const enrolled = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'JTBazar Authenticator',
+      })
+      if (enrolled.error) throw enrolled.error
+      if (active) {
+        setFactorId(enrolled.data.id)
+        setQrCode(enrolled.data.totp.qr_code)
+        setSecret(enrolled.data.totp.secret)
+        setCode('')
+        setMode('enroll')
+      }
+    }
+
+    void prepare().catch((cause: unknown) => {
+      if (!active) return
+      setError(cause instanceof Error ? cause.message : 'Security verification could not be initialized.')
+      setMode('error')
+    })
+
+    return () => { active = false }
+  }, [session?.user?.id, session?.access_token])
+
+  const verify = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase || !factorId || !/^\d{6}$/.test(code)) {
+      setError('Enter the 6-digit code from your authenticator app.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId })
+      if (challenge.error) throw challenge.error
+      const result = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code,
+      })
+      if (result.error) throw result.error
+      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (assurance.error) throw assurance.error
+      if (assurance.data.currentLevel !== 'aal2') {
+        const refreshed = await supabase.auth.refreshSession()
+        if (refreshed.error) throw refreshed.error
+        const confirmed = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        if (confirmed.error || confirmed.data.currentLevel !== 'aal2') {
+          throw confirmed.error || new Error('Second-factor verification was not confirmed.')
+        }
+      }
+      setCode('')
+      setQrCode('')
+      setSecret('')
+      setMode('checking')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The verification code was not accepted.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!session?.user || !supabase) return <>{children}</>
+  if (mode === 'checking') {
+    return <main style={shell}><section style={panel}><div style={mark}>JT</div><p style={eyebrow}>JTBazar account security</p><h1 style={heading}>Checking your security…</h1><p style={copy}>Please wait while we verify your second authentication factor.</p></section></main>
+  }
+
+  return <main style={shell}>
+    <section style={panel}>
+      <div style={mark}>JT</div>
+      <p style={eyebrow}>Mandatory two-factor authentication</p>
+      <h1 style={heading}>{mode === 'enroll' ? 'Secure your account' : mode === 'challenge' ? 'Verify it’s you' : 'Security verification required'}</h1>
+      <p style={copy}>{mode === 'enroll'
+        ? 'JTBazar requires an authenticator app for every customer, vendor and administrator account. Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password or another TOTP app.'
+        : mode === 'challenge'
+          ? 'Open your authenticator app and enter the current 6-digit JTBazar code to continue.'
+          : 'We could not start secure verification. Please retry or sign out and contact support.'}</p>
+      {mode === 'enroll' && qrCode && <div style={qrWrap}><img src={qrCode} alt="Authenticator setup QR code" style={{ width: 190, height: 190 }} /></div>}
+      {mode === 'enroll' && secret && <details style={secretBox}><summary>Can’t scan the QR code?</summary><code style={{ wordBreak: 'break-all' }}>{secret}</code></details>}
+      <form onSubmit={verify} style={{ display: 'grid', gap: 14 }}>
+        {(mode === 'enroll' || mode === 'challenge') && <label style={label}>6-digit authenticator code
+          <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" style={codeInput} required />
+        </label>}
+        {error && <p role="alert" style={errorStyle}>{error}</p>}
+        <button type="submit" disabled={busy || (mode !== 'error' && code.length !== 6)} style={primaryButton}>
+          {busy ? 'Verifying…' : mode === 'enroll' ? 'Verify and secure account' : 'Verify and continue'}
+        </button>
+      </form>
+      <button type="button" onClick={() => void signOut()} style={secondaryButton}>Sign out</button>
+      <p style={footnote}>Your account and marketplace data stay protected until verification is complete.</p>
+    </section>
+  </main>
+}
+
+const shell: React.CSSProperties = { minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, background: '#f7f5ef' }
+const panel: React.CSSProperties = { width: 'min(100%, 480px)', padding: 32, border: '1px solid #e6e1d7', borderRadius: 16, background: '#fff', boxShadow: '0 24px 70px rgba(31,36,29,.09)' }
+const mark: React.CSSProperties = { width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 13, color: '#fff', background: '#27382d', fontWeight: 800, letterSpacing: '-.04em' }
+const eyebrow: React.CSSProperties = { margin: '22px 0 8px', color: '#9b634a', fontSize: 11, fontWeight: 800, letterSpacing: '.13em', textTransform: 'uppercase' }
+const heading: React.CSSProperties = { margin: 0, color: '#202820', fontSize: 30, lineHeight: 1.12, letterSpacing: '-.04em' }
+const copy: React.CSSProperties = { margin: '12px 0 22px', color: '#697168', fontSize: 14, lineHeight: 1.7 }
+const qrWrap: React.CSSProperties = { display: 'grid', placeItems: 'center', margin: '0 0 18px', padding: 16, border: '1px solid #ece8df', borderRadius: 12, background: '#fff' }
+const secretBox: React.CSSProperties = { margin: '0 0 18px', padding: 12, borderRadius: 8, background: '#f7f5ef', color: '#394238', fontSize: 12 }
+const label: React.CSSProperties = { display: 'grid', gap: 8, color: '#394238', fontSize: 12, fontWeight: 700 }
+const codeInput: React.CSSProperties = { width: '100%', padding: '14px 16px', border: '1px solid #d9dcd4', borderRadius: 9, outlineColor: '#9b634a', fontSize: 24, fontWeight: 700, letterSpacing: '.35em', textAlign: 'center' }
+const primaryButton: React.CSSProperties = { minHeight: 48, border: 0, borderRadius: 9, color: '#fff', background: '#27382d', fontSize: 13, fontWeight: 800, cursor: 'pointer' }
+const secondaryButton: React.CSSProperties = { width: '100%', marginTop: 10, minHeight: 42, border: '1px solid #e6e1d7', borderRadius: 9, color: '#4e594f', background: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+const errorStyle: React.CSSProperties = { margin: 0, padding: 11, borderRadius: 8, color: '#9a3f35', background: '#fff0ed', fontSize: 12 }
+const footnote: React.CSSProperties = { margin: '18px 0 0', color: '#92988f', fontSize: 11, lineHeight: 1.5 }
