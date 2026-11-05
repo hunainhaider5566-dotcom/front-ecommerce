@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
     return () => { active = false }
-  }, [session?.user?.id])
+  }, [session?.user?.id, session?.access_token])
 
   const avatarUrl = profile?.avatar_url ||
     (session?.user?.user_metadata?.avatar_url as string | undefined) ||
