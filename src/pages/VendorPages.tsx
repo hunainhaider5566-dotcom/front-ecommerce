@@ -395,6 +395,7 @@ export function VendorDashboardPage() {
     {tab === 'listings' && <section className="account-panel">
       <div className="account-panel__heading"><div><h2>{t('Listings')}</h2><p>{t('Vendor edits are re-checked by moderation before publication. Supplier costs stay private.')}</p></div>{!creatingProduct && !editingProduct && <button type="button" className="button button--dark" onClick={() => setCreatingProduct(true)}><Plus size={15} /> {t('New listing')}</button>}</div>
       {(creatingProduct || editingProduct) && <ProductEditor
+        key={editingProduct?.id ?? 'new-vendor-product'}
         product={editingProduct}
         categories={categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parent_id: category.parentId }))}
         onCancel={() => { setCreatingProduct(false); setEditingProduct(null) }}
