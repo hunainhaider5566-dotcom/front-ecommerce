@@ -4,7 +4,6 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/LocaleContext'
 import { authService } from '../services/auth/authService'
-import { clearRememberedAccountSuspension, rememberAccountSuspension } from '../services/auth/accountAccessNotice'
 import { LoadingState } from '../components/common/States'
 import { isValidEmail } from '../utils/contactValidation'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
@@ -22,7 +21,6 @@ function clearPendingSignupEmail() {
   try { window.sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY) }
   catch { /* session storage may be unavailable */ }
 }
-const emptyCredentials = { email: '', password: '' }
 const emptyRegistration = { name: '', email: '', password: '', confirmation: '', terms: false }
 
 function describeError(error: unknown) {
@@ -36,12 +34,6 @@ function friendlyAuthError(error: unknown) {
     return 'We could not complete this request. If you already have an account, please sign in; otherwise try again shortly.'
   }
   return message
-}
-
-function isSuspendedAccountError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const authError = error as { code?: unknown; message?: unknown }
-  return authError.code === 'user_banned' || (typeof authError.message === 'string' && /\b(user|account) (is|has been) (banned|suspended)\b/i.test(authError.message))
 }
 
 function throwIfAuthError<T extends { error: { message: string } | null }>(response: T) {
@@ -62,29 +54,6 @@ function AuthStatusMessage({ status, message }: { status: AuthStatus; message: s
   if (status === 'success') return <p className="auth-status auth-status--success" role="status" aria-live="polite"><CheckCircle2 size={17} aria-hidden="true" />{t(message)}</p>
   if (status === 'error') return <p className="auth-status auth-status--error" role="alert"><AlertCircle size={17} aria-hidden="true" />{t(message)}</p>
   return null
-}
-
-function GoogleIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="google-icon">
-      <path
-        fill="#4285F4"
-        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
-      />
-    </svg>
-  )
 }
 
 function AuthLayout({ eyebrow, title, intro, children }: { eyebrow: string; title: string; intro: string; children: ReactNode }) {
@@ -111,16 +80,6 @@ function PasswordField({ name, label, value, onChange, error, autoComplete }: { 
   return <AuthField label={label} name={name} type={visible ? 'text' : 'password'} value={value} onChange={onChange} error={error} autoComplete={autoComplete}><button type="button" className="auth-password-toggle" onClick={() => setVisible((current) => !current)} aria-label={t(visible ? 'Hide password' : 'Show password')}><span aria-hidden="true">{visible ? <EyeOff size={16} /> : <Eye size={16} />}</span><span>{t(visible ? 'Hide' : 'Show')}</span></button></AuthField>
 }
 
-function ProviderButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
-  const { t } = useI18n()
-  return <button className="auth-provider-button" type="button" onClick={onClick} disabled={disabled}><span className="auth-provider-button__mark" aria-hidden="true"><GoogleIcon size={19} /></span><span>{t('Continue with Google')}</span></button>
-}
-
-function Divider() {
-  const { t } = useI18n()
-  return <div className="auth-divider" role="separator"><span>{t('or')}</span></div>
-}
-
 function AuthLinks({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useI18n()
   return <div className="auth-links">{mode === 'login' ? <><span>{t('No account?')}</span><Link to="/register" className="auth-link">{t('Register instead')}<ArrowRight size={15} aria-hidden="true" /></Link></> : <><span>{t('Already have an account?')}</span><Link to="/login" className="auth-link">{t('Sign in instead')}<ArrowRight size={15} aria-hidden="true" /></Link></>}</div>
@@ -132,48 +91,91 @@ export function LoginPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const redirectTarget = getSafeAuthRedirect(location.search, location.state)
-  const [form, setForm] = useState(emptyCredentials)
+  const [email, setEmail] = useState((location.state as { email?: string } | null)?.email ?? '')
+  const [code, setCode] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
-  const update = (event: ChangeEvent<HTMLInputElement>) => { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value })); setErrors((current) => ({ ...current, [name]: '' })) }
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
+
+  const sendCode = async () => {
     const next: FieldErrors = {}
-    if (!form.email.trim()) next.email = 'Email is required.'
-    else if (!emailPattern(form.email)) next.email = 'Enter a valid email address.'
-    if (!form.password) next.password = 'Password is required.'
+    if (!email.trim()) next.email = 'Email is required.'
+    else if (!emailPattern(email)) next.email = 'Enter a valid email address.'
     setErrors(next)
     if (Object.keys(next).length) return
-    clearRememberedAccountSuspension()
-    setStatus('loading'); setMessage('')
+    setStatus('loading')
+    setMessage('')
     try {
-      const response = throwIfAuthError(await authService.signInWithPassword(form.email.trim(), form.password))
-      if (!response.data.session) {
-        setStatus('success'); setMessage('Email verification may be required. Check your inbox or request another verification email.')
-        return
-      }
-      clearRememberedAccountSuspension()
-      navigate(redirectTarget, { replace: true })
-    } catch (error) {
-      const suspended = isSuspendedAccountError(error)
-      if (suspended) {
-        rememberAccountSuspension()
-        navigate('/account?access=suspended', { replace: true })
-        return
-      }
-      setStatus('error'); setMessage(describeError(error))
+      throwIfAuthError(await authService.sendLoginOtp(email.trim()))
+      setOtpSent(true)
+      setCode('')
+      setResendCooldown(60)
+      setStatus('success')
+      setMessage('If an account exists for this email, a 6-digit sign-in code has been sent. Check your inbox and spam folder.')
+    } catch (cause) {
+      setStatus('error')
+      setMessage(describeError(cause))
     }
   }
-  const google = async () => {
-    clearRememberedAccountSuspension()
-    setStatus('loading'); setMessage('')
-    try { throwIfAuthError(await authService.signInWithGoogle(redirectTarget)); clearRememberedAccountSuspension(); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
-    catch (error) { const suspended = isSuspendedAccountError(error); if (suspended) { rememberAccountSuspension(); navigate('/account?access=suspended', { replace: true }); return } setStatus('error'); setMessage(describeError(error)) }
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!otpSent) {
+      await sendCode()
+      return
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setErrors({ code: 'Enter the 6-digit code sent to your email.' })
+      return
+    }
+    setStatus('loading')
+    setMessage('')
+    try {
+      const response = throwIfAuthError(await authService.verifyLoginOtp(email.trim(), code))
+      if (!response.data.session) throw new Error('Email verification was not completed. Request a new code and try again.')
+      setStatus('success')
+      setMessage('Email verified. Signing you in securely…')
+      navigate(redirectTarget, { replace: true })
+    } catch (cause) {
+      setStatus('error')
+      setMessage(describeError(cause))
+    }
   }
+
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (user) return <Navigate to={redirectTarget} replace />
-  return <AuthLayout eyebrow="Authentication" title="Sign in to your account" intro="Sign in securely to manage your orders, wishlist, and account preferences."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><ProviderButton onClick={google} disabled={status === 'loading'} /><Divider /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="current-password" /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Signing in…') : t('Log in')}<ArrowRight size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__forgot" to="/forgot-password">{t('Forgot password?')}</Link><Link className="auth-link auth-form__forgot" to="/verify-email">{t('Resend verification email')}</Link></form><AuthLinks mode="login" /></AuthLayout>
+
+  return <AuthLayout eyebrow="Email verification" title={otpSent ? "Enter your sign-in code" : "Sign in to JTBazar"} intro={otpSent ? "Enter the 6-digit verification code sent to your registered email address." : "We will send a one-time 6-digit code to your registered email. You must verify it before accessing your account."}>
+    <form className="auth-form" onSubmit={(event) => void submit(event)} noValidate aria-busy={status === 'loading'}>
+      <AuthStatusMessage status={status} message={message} />
+      <AuthField label="Email" name="login-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setOtpSent(false); setCode(''); setErrors({}); setMessage('') }} error={errors.email} autoComplete="email" />
+      {otpSent && <div className="auth-field">
+        <label htmlFor="login-otp">{t('6-digit email code')} <span className="auth-field__meta">{t('Required')}</span></label>
+        <div className="auth-field__control">
+          <input id="login-otp" name="otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setErrors((current) => ({ ...current, code: '' })) }} placeholder="000000" required />
+        </div>
+        <FieldError id="login-otp-error" message={errors.code} />
+      </div>}
+      <button className="auth-submit" type="submit" disabled={status === 'loading' || (otpSent && code.length !== 6)}>
+        {status === 'loading' ? t(otpSent ? 'Verifying code…' : 'Sending code…') : t(otpSent ? 'Verify & sign in' : 'Send 6-digit code')}
+        <ArrowRight size={16} aria-hidden="true" />
+      </button>
+      {otpSent && <div className="auth-links">
+        <button className="auth-link" type="button" disabled={status === 'loading' || resendCooldown > 0} onClick={() => void sendCode()}>{resendCooldown > 0 ? t('Resend code in ' + resendCooldown + 's') : t('Resend code')}</button>
+        <button className="auth-link" type="button" onClick={() => { setOtpSent(false); setCode(''); setStatus('ready'); setMessage(''); setErrors({}) }}>{t('Change email')}</button>
+      </div>}
+      <Link className="auth-link auth-form__forgot" to="/forgot-password">{t('Forgot password?')}</Link>
+    </form>
+    <AuthLinks mode="login" />
+  </AuthLayout>
 }
 
 export function RegisterPage() {
@@ -184,11 +186,6 @@ export function RegisterPage() {
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
   const update = (event: ChangeEvent<HTMLInputElement>) => { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value })); setErrors((current) => ({ ...current, [name]: '' })) }
-  const google = async () => {
-    setStatus('loading'); setMessage('')
-    try { throwIfAuthError(await authService.signInWithGoogle()); setStatus('success'); setMessage('Redirecting to Google sign-in…') }
-    catch (error) { setStatus('error'); setMessage(friendlyAuthError(error)) }
-  }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const next: FieldErrors = {}
@@ -208,8 +205,9 @@ export function RegisterPage() {
       // Avoid exposing whether an email is registered. Supabase returns an empty
       // identities array for duplicate addresses when email confirmations are enabled.
       if (response.data.session) {
+        await authService.signOutLocal()
         clearPendingSignupEmail()
-        navigate('/account')
+        navigate('/login', { state: { email: form.email.trim() } })
       } else {
         try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, form.email.trim()) } catch { /* route state remains available */ }
         navigate('/verify-email', { state: { email: form.email.trim() } })
@@ -218,7 +216,7 @@ export function RegisterPage() {
       setStatus('error'); setMessage(friendlyAuthError(error))
     }
   }
-  return <AuthLayout eyebrow="Authentication" title="Create your account" intro="Create your Paperloom account to save your favorites and enjoy seamless shopping."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><ProviderButton onClick={google} disabled={status === 'loading'} /><Divider /><AuthField label="Full name" name="name" value={form.name} onChange={update} error={errors.name} autoComplete="name" /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" /><PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" /><div className="auth-terms"><label className="auth-checkbox auth-checkbox--terms"><input type="checkbox" name="terms" checked={form.terms} onChange={(event) => { setForm((current) => ({ ...current, terms: event.target.checked })); setErrors((current) => ({ ...current, terms: '' })) }} aria-invalid={Boolean(errors.terms)} aria-describedby={errors.terms ? 'terms-error' : undefined} /> <span>{t('I agree to the terms')}</span></label><Link className="auth-link auth-terms-link" to="/privacy">{t('Read privacy notes')}</Link></div><FieldError id="terms-error" message={errors.terms} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Creating account…') : t('Create account')}<ArrowRight size={16} aria-hidden="true" /></button></form><AuthLinks mode="register" /></AuthLayout>
+  return <AuthLayout eyebrow="Authentication" title="Create your account" intro="Create your Paperloom account to save your favorites and enjoy seamless shopping."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Full name" name="name" value={form.name} onChange={update} error={errors.name} autoComplete="name" /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" /><PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" /><div className="auth-terms"><label className="auth-checkbox auth-checkbox--terms"><input type="checkbox" name="terms" checked={form.terms} onChange={(event) => { setForm((current) => ({ ...current, terms: event.target.checked })); setErrors((current) => ({ ...current, terms: '' })) }} aria-invalid={Boolean(errors.terms)} aria-describedby={errors.terms ? 'terms-error' : undefined} /> <span>{t('I agree to the terms')}</span></label><Link className="auth-link auth-terms-link" to="/privacy">{t('Read privacy notes')}</Link></div><FieldError id="terms-error" message={errors.terms} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Creating account…') : t('Create account')}<ArrowRight size={16} aria-hidden="true" /></button></form><AuthLinks mode="register" /></AuthLayout>
 }
 
 export function ForgotPasswordPage() {
@@ -349,7 +347,12 @@ export function AuthCallbackPage() {
         const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
         if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
         clearPendingSignupEmail()
-        return getSafeAuthRedirect('', { from: params.get('next') })
+        const nextPath = getSafeAuthRedirect('', { from: params.get('next') })
+        if (nextPath === '/account') {
+          await authService.signOutLocal()
+          return '/login'
+        }
+        return nextPath
       })()
     }
 
