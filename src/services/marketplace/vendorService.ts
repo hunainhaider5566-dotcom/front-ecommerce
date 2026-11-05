@@ -156,7 +156,7 @@ export async function listOwnProductImageUrls(productId: string): Promise<string
     .select('image_url, storage_path, sort_order')
     .eq('product_id', productId)
     .order('sort_order', { ascending: true })
-    .limit(3)
+    .limit(8)
   assertError(error)
   return (data ?? []).map((image) => image.image_url || (image.storage_path
     ? client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl
