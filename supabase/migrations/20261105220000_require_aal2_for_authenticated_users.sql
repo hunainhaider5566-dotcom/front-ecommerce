@@ -45,6 +45,7 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.prosecdef
       AND l.lanname = 'plpgsql'
+      AND p.prorettype <> 'trigger'::regtype
       AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
       AND p.proname NOT IN ('get_public_availability', 'subscribe_newsletter')
   LOOP
@@ -53,7 +54,7 @@ BEGIN
       guarded_definition := regexp_replace(
         definition,
         E'\nBEGIN\n',
-        E'\nBEGIN\n  IF (auth.jwt() ->> ''aal'') IS DISTINCT FROM ''aal2'' THEN\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar MFA verification is required.'';\n  END IF;\n',
+        E'\nBEGIN\n  IF (auth.jwt() ->> ''role'') IS DISTINCT FROM ''service_role'' AND (auth.jwt() ->> ''aal'') IS DISTINCT FROM ''aal2'' THEN\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar MFA verification is required.'';\n  END IF;\n',
         ''
       );
       IF guarded_definition = definition THEN
@@ -101,7 +102,7 @@ AS $function$
   FROM public.order_items AS oi
   JOIN public.orders AS o ON o.id = oi.order_id
   JOIN public.seller_profiles AS seller ON seller.id = oi.seller_id
-  WHERE (auth.jwt() ->> 'aal') = 'aal2'
+  WHERE ((auth.jwt() ->> 'role') = 'service_role' OR (auth.jwt() ->> 'aal') = 'aal2')
     AND seller.user_id = (SELECT auth.uid())
     AND seller.status = 'approved';
 $function$;
