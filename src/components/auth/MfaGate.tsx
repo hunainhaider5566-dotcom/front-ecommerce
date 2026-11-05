@@ -136,7 +136,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
           <input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" style={codeInput} required />
         </label>}
         {error && <p role="alert" style={errorStyle}>{error}</p>}
-        <button type="submit" disabled={busy || (mode !== 'error' && code.length !== 6)} style={primaryButton}>
+        <button type="submit" disabled={busy || code.length !== 6} style={primaryButton}>
           {busy ? 'Verifying…' : mode === 'enroll' ? 'Verify and secure account' : 'Verify and continue'}
         </button>
       </form>}
