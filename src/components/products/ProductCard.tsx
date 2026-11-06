@@ -2,6 +2,8 @@ import { BookOpen, ShoppingBag, Store } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../../contexts/CartContext'
+import { useCatalog } from '../../contexts/CatalogContext'
+import { isFoodAvailabilityCategory } from '../../utils/foodAvailability'
 import { useI18n } from '../../i18n/LocaleContext'
 import { useToast } from '../../contexts/ToastContext'
 import type { Product } from '../../types/product'
@@ -14,10 +16,12 @@ export function ProductCard({ product }: { product: Product }) {
   const [adding, setAdding] = useState(false)
   const addLock = useRef(false)
   const { add } = useCart()
+  const { categories } = useCatalog()
   const navigate = useNavigate()
   const { t } = useI18n()
   const { push } = useToast()
   const name = t(product.name)
+  const foodCategory = isFoodAvailabilityCategory(product.categoryId, categories)
   const canAdd = product.isPublished && product.variants.length === 0 && product.availabilityStatus === 'available'
 
   async function handleAdd() {
@@ -56,7 +60,7 @@ export function ProductCard({ product }: { product: Product }) {
         <p className="product-card__description">{t(product.shortDescription)}</p>
         <div className="product-card__bottom">
           {product.isDailyItem && <span className="product-card__daily-status">{t(product.dailyStatus === 'coming_soon' ? 'Coming soon' : product.dailyStatus === 'not_today' ? 'Not for today' : 'Available today')}</span>}
-          <AvailabilityBadge status={product.availabilityStatus} />
+          <AvailabilityBadge status={product.availabilityStatus} foodCategory={foodCategory} />
           <button type="button" className="product-add" onClick={handleAdd} disabled={product.variants.length > 0 ? !product.isPublished || product.availabilityStatus === 'unavailable' : !canAdd || adding} aria-busy={adding} aria-label={product.variants.length ? `${t('Choose options for')} ${name}` : `${t('Add')} ${name} ${t('to cart')}`}>
             <ShoppingBag size={16} aria-hidden="true" /><span>{t(product.variants.length ? 'Choose options' : 'Add')}</span>
           </button>
