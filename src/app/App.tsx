@@ -40,13 +40,17 @@ function SplashScreen() {
   </div>
 }
 
-function hasEmailOtp(session: { access_token: string } | null) {
+function hasAcceptedSignInMethod(session: { access_token: string } | null) {
   if (!session?.access_token) return false
   try {
     const segment = session.access_token.split('.')[1]
     const normalized = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=')
     const claims = JSON.parse(atob(normalized)) as { amr?: Array<{ method?: string }> }
-    return Array.isArray(claims.amr) && claims.amr.some((entry) => entry.method === 'otp')
+    // Password sign-in must complete email OTP. Google OAuth is already
+    // authenticated by Google and must not be discarded by the OTP-only guard.
+    return Array.isArray(claims.amr) && claims.amr.some((entry) =>
+      entry.method === 'otp' || entry.method === 'oauth'
+    )
   } catch {
     return false
   }
@@ -56,15 +60,15 @@ function Storefront() {
   const { t, locale, direction } = useI18n()
   const { session, signOut } = useAuth()
   const location = useLocation()
-  const otpVerified = hasEmailOtp(session)
+  const acceptedSignInMethod = hasAcceptedSignInMethod(session)
   const passwordRecoveryPath = location.pathname === '/reset-password'
   const authCallbackPath = location.pathname === '/auth/callback'
   const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
-    if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) {
+    if (session && !acceptedSignInMethod && !passwordRecoveryPath && !authCallbackPath) {
       void signOut()
     }
-  }, [session?.access_token, otpVerified, passwordRecoveryPath, authCallbackPath, signOut])
+  }, [session?.access_token, acceptedSignInMethod, passwordRecoveryPath, authCallbackPath, signOut])
   useEffect(() => {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
     return () => window.clearTimeout(timeout)
