@@ -142,7 +142,7 @@ export function LoginPage() {
   })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(() => (location.state as { message?: string } | null)?.message ?? '')
 
   const update = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
