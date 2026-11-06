@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { CartProvider } from '../contexts/CartContext'
 import { CatalogProvider } from '../contexts/CatalogContext'
 import { AuthProvider } from '../contexts/AuthContext'
+import { MfaGate } from '../components/auth/MfaGate'
 import { WishlistProvider } from '../contexts/WishlistContext'
 import { ToastProvider } from '../contexts/ToastContext'
 import { LocaleProvider, useI18n } from '../i18n/LocaleContext'
@@ -38,8 +40,31 @@ function SplashScreen() {
   </div>
 }
 
+function hasEmailOtp(session: { access_token: string } | null) {
+  if (!session?.access_token) return false
+  try {
+    const segment = session.access_token.split('.')[1]
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=')
+    const claims = JSON.parse(atob(normalized)) as { amr?: Array<{ method?: string }> }
+    return Array.isArray(claims.amr) && claims.amr.some((entry) => entry.method === 'otp')
+  } catch {
+    return false
+  }
+}
+
 function Storefront() {
   const { t, locale, direction } = useI18n()
+  const { session, signOut } = useAuth()
+  const location = useLocation()
+  const otpVerified = hasEmailOtp(session)
+  const passwordRecoveryPath = location.pathname === '/reset-password'
+  const authCallbackPath = location.pathname === '/auth/callback'
+  useEffect(() => {
+    if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) {
+      void signOut()
+    }
+  }, [session?.access_token, otpVerified, passwordRecoveryPath, authCallbackPath, signOut])
+  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
   const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
@@ -93,5 +118,5 @@ function Storefront() {
 }
 
 export function App() {
-  return <BrowserRouter><LocaleProvider><ToastProvider><CatalogProvider><AuthProvider><CartProvider><WishlistProvider><Storefront /></WishlistProvider></CartProvider></AuthProvider></CatalogProvider></ToastProvider></LocaleProvider></BrowserRouter>
+  return <BrowserRouter><LocaleProvider><ToastProvider><CatalogProvider><AuthProvider><MfaGate><CartProvider><WishlistProvider><Storefront /></WishlistProvider></CartProvider></MfaGate></AuthProvider></CatalogProvider></ToastProvider></LocaleProvider></BrowserRouter>
 }
