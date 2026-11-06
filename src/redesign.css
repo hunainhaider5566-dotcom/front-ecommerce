@@ -1832,3 +1832,18 @@ button { font-family: var(--font-body); }
   .order-line-list__image { flex-basis: 62px; width: 62px; height: 72px; }
   .order-line-list__actions { padding-left: 72px; }
 }
+
+
+/* Compact review actions are intentionally placed after all order details. */
+.order-card__review-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.review-composer--compact { width: auto; min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.review-composer--compact .review-composer__heading,
+.review-composer--compact .review-composer__hint,
+.review-composer--compact .review-composer__list { display: none; }
+.review-composer--compact .review-composer__invite { margin: 0; padding: 0; }
+.review-composer--compact .review-composer__open { min-height: 42px; }
+@media (max-width: 640px) {
+  .order-card__review-actions { justify-content: stretch; }
+  .review-composer--compact { flex: 1 1 100%; }
+  .review-composer--compact .review-composer__open { width: 100%; justify-content: center; }
+}
