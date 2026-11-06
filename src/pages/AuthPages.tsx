@@ -142,7 +142,7 @@ export function LoginPage() {
   })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(() => (location.state as { message?: string } | null)?.message ?? '')
 
   const update = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -169,8 +169,12 @@ export function LoginPage() {
         const authError = passwordResult.error as { code?: string; message?: string }
         if (authError.code === 'email_not_confirmed') {
           throwIfAuthError(await authService.resendSignupConfirmation(email))
-          try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email) } catch { /* route state remains available */ }
-          navigate('/verify-email', { replace: true, state: { email } })
+          const pending: PendingOtp = { email, purpose: 'signup', redirect: redirectTarget }
+          try {
+            window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email)
+            window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending))
+          } catch { /* route state remains available */ }
+          navigate('/verify-otp', { replace: true, state: pending })
           return
         }
         throw passwordResult.error
@@ -268,11 +272,18 @@ export function RegisterPage() {
     try {
       const response = throwIfAuthError(await authService.signUp(email, form.password, form.name.trim()))
       if (response.data.session) {
+        // Email confirmation may be disabled in some Supabase environments.
+        // Keep registration deterministic: sign out and ask the customer to sign in.
         await authService.signOutLocal()
-        throwIfAuthError(await authService.resendSignupConfirmation(email))
+        navigate('/login', { replace: true, state: { email, message: 'Your account was created. Please sign in to continue.' } })
+        return
       }
-      try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email) } catch { /* route state remains available */ }
-      navigate('/verify-email', { replace: true, state: { email } })
+      const pendingOtp: PendingOtp = { email, purpose: 'signup', redirect: redirectTarget }
+      try {
+        window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pendingOtp))
+        window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email)
+      } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: pendingOtp })
     } catch (error) {
       setStatus('error')
       setMessage(friendlyAuthError(error))
@@ -357,7 +368,13 @@ export function VerifyOtpPage() {
       throwIfAuthError(result)
       try { window.sessionStorage.removeItem(PENDING_OTP_KEY); clearPendingSignupEmail() } catch { /* storage may be unavailable */ }
       clearRememberedAccountSuspension()
-      navigate(redirectTarget, { replace: true })
+      if (purpose === 'signup') {
+        // Signup OTP verification creates a session; require the customer to sign in explicitly.
+        await authService.signOutLocal()
+        navigate('/login', { replace: true, state: { email, message: 'Your email has been verified successfully. You can now sign in to JTBazar.' } })
+      } else {
+        navigate(redirectTarget, { replace: true })
+      }
     } catch (error) {
       if (isSuspendedAccountError(error)) {
         rememberAccountSuspension()
@@ -426,12 +443,12 @@ export function VerifyOtpPage() {
   }
 
   if (!email) return null
-  return <AuthLayout eyebrow="Account security" title="Verify your email" intro="Enter the six-digit code sent to your email address to finish signing in securely.">
+  return <AuthLayout eyebrow="Account security" title={purpose === 'signup' ? 'Verify your email' : 'Verify your sign-in'} intro={purpose === 'signup' ? 'Enter the six-digit code sent to your email address to activate your JTBazar account.' : 'Enter the six-digit code sent to your email address to finish signing in securely.'}>
     <div className="auth-form" aria-busy={status === 'loading'}>
       <AuthStatusMessage status={status} message={message} />
       <div className="auth-explainer">
         <Mail size={20} aria-hidden="true" />
-        <div><h2>{t('Check your inbox')}</h2><p>{t('We sent a six-digit verification code to')} <strong>{email}</strong>.</p></div>
+        <div><h2>{t(purpose === 'signup' ? 'Verify your new account' : 'Check your inbox')}</h2><p>{t('We sent a six-digit verification code to')} <strong>{email}</strong>.</p></div>
       </div>
       <div className="auth-otp">
         <div className="auth-otp__inputs" role="group" aria-label={t('Six-digit verification code')}>
@@ -542,13 +559,17 @@ export function VerifyEmailPage() {
     setError(''); setStatus('loading'); setMessage('')
     try {
       throwIfAuthError(await authService.resendSignupConfirmation(email.trim()))
-      setResendCooldown(60)
-      setStatus('success'); setMessage('A new verification email has been requested. If it does not arrive, wait 60 seconds and try again.')
+      const pending: PendingOtp = { email: email.trim().toLowerCase(), purpose: 'signup', redirect: '/account' }
+      try {
+        window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending))
+        window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, pending.email)
+      } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: pending })
     } catch (cause) { setStatus('error'); setMessage(describeError(cause)) }
   }
 
   if (authLoading || checkingVerification) return <section className="account-page"><div className="account-page__inner"><h1>{t('Checking email verification')}</h1><p role="status">{t('Please wait while we securely check your account status…')}</p></div></section>
-  return <AuthLayout eyebrow="Email confirmation" title="Check your email" intro="If this email address can be registered, we will send a confirmation link. If you already have an account, sign in instead."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('If a confirmation link was sent, open it from your inbox. If you do not see it, check spam or junk. Existing accounts can sign in instead.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} readOnly error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading' || resendCooldown > 0}>{status === 'loading' ? t('Sending confirmation link…') : resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend confirmation link')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form></AuthLayout>
+  return <AuthLayout eyebrow="Email confirmation" title="Check your email" intro="We will send a six-digit verification code. Enter it to activate your account. If you already have an account, sign in instead."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><div className="auth-explainer"><Mail size={20} aria-hidden="true" /><div><h2>{t('Check your inbox')}</h2><p>{t('Enter the six-digit code from your inbox. If you do not see it, check spam or junk. Existing accounts can sign in instead.')}</p></div></div><AuthField label="Email" name="verification-email" type="email" value={email} readOnly error={error} autoComplete="email" /><button className="auth-submit" type="submit" disabled={status === 'loading' || resendCooldown > 0}>{status === 'loading' ? t('Sending verification code…') : resendCooldown > 0 ? t(`Resend available in ${resendCooldown}s`) : t('Resend verification code')}<Mail size={16} aria-hidden="true" /></button><Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link></form></AuthLayout>
 }
 
 export function ResetPasswordPage() {

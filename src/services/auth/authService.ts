@@ -58,18 +58,18 @@ export const authService = {
   },
 
   signUp(email: string, password: string, fullName: string) {
+    // Supabase sends a six-digit signup OTP using the Confirm signup email template.
+    // No emailRedirectTo is supplied: signup confirmation is code-based, not link-based.
     return getSupabase().auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: callbackRedirect('/account'),
-      },
+      options: { data: { full_name: fullName } },
     })
   },
 
   resendSignupConfirmation(email: string) {
-    return getSupabase().auth.resend({ type: 'signup', email, options: { emailRedirectTo: callbackRedirect('/account') } })
+    // Resend the six-digit signup OTP (requires {{ .Token }} in the Confirm signup template).
+    return getSupabase().auth.resend({ type: 'signup', email })
   },
 
   exchangeCodeForSession(code: string) {
