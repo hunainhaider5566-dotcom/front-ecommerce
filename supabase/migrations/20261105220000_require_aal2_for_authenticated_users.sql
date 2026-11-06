@@ -51,7 +51,7 @@ BEGIN
     IF position('JTBazar authenticator verification is required.' IN definition) = 0 THEN
       guarded_definition := regexp_replace(
         definition,
-        E'\nBEGIN\n',
+        E'(?i)\nBEGIN\n',
         E'\nBEGIN\n  ' || new_guard || E'\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar authenticator verification is required.'';\n  END IF;\n',
         ''
       );
