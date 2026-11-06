@@ -23,7 +23,6 @@ function clearPendingSignupEmail() {
   try { window.sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY) }
   catch { /* session storage may be unavailable */ }
 }
-const emptyCredentials = { email: '', password: '' }
 const emptyRegistration = { name: '', email: '', password: '', confirmation: '', terms: false }
 
 function describeError(error: unknown) {
@@ -41,8 +40,10 @@ function friendlyAuthError(error: unknown) {
 
 function isSuspendedAccountError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
-  const authError = error as { code?: unknown; message?: unknown }
-  return authError.code === 'user_banned' || (typeof authError.message === 'string' && /\b(user|account) (is|has been) (banned|suspended)\b/i.test(authError.message))
+  const candidate = error as { code?: unknown; message?: unknown }
+  const code = typeof candidate.code === 'string' ? candidate.code : ''
+  const message = typeof candidate.message === 'string' ? candidate.message : ''
+  return code === 'user_banned' || code === 'account_suspended' || /\b(user|account) (is|has been) (banned|suspended)\b|vendor account (?:is )?locked/i.test(message)
 }
 
 function throwIfAuthError<T extends { error: { message: string } | null }>(response: T) {
@@ -112,18 +113,10 @@ function PasswordField({ name, label, value, onChange, error, autoComplete }: { 
   return <AuthField label={label} name={name} type={visible ? 'text' : 'password'} value={value} onChange={onChange} error={error} autoComplete={autoComplete}><button type="button" className="auth-password-toggle" onClick={() => setVisible((current) => !current)} aria-label={t(visible ? 'Hide password' : 'Show password')}><span aria-hidden="true">{visible ? <EyeOff size={16} /> : <Eye size={16} />}</span><span>{t(visible ? 'Hide' : 'Show')}</span></button></AuthField>
 }
 
-function isSuspendedAccountError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const candidate = error as { code?: unknown; message?: unknown }
-  const code = typeof candidate.code === 'string' ? candidate.code : ''
-  const message = typeof candidate.message === 'string' ? candidate.message : ''
-  return code === 'account_suspended' || /account (?:is )?suspended|user (?:is )?suspended|vendor account (?:is )?locked/i.test(message)
-}
-
 function ProviderButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   const { t } = useI18n()
   return <button type="button" className="auth-provider-button" onClick={onClick} disabled={disabled}>
-    <span aria-hidden="true">G</span>{t('Continue with Google')}
+    <span className="auth-provider-button__mark" aria-hidden="true"><GoogleIcon size={19} /></span><span>{t('Continue with Google')}</span>
   </button>
 }
 
