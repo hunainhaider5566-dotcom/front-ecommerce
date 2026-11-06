@@ -15,8 +15,13 @@ function callbackRedirect(nextPath: string, provider?: 'google') {
 
 export async function verifyPassword(email: string, password: string) {
   const ephemeral = createEphemeralSupabase()
-  const { error } = await ephemeral.auth.signInWithPassword({ email, password })
-  await ephemeral.auth.signOut({ scope: 'local' })
+  let error: { message: string; code?: string } | null = null
+  try {
+    const response = await ephemeral.auth.signInWithPassword({ email, password })
+    error = response.error
+  } finally {
+    await ephemeral.auth.signOut({ scope: 'local' })
+  }
   return { error }
 }
 
