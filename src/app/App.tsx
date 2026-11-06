@@ -21,7 +21,7 @@ import { WishlistPage } from '../pages/WishlistPage'
 import { CartPage } from '../pages/CartPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
 import { ConfirmationPage } from '../pages/ConfirmationPage'
-import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage } from '../pages/InfoPages'
+import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage, TermsPage } from '../pages/InfoPages'
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, VerifyOtpPage, ResetPasswordPage, AuthCallbackPage, LogoutPage } from '../pages/AuthPages'
 import { AccountPage } from '../pages/AccountPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -73,7 +73,7 @@ function Storefront() {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
     return () => window.clearTimeout(timeout)
   }, [])
-  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
+  if (session && !acceptedSignInMethod && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
   return <>
   <div className="app-shell" lang={locale} dir={direction}>
     <a className="skip-link" href="#main-content">{t('Skip to content')}</a>
@@ -110,6 +110,7 @@ function Storefront() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/shipping" element={<ShippingPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </main>
