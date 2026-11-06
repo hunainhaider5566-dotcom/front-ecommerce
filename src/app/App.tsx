@@ -59,17 +59,17 @@ function Storefront() {
   const otpVerified = hasEmailOtp(session)
   const passwordRecoveryPath = location.pathname === '/reset-password'
   const authCallbackPath = location.pathname === '/auth/callback'
+  const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
     if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) {
       void signOut()
     }
   }, [session?.access_token, otpVerified, passwordRecoveryPath, authCallbackPath, signOut])
-  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
-  const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
     return () => window.clearTimeout(timeout)
   }, [])
+  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
   return <>
   <div className="app-shell" lang={locale} dir={direction}>
     <a className="skip-link" href="#main-content">{t('Skip to content')}</a>
