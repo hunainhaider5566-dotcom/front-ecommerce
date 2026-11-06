@@ -169,9 +169,8 @@ export function LoginPage() {
         const authError = passwordResult.error as { code?: string; message?: string }
         if (authError.code === 'email_not_confirmed') {
           throwIfAuthError(await authService.resendSignupConfirmation(email))
-          const pending = { email, purpose: 'signup' as const, redirect: redirectTarget }
-          try { window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending)) } catch { /* route state remains available */ }
-          navigate('/verify-otp', { replace: true, state: pending })
+          try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email) } catch { /* route state remains available */ }
+          navigate('/verify-email', { replace: true, state: { email } })
           return
         }
         throw passwordResult.error
@@ -272,9 +271,8 @@ export function RegisterPage() {
         await authService.signOutLocal()
         throwIfAuthError(await authService.resendSignupConfirmation(email))
       }
-      const pending = { email, purpose: 'signup', redirect: redirectTarget }
-      try { window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending)) } catch { /* route state remains available */ }
-      navigate('/verify-otp', { replace: true, state: pending })
+      try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email) } catch { /* route state remains available */ }
+      navigate('/verify-email', { replace: true, state: { email } })
     } catch (error) {
       setStatus('error')
       setMessage(friendlyAuthError(error))
