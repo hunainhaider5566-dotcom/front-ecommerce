@@ -1,13 +1,14 @@
-export const PAKISTANI_MOBILE_PATTERN = /^(?:03[0-9]{9}|\+923[0-9]{9})$/
+export const PAKISTANI_MOBILE_PATTERN = /^(?:03\d{9}|\+923\d{9})$/
 export const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/
 
 export function isValidPakistaniMobile(value: string): boolean {
-  return PAKISTANI_MOBILE_PATTERN.test(value)
+  return PAKISTANI_MOBILE_PATTERN.test(value.trim())
 }
 
 export function normalizePakistaniMobile(value: string): string {
-  if (!isValidPakistaniMobile(value)) throw new Error('Enter a valid Pakistani mobile number: 03001234567 or +923001234567.')
-  return value.startsWith('03') ? '+92' + value.slice(1) : value
+  const mobile = value.trim()
+  if (!isValidPakistaniMobile(mobile)) throw new Error('Use 03 followed by 9 digits or +923 followed by 9 digits.')
+  return mobile.startsWith('03') ? '+92' + mobile.slice(1) : mobile
 }
 
 export function isValidEmail(value: string): boolean {

@@ -18,6 +18,7 @@ import { useI18n } from '../i18n/LocaleContext'
 import { formatPKR } from '../utils/money'
 import { supportDestination, productInquiryMessage } from '../utils/support'
 import { getFoodQuantityLabel } from '../utils/cart'
+import { isFoodAvailabilityCategory } from '../utils/foodAvailability'
 
 export function ProductPage() {
   const { t } = useI18n()
@@ -69,6 +70,7 @@ export function ProductPage() {
 
   const productName = t(product.name)
   const categoryName = t(categories.find((item) => item.id === product.categoryId)?.name ?? 'Collection')
+  const foodCategory = isFoodAvailabilityCategory(product.categoryId, categories)
   const images = product.images
   const activeImage = images[imageIndex]
   const selectedVariant = product.variants.find((variant) => variant.id === variantId)
@@ -112,12 +114,12 @@ export function ProductPage() {
         <p className="product-detail__description">{t(product.description)}</p>
         <div className="product-price-row">
           {discountPercent > 0 ? <span className="product-discount-price"><strong>{formatPKR(product.foodUnitPrice ?? price)}</strong><s>{formatPKR(product.originalFoodUnitPrice ?? originalPrice)}</s><small>{discountPercent}% OFF</small></span> : <strong>{formatPKR(product.foodUnitPrice ?? price)}</strong>}
-          <AvailabilityBadge status={availability} />
+          <AvailabilityBadge status={availability} foodCategory={foodCategory} />
         </div>
         <p className="product-price-caption">{product.foodSellingUnit ? `${t('Price per')} ${product.foodSellingUnit}` : t('Published catalog price')} · {t('Availability is checked again when you place your order.')}</p>
         {product.isDailyItem && <p className="product-price-caption"><strong>{t(product.dailyStatus === 'coming_soon' ? 'Coming soon' : product.dailyStatus === 'not_today' ? 'Not for today' : 'Available today')}</strong>{product.dailyStatus === 'available' && product.dailyAvailableQuantity !== undefined ? ` · ${product.dailyAvailableQuantity} ${t('available')}` : ''}</p>}
         {product.foodSellingUnit && product.sellerId && <p className="product-price-caption">{t('Nearby food delivery only · within 5 km of the shop')}</p>}
-        {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => { setVariantId(variant.id); setQuantity(Math.max(1, Math.min(quantity, getCartLineMaxQuantity(product, { productId: product.id, variantId: variant.id, quantity })))) }}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t('Out of stock')}</small>}</button> })}</div></fieldset>}
+        {product.variants.length > 0 && <fieldset className="variant-picker"><legend>{t(product.variants[0].label)}</legend><div className="variant-options">{product.variants.map((variant) => { const variantUnavailable = variant.availabilityStatus === 'out-of-stock'; return <button type="button" key={variant.id} className={`variant-option${variantId === variant.id ? ' is-selected' : ''}`} aria-pressed={variantId === variant.id} aria-disabled={variantUnavailable} onClick={() => { setVariantId(variant.id); setQuantity(Math.max(1, Math.min(quantity, getCartLineMaxQuantity(product, { productId: product.id, variantId: variant.id, quantity })))) }}><span>{t(variant.value)}{variant.price !== undefined && variant.price !== product.price ? ` · ${formatPKR(variant.price)}` : ''}</span>{variantId === variant.id && <Check size={14} />}{variantUnavailable && <small>{t(foodCategory ? 'Currently Unavailable' : 'Out of stock')}</small>}</button> })}</div></fieldset>}
         <div className="detail-purchase-row"><span className="eyebrow">{t('Quantity')}</span><QuantitySelector value={quantity} min={product.foodMinimumQuantity ?? 1} displayValue={product.foodSellingUnit ? getFoodQuantityLabel(product, quantity) : undefined} max={getCartLineMaxQuantity(product, { productId: product.id, quantity, variantId: variantId || undefined })} onChange={setQuantity} label={`${t('Quantity for')} ${productName}`} /></div>
         {product.foodSellingUnit && <p className="product-price-caption">{t('Estimated price for selected quantity')}: <strong>{formatPKR(Number(((product.foodUnitPrice ?? 0) * (product.foodQuantityIncrement ?? 1) * quantity / (product.foodSellingUnit === 'kg' || product.foodSellingUnit === 'l' ? 1000 : 1)).toFixed(2)))}</strong></p>}
         <button type="button" className="button button--dark button--full" disabled={!canAdd || added} onClick={handleAdd}>{added ? <><Check size={17} /> {t('Added to cart')}</> : <>{t('Add to cart')} <ArrowRight size={17} /></>}</button>
