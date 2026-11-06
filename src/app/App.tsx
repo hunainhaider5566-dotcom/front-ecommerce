@@ -73,7 +73,7 @@ function Storefront() {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
     return () => window.clearTimeout(timeout)
   }, [])
-  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
+  if (session && !acceptedSignInMethod && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
   return <>
   <div className="app-shell" lang={locale} dir={direction}>
     <a className="skip-link" href="#main-content">{t('Skip to content')}</a>
