@@ -57,6 +57,14 @@ export const authService = {
     return verifyPassword(email, password)
   },
 
+  sendLoginOtp(email: string) {
+    return getSupabase().auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+  },
+
+  verifyLoginOtp(email: string, token: string) {
+    return getSupabase().auth.verifyOtp({ email, token, type: 'email' })
+  },
+
   signUp(email: string, password: string, fullName: string) {
     return getSupabase().auth.signUp({
       email,
