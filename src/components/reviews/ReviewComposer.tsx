@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Star, Send } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Star, Send, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useI18n } from '../../i18n/LocaleContext'
@@ -19,6 +19,9 @@ export function ReviewComposer({ kind, targetId }: Props) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ownShop, setOwnShop] = useState(false)
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const dialogTitleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   async function refresh() {
     setLoading(true)
@@ -55,6 +58,21 @@ export function ReviewComposer({ kind, targetId }: Props) {
 
   useEffect(() => { void refresh() }, [targetId, kind, user?.id])
 
+  useEffect(() => {
+    if (!reviewDialogOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) setReviewDialogOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [reviewDialogOpen, saving])
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!orderId || saving) return
@@ -68,6 +86,8 @@ export function ReviewComposer({ kind, targetId }: Props) {
       push(t('Thanks for sharing your review.'), 'success')
       setTitle('')
       setComment('')
+      setRating(5)
+      setReviewDialogOpen(false)
       await refresh()
     } catch (cause) {
       push(cause instanceof Error ? cause.message : t('Your review could not be submitted.'), 'error')
@@ -83,12 +103,31 @@ export function ReviewComposer({ kind, targetId }: Props) {
       <div><span className="eyebrow">{t('Community feedback')}</span><h3>{t(kind === 'product' ? 'Customer reviews' : 'Shop reviews')}</h3></div>
       <div className="review-composer__summary"><Star size={17} fill="currentColor" /><strong>{average}</strong><span>{reviews.length} {t('reviews')}</span></div>
     </div>
-    {user && !ownShop && orderId && <form className="review-form" onSubmit={submit}>
-      <label>{t('Your rating')}<div className="review-form__stars" role="group" aria-label={t('Choose a rating')}>{[1,2,3,4,5].map(value => <button key={value} type="button" className={value <= rating ? 'is-selected' : ''} onClick={() => setRating(value)} aria-label={`${value} ${t('stars')}`} aria-pressed={rating === value}><Star size={22} fill={value <= rating ? 'currentColor' : 'none'} /></button>)}</div></label>
-      {kind === 'product' && <label>{t('Review title')}<input value={title} onChange={event => setTitle(event.target.value)} maxLength={120} placeholder={t('What stood out?')} /></label>}
-      <label>{t('Your review')}<textarea value={comment} onChange={event => setComment(event.target.value)} maxLength={2000} rows={3} placeholder={t('Share your experience')} /></label>
-      <button className="button button--dark" type="submit" disabled={saving || loading}><Send size={15} /> {t(saving ? 'Submitting…' : 'Submit review')}</button>
-    </form>}
+    {user && !ownShop && orderId && <>
+      <div className="review-composer__invite">
+        <p className="review-composer__hint">{t('Your order was delivered. Share your experience with other customers.')}</p>
+        <button type="button" className="button button--dark review-composer__open" onClick={() => setReviewDialogOpen(true)} disabled={loading}>
+          <Star size={15} /> {t('Write a review')}
+        </button>
+      </div>
+      {reviewDialogOpen && <div className="dialog-backdrop review-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setReviewDialogOpen(false) }}>
+        <section className="dialog-card review-dialog" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
+          <header className="review-dialog__header">
+            <div><span className="eyebrow">{t('Community feedback')}</span><h3 id={dialogTitleId}>{t(kind === 'product' ? 'Review this product' : 'Review this shop')}</h3></div>
+            <button ref={closeButtonRef} type="button" className="review-dialog__close" onClick={() => setReviewDialogOpen(false)} disabled={saving} aria-label={t('Close review form')}><X size={20} /></button>
+          </header>
+          <form className="review-form review-dialog__form" onSubmit={submit}>
+            <label>{t('Your rating')}<div className="review-form__stars" role="group" aria-label={t('Choose a rating')}>{[1,2,3,4,5].map(value => <button key={value} type="button" className={value <= rating ? 'is-selected' : ''} onClick={() => setRating(value)} aria-label={`${value} ${t('stars')}`} aria-pressed={rating === value}><Star size={22} fill={value <= rating ? 'currentColor' : 'none'} /></button>)}</div></label>
+            {kind === 'product' && <label>{t('Review title')}<input value={title} onChange={event => setTitle(event.target.value)} maxLength={120} placeholder={t('What stood out?')} /></label>}
+            <label>{t('Your review')}<textarea value={comment} onChange={event => setComment(event.target.value)} maxLength={2000} rows={4} placeholder={t('Share your experience')} /></label>
+            <div className="review-dialog__actions">
+              <button className="button button--dark" type="submit" disabled={saving || loading}><Send size={15} /> {t(saving ? 'Submitting…' : 'Submit review')}</button>
+              <button className="button button--outline" type="button" onClick={() => setReviewDialogOpen(false)} disabled={saving}>{t('Cancel')}</button>
+            </div>
+          </form>
+        </section>
+      </div>}
+    </>}
     {!user && <p className="review-composer__hint">{t('Sign in and place a delivered order to leave a review.')}</p>}
     {user && !ownShop && !orderId && <p className="review-composer__hint">{t('Reviews are available after a delivered order containing this product or from this shop.')}</p>}
     {ownShop && <p className="review-composer__hint">{t('You cannot review your own seller account.')}</p>}
