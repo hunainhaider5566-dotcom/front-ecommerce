@@ -23,6 +23,7 @@ function clearPendingSignupEmail() {
   try { window.sessionStorage.removeItem(PENDING_SIGNUP_EMAIL_KEY) }
   catch { /* session storage may be unavailable */ }
 }
+const emptyCredentials = { email: '', password: '' }
 const emptyRegistration = { name: '', email: '', password: '', confirmation: '', terms: false }
 
 function describeError(error: unknown) {
@@ -36,6 +37,12 @@ function friendlyAuthError(error: unknown) {
     return 'We could not complete this request. If you already have an account, please sign in; otherwise try again shortly.'
   }
   return message
+}
+
+function isSuspendedAccountError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const authError = error as { code?: unknown; message?: unknown }
+  return authError.code === 'user_banned' || (typeof authError.message === 'string' && /\b(user|account) (is|has been) (banned|suspended)\b/i.test(authError.message))
 }
 
 function throwIfAuthError<T extends { error: { message: string } | null }>(response: T) {
@@ -56,6 +63,29 @@ function AuthStatusMessage({ status, message }: { status: AuthStatus; message: s
   if (status === 'success') return <p className="auth-status auth-status--success" role="status" aria-live="polite"><CheckCircle2 size={17} aria-hidden="true" />{t(message)}</p>
   if (status === 'error') return <p className="auth-status auth-status--error" role="alert"><AlertCircle size={17} aria-hidden="true" />{t(message)}</p>
   return null
+}
+
+function GoogleIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="google-icon">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+      />
+    </svg>
+  )
 }
 
 function AuthLayout({ eyebrow, title, intro, children }: { eyebrow: string; title: string; intro: string; children: ReactNode }) {
@@ -182,7 +212,6 @@ export function LoginPage() {
       setMessage(describeError(error))
     }
   }
-
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (user) return <Navigate to={redirectTarget} replace />
 
