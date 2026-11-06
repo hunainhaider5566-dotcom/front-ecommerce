@@ -148,4 +148,14 @@ export const AUTH_URDU: Record<string, string> = {
   'My Account': 'میرا اکاؤنٹ',
   'Sign out of this account?': 'اس اکاؤنٹ سے سائن آؤٹ کریں؟',
   'Signed in': 'سائن اِن ہے',
+
+  'Checking credentials…': 'اسناد کی جانچ ہو رہی ہے…',
+  'We sent a six-digit verification code to': 'ہم نے چھ ہندسوں کا تصدیقی کوڈ اس پتے پر بھیجا ہے:',
+  'Six-digit verification code': 'چھ ہندسوں کا تصدیقی کوڈ',
+  'Verifying code…': 'کوڈ کی تصدیق ہو رہی ہے…',
+  'That code is invalid or has expired. Please check the code or request a new one.': 'یہ کوڈ غلط ہے یا اس کی میعاد ختم ہو چکی ہے۔ کوڈ چیک کریں یا نیا کوڈ منگوائیں۔',
+  'Too many attempts. Please wait a little before requesting another code.': 'بہت زیادہ کوششیں ہو چکی ہیں۔ نیا کوڈ منگوانے سے پہلے کچھ دیر انتظار کریں۔',
+  'A new six-digit verification code has been sent. Please check your inbox.': 'نیا چھ ہندسوں کا تصدیقی کوڈ بھیج دیا گیا ہے۔ اپنا اِن باکس چیک کریں۔',
+  'Google sign-in could not be completed for this email. If you created your account with email and password, please sign in with your email and password instead.': 'اس ای میل کے لیے گوگل سائن اِن مکمل نہیں ہو سکا۔ اگر آپ نے ای میل اور پاس ورڈ سے اکاؤنٹ بنایا تھا تو اسی طریقے سے سائن اِن کریں۔',
+  'Google sign-in was cancelled.': 'گوگل سائن اِن منسوخ کر دیا گیا۔'
 }

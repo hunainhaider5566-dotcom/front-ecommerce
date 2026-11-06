@@ -1,16 +1,60 @@
-import { getSupabase } from '../../lib/supabase'
+import type { User } from '@supabase/supabase-js'
+import { createEphemeralSupabase, getSupabase } from '../../lib/supabase'
+
+export const OTP_LENGTH = 6
 
 function redirect(path: string) {
   return new URL(path, window.location.origin).toString()
 }
 
-function callbackRedirect(nextPath: string) {
-  return redirect(`/auth/callback?next=${encodeURIComponent(nextPath)}`)
+function callbackRedirect(nextPath: string, provider?: 'google') {
+  const query = new URLSearchParams({ next: nextPath })
+  if (provider) query.set('provider', provider)
+  return redirect(`/auth/callback?${query.toString()}`)
+}
+
+export async function verifyPassword(email: string, password: string) {
+  const ephemeral = createEphemeralSupabase()
+  let error: { message: string; code?: string } | null = null
+  try {
+    const response = await ephemeral.auth.signInWithPassword({ email, password })
+    error = response.error
+  } finally {
+    await ephemeral.auth.signOut({ scope: 'local' })
+  }
+  return { error }
+}
+
+export function sendLoginOtp(email: string) {
+  return getSupabase().auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  })
+}
+
+export function verifyLoginOtp(email: string, token: string) {
+  return getSupabase().auth.verifyOtp({ email, token, type: 'email' })
+}
+
+export function verifySignupOtp(email: string, token: string) {
+  return getSupabase().auth.verifyOtp({ email, token, type: 'signup' })
+}
+
+export function isGoogleBlockedForUser(user: User): boolean {
+  const identities = (user.identities ?? []) as Array<{
+    provider?: string
+    created_at?: string | null
+  }>
+  const emailIdentity = identities.find((identity) => identity.provider === 'email')
+  const googleIdentity = identities.find((identity) => identity.provider === 'google')
+  if (!emailIdentity || !googleIdentity) return false
+  if (!emailIdentity.created_at || !googleIdentity.created_at) return true
+  return new Date(emailIdentity.created_at).getTime() <= new Date(googleIdentity.created_at).getTime()
 }
 
 export const authService = {
   signInWithPassword(email: string, password: string) {
-    return getSupabase().auth.signInWithPassword({ email, password })
+    return verifyPassword(email, password)
   },
 
   sendLoginOtp(email: string) {
@@ -44,6 +88,10 @@ export const authService = {
     return getSupabase().auth.getUser()
   },
 
+  sendLoginOtp,
+  verifyLoginOtp,
+  verifySignupOtp,
+
   sendPasswordRecovery(email: string) {
     return getSupabase().auth.resetPasswordForEmail(email, { redirectTo: callbackRedirect('/reset-password') })
   },
@@ -55,9 +103,11 @@ export const authService = {
   signInWithGoogle(redirectPath = '/account') {
     return getSupabase().auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: callbackRedirect(redirectPath) },
+      options: { redirectTo: callbackRedirect(redirectPath, 'google') },
     })
   },
+
+  isGoogleBlockedForUser,
 
   getOwnProfile() {
     return getSupabase().from('profiles').select('id, full_name, phone, avatar_url, created_at, updated_at').maybeSingle()

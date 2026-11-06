@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { CartProvider } from '../contexts/CartContext'
 import { CatalogProvider } from '../contexts/CatalogContext'
 import { AuthProvider } from '../contexts/AuthContext'
@@ -22,7 +22,7 @@ import { CartPage } from '../pages/CartPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
 import { ConfirmationPage } from '../pages/ConfirmationPage'
 import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage } from '../pages/InfoPages'
-import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, ResetPasswordPage, AuthCallbackPage, LogoutPage } from '../pages/AuthPages'
+import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, VerifyOtpPage, ResetPasswordPage, AuthCallbackPage, LogoutPage } from '../pages/AuthPages'
 import { AccountPage } from '../pages/AccountPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { VendorApplicationPage, VendorDashboardPage } from '../pages/VendorPages'
@@ -59,17 +59,17 @@ function Storefront() {
   const otpVerified = hasEmailOtp(session)
   const passwordRecoveryPath = location.pathname === '/reset-password'
   const authCallbackPath = location.pathname === '/auth/callback'
+  const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
     if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) {
       void signOut()
     }
   }, [session?.access_token, otpVerified, passwordRecoveryPath, authCallbackPath, signOut])
-  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
-  const [showSplash, setShowSplash] = useState(true)
   useEffect(() => {
     const timeout = window.setTimeout(() => setShowSplash(false), 950)
     return () => window.clearTimeout(timeout)
   }, [])
+  if (session && !otpVerified && !passwordRecoveryPath && !authCallbackPath) return <SplashScreen />
   return <>
   <div className="app-shell" lang={locale} dir={direction}>
     <a className="skip-link" href="#main-content">{t('Skip to content')}</a>
@@ -97,7 +97,7 @@ function Storefront() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/verify-otp" element={<Navigate to="/verify-email" replace />} />
+        <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/logout" element={<LogoutPage />} />
         <Route path="/about" element={<AboutPage />} />

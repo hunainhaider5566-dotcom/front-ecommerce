@@ -23,6 +23,19 @@ export const supabase = isSupabaseConfigured
     })
   : null
 
+export function createEphemeralSupabase() {
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.')
+  return createClient<Database>(supabaseUrl, publishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: 'jtbazar-password-precheck',
+      flowType: 'pkce',
+    },
+  })
+}
+
 export function getSupabase() {
   if (!supabase) throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.')
   return supabase

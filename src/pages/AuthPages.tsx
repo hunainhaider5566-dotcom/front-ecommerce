@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from 'react'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Info, KeyRound, LockKeyhole, LogOut, Mail } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/LocaleContext'
-import { authService } from '../services/auth/authService'
+import { authService, OTP_LENGTH } from '../services/auth/authService'
+import { clearRememberedAccountSuspension, rememberAccountSuspension } from '../services/auth/accountAccessNotice'
 import { LoadingState } from '../components/common/States'
 import { isValidEmail } from '../utils/contactValidation'
 type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
@@ -11,6 +12,7 @@ type FieldErrors = Record<string, string>
 
 const emailPattern = isValidEmail
 const PENDING_SIGNUP_EMAIL_KEY = 'jtbazar_pending_signup_email'
+const GOOGLE_PASSWORD_ACCOUNT_MESSAGE = "Google sign-in could not be completed for this email. If you created your account with email and password, please sign in with your email and password instead."
 
 function getPendingSignupEmail() {
   try { return window.sessionStorage.getItem(PENDING_SIGNUP_EMAIL_KEY) ?? '' }
@@ -98,81 +100,75 @@ export function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return
-    const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000)
-    return () => window.clearTimeout(timer)
-  }, [resendCooldown])
-
-  const sendCode = async () => {
+  const update = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target
+    setForm((current) => ({ ...current, [name]: value }))
+    setErrors((current) => ({ ...current, [name]: '' }))
+  }
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     const next: FieldErrors = {}
     if (!email.trim()) next.email = 'Email is required.'
     else if (!emailPattern(email)) next.email = 'Enter a valid email address.'
     setErrors(next)
     if (Object.keys(next).length) return
+
+    clearRememberedAccountSuspension()
     setStatus('loading')
     setMessage('')
+    const email = form.email.trim().toLowerCase()
     try {
-      throwIfAuthError(await authService.sendLoginOtp(email.trim()))
-      setOtpSent(true)
-      setCode('')
-      setResendCooldown(60)
-      setStatus('success')
-      setMessage('If an account exists for this email, a 6-digit sign-in code has been sent. Check your inbox and spam folder.')
-    } catch (cause) {
+      const passwordResult = await authService.signInWithPassword(email, form.password)
+      if (passwordResult.error) {
+        const authError = passwordResult.error as { code?: string; message?: string }
+        if (authError.code === 'email_not_confirmed') {
+          throwIfAuthError(await authService.resendSignupConfirmation(email))
+          try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'signup', redirect: redirectTarget })) } catch { /* route state remains available */ }
+          navigate('/verify-otp', { replace: true, state: { email, purpose: 'signup', redirect: redirectTarget } })
+          return
+        }
+        throw passwordResult.error
+      }
+
+      throwIfAuthError(await authService.sendLoginOtp(email))
+      try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'login', redirect: redirectTarget })) } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: { email, purpose: 'login', redirect: redirectTarget } })
+    } catch (error) {
+      if (isSuspendedAccountError(error)) {
+        rememberAccountSuspension()
+        navigate('/account?access=suspended', { replace: true })
+        return
+      }
       setStatus('error')
-      setMessage(describeError(cause))
+      setMessage(describeError(error))
     }
   }
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!otpSent) {
-      await sendCode()
-      return
-    }
-    if (!/^\d{6}$/.test(code)) {
-      setErrors({ code: 'Enter the 6-digit code sent to your email.' })
-      return
-    }
+  const google = async () => {
+    clearRememberedAccountSuspension()
     setStatus('loading')
     setMessage('')
     try {
-      const response = throwIfAuthError(await authService.verifyLoginOtp(email.trim(), code))
-      if (!response.data.session) throw new Error('Email verification was not completed. Request a new code and try again.')
+      throwIfAuthError(await authService.signInWithGoogle(redirectTarget))
       setStatus('success')
-      setMessage('Email verified. Signing you in securely…')
-      navigate(redirectTarget, { replace: true })
-    } catch (cause) {
+      setMessage('Redirecting to Google sign-in…')
+    } catch (error) {
       setStatus('error')
-      setMessage(describeError(cause))
+      setMessage(describeError(error))
     }
   }
 
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (user) return <Navigate to={redirectTarget} replace />
-
-  return <AuthLayout eyebrow="Email verification" title={otpSent ? "Enter your sign-in code" : "Sign in to JTBazar"} intro={otpSent ? "Enter the 6-digit verification code sent to your registered email address." : "We will send a one-time 6-digit code to your registered email. You must verify it before accessing your account."}>
-    <form className="auth-form" onSubmit={(event) => void submit(event)} noValidate aria-busy={status === 'loading'}>
+  return <AuthLayout eyebrow="Authentication" title="Sign in to your account" intro="Sign in securely to manage your orders, wishlist, and account preferences.">
+    <form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}>
       <AuthStatusMessage status={status} message={message} />
-      <AuthField label="Email" name="login-email" type="email" value={email} onChange={(event) => { setEmail(event.target.value); setOtpSent(false); setCode(''); setErrors({}); setMessage('') }} error={errors.email} autoComplete="email" />
-      {otpSent && <div className="auth-field">
-        <label htmlFor="login-otp">{t('6-digit email code')} <span className="auth-field__meta">{t('Required')}</span></label>
-        <div className="auth-field__control">
-          <input id="login-otp" name="otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setErrors((current) => ({ ...current, code: '' })) }} placeholder="000000" required />
-        </div>
-        <FieldError id="login-otp-error" message={errors.code} />
-      </div>}
-      <button className="auth-submit" type="submit" disabled={status === 'loading' || (otpSent && code.length !== 6)}>
-        {status === 'loading' ? t(otpSent ? 'Verifying code…' : 'Sending code…') : t(otpSent ? 'Verify & sign in' : 'Send 6-digit code')}
-        <ArrowRight size={16} aria-hidden="true" />
-      </button>
-      {otpSent && <div className="auth-links">
-        <button className="auth-link" type="button" disabled={status === 'loading' || resendCooldown > 0} onClick={() => void sendCode()}>{resendCooldown > 0 ? t('Resend code in ' + resendCooldown + 's') : t('Resend code')}</button>
-        <button className="auth-link" type="button" onClick={() => { setOtpSent(false); setCode(''); setStatus('ready'); setMessage(''); setErrors({}) }}>{t('Change email')}</button>
-      </div>}
+      <ProviderButton onClick={google} disabled={status === 'loading'} />
+      <Divider />
+      <AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" />
+      <PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="current-password" />
+      <button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Checking credentials…') : t('Log in')}<ArrowRight size={16} aria-hidden="true" /></button>
       <Link className="auth-link auth-form__forgot" to="/forgot-password">{t('Forgot password?')}</Link>
+      <Link className="auth-link auth-form__forgot" to="/verify-email">{t('Resend verification email')}</Link>
     </form>
     <AuthLinks mode="login" />
   </AuthLayout>
@@ -180,12 +176,30 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const { t } = useI18n()
+  const location = useLocation()
   const navigate = useNavigate()
+  const redirectTarget = getSafeAuthRedirect(location.search, location.state)
   const [form, setForm] = useState(emptyRegistration)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
-  const update = (event: ChangeEvent<HTMLInputElement>) => { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value })); setErrors((current) => ({ ...current, [name]: '' })) }
+  const update = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target
+    setForm((current) => ({ ...current, [name]: value }))
+    setErrors((current) => ({ ...current, [name]: '' }))
+  }
+  const google = async () => {
+    setStatus('loading')
+    setMessage('')
+    try {
+      throwIfAuthError(await authService.signInWithGoogle(redirectTarget))
+      setStatus('success')
+      setMessage('Redirecting to Google sign-in…')
+    } catch (error) {
+      setStatus('error')
+      setMessage(friendlyAuthError(error))
+    }
+  }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const next: FieldErrors = {}
@@ -199,25 +213,215 @@ export function RegisterPage() {
     if (!form.terms) next.terms = 'Please accept the terms to create an account.'
     setErrors(next)
     if (Object.keys(next).length) return
-    setStatus('loading'); setMessage('')
+
+    setStatus('loading')
+    setMessage('')
+    const email = form.email.trim().toLowerCase()
     try {
-      const response = throwIfAuthError(await authService.signUp(form.email.trim(), form.password, form.name.trim()))
-      // Avoid exposing whether an email is registered. Supabase returns an empty
-      // identities array for duplicate addresses when email confirmations are enabled.
+      const response = throwIfAuthError(await authService.signUp(email, form.password, form.name.trim()))
       if (response.data.session) {
         await authService.signOutLocal()
-        clearPendingSignupEmail()
-        navigate('/login', { state: { email: form.email.trim() } })
-      } else {
-        try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, form.email.trim()) } catch { /* route state remains available */ }
-        navigate('/verify-email', { state: { email: form.email.trim() } })
+        throwIfAuthError(await authService.resendSignupConfirmation(email))
       }
+      const pending = { email, purpose: 'signup', redirect: redirectTarget }
+      try { window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending)) } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: pending })
     } catch (error) {
-      setStatus('error'); setMessage(friendlyAuthError(error))
+      setStatus('error')
+      setMessage(friendlyAuthError(error))
     }
   }
-  return <AuthLayout eyebrow="Authentication" title="Create your account" intro="Create your Paperloom account to save your favorites and enjoy seamless shopping."><form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}><AuthStatusMessage status={status} message={message} /><AuthField label="Full name" name="name" value={form.name} onChange={update} error={errors.name} autoComplete="name" /><AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" /><PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" /><PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" /><div className="auth-terms"><label className="auth-checkbox auth-checkbox--terms"><input type="checkbox" name="terms" checked={form.terms} onChange={(event) => { setForm((current) => ({ ...current, terms: event.target.checked })); setErrors((current) => ({ ...current, terms: '' })) }} aria-invalid={Boolean(errors.terms)} aria-describedby={errors.terms ? 'terms-error' : undefined} /> <span>{t('I agree to the terms')}</span></label><Link className="auth-link auth-terms-link" to="/privacy">{t('Read privacy notes')}</Link></div><FieldError id="terms-error" message={errors.terms} /><button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Creating account…') : t('Create account')}<ArrowRight size={16} aria-hidden="true" /></button></form><AuthLinks mode="register" /></AuthLayout>
+  return <AuthLayout eyebrow="Authentication" title="Create your account" intro="Create your JTBazar account to save your favorites and enjoy seamless shopping.">
+    <form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}>
+      <AuthStatusMessage status={status} message={message} />
+      <ProviderButton onClick={google} disabled={status === 'loading'} />
+      <Divider />
+      <AuthField label="Full name" name="name" value={form.name} onChange={update} error={errors.name} autoComplete="name" />
+      <AuthField label="Email" name="email" type="email" value={form.email} onChange={update} error={errors.email} autoComplete="email" />
+      <PasswordField label="Password" name="password" value={form.password} onChange={update} error={errors.password} autoComplete="new-password" />
+      <PasswordField label="Confirm password" name="confirmation" value={form.confirmation} onChange={update} error={errors.confirmation} autoComplete="new-password" />
+      <div className="auth-terms">
+        <label className="auth-checkbox auth-checkbox--terms"><input type="checkbox" name="terms" checked={form.terms} onChange={(event) => { setForm((current) => ({ ...current, terms: event.target.checked })); setErrors((current) => ({ ...current, terms: '' })) }} aria-invalid={Boolean(errors.terms)} aria-describedby={errors.terms ? 'terms-error' : undefined} /> <span>{t('I agree to the terms')}</span></label>
+        <Link className="auth-link auth-terms-link" to="/privacy">{t('Read privacy notes')}</Link>
+      </div>
+      <FieldError id="terms-error" message={errors.terms} />
+      <button className="auth-submit" type="submit" disabled={status === 'loading'}>{status === 'loading' ? t('Creating account…') : t('Create account')}<ArrowRight size={16} aria-hidden="true" /></button>
+    </form>
+    <AuthLinks mode="register" />
+  </AuthLayout>
 }
+
+const PENDING_OTP_KEY = 'jtbazar_pending_email_otp'
+type OtpPurpose = 'login' | 'signup'
+type PendingOtp = { email: string; purpose: OtpPurpose; redirect?: string }
+
+function readPendingOtp(): PendingOtp | null {
+  try {
+    const value = sessionStorage.getItem(PENDING_OTP_KEY)
+    if (!value) return null
+    const parsed = JSON.parse(value) as PendingOtp
+    return parsed.email && (parsed.purpose === 'login' || parsed.purpose === 'signup') ? parsed : null
+  } catch { return null }
+}
+
+function otpErrorMessage(error: unknown) {
+  const message = describeError(error)
+  if (/invalid.*(otp|token)|otp.*(invalid|incorrect)|token.*(invalid|expired)|expired/i.test(message)) return 'That code is invalid or has expired. Please check the code or request a new one.'
+  if (/rate.?limit|too many requests|email rate limit/i.test(message)) return 'Too many attempts. Please wait a little before requesting another code.'
+  return message
+}
+
+export function VerifyOtpPage() {
+  const { t } = useI18n()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const state = location.state as PendingOtp | null
+  const pending = state?.email ? state : readPendingOtp()
+  const email = pending?.email ?? ''
+  const purpose = pending?.purpose ?? 'signup'
+  const redirectTarget = getSafeAuthRedirect('', { from: pending?.redirect })
+  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [status, setStatus] = useState<AuthStatus>('ready')
+  const [message, setMessage] = useState('')
+  const [cooldown, setCooldown] = useState(60)
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const submittingRef = useRef(false)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = window.setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [cooldown])
+
+  useEffect(() => {
+    if (!email) navigate('/login', { replace: true })
+    else inputRefs.current[0]?.focus()
+  }, [email, navigate])
+
+  const verifyCode = async (code: string) => {
+    if (code.length !== OTP_LENGTH || submittingRef.current || !email) return
+    submittingRef.current = true
+    setStatus('loading')
+    setMessage('')
+    try {
+      const result = purpose === 'login'
+        ? await authService.verifyLoginOtp(email, code)
+        : await authService.verifySignupOtp(email, code)
+      throwIfAuthError(result)
+      try { window.sessionStorage.removeItem(PENDING_OTP_KEY); clearPendingSignupEmail() } catch { /* storage may be unavailable */ }
+      clearRememberedAccountSuspension()
+      navigate(redirectTarget, { replace: true })
+    } catch (error) {
+      if (isSuspendedAccountError(error)) {
+        rememberAccountSuspension()
+        navigate('/account?access=suspended', { replace: true })
+        return
+      }
+      setStatus('error')
+      setMessage(otpErrorMessage(error))
+      setDigits(Array(OTP_LENGTH).fill(''))
+      inputRefs.current[0]?.focus()
+    } finally {
+      submittingRef.current = false
+    }
+  }
+
+  const updateDigit = (index: number, rawValue: string) => {
+    const value = rawValue.replace(/\D/g, '')
+    if (value.length > 1) {
+      const pasted = value.slice(0, OTP_LENGTH).split('')
+      const next = Array(OTP_LENGTH).fill('').map((_, i) => pasted[i] ?? '')
+      setDigits(next)
+      setMessage('')
+      if (pasted.length === OTP_LENGTH) void verifyCode(pasted.join(''))
+      else inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus()
+      return
+    }
+    if (!value) {
+      setDigits((current) => current.map((digit, i) => i === index ? '' : digit))
+      return
+    }
+    const next = [...digits]
+    next[index] = value.slice(-1)
+    setDigits(next)
+    setMessage('')
+    if (index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
+    const code = next.join('')
+    if (code.length === OTP_LENGTH) void verifyCode(code)
+  }
+
+  const pasteCode = (event: ClipboardEvent<HTMLInputElement>) => {
+    event.preventDefault()
+    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+    if (!pasted) return
+    const next = Array(OTP_LENGTH).fill('').map((_, index) => pasted[index] ?? '')
+    setDigits(next)
+    if (pasted.length === OTP_LENGTH) void verifyCode(pasted)
+    else inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus()
+  }
+
+  const resend = async () => {
+    if (cooldown > 0 || status === 'loading') return
+    setStatus('loading')
+    setMessage('')
+    try {
+      const result = purpose === 'login'
+        ? await authService.sendLoginOtp(email)
+        : await authService.resendSignupConfirmation(email)
+      throwIfAuthError(result)
+      setCooldown(60)
+      setStatus('success')
+      setMessage('A new six-digit verification code has been sent. Please check your inbox.')
+    } catch (error) {
+      setStatus('error')
+      setMessage(otpErrorMessage(error))
+    }
+  }
+
+  if (!email) return null
+  return <AuthLayout eyebrow="Account security" title="Verify your email" intro="Enter the six-digit code sent to your email address to finish signing in securely.">
+    <div className="auth-form" aria-busy={status === 'loading'}>
+      <AuthStatusMessage status={status} message={message} />
+      <div className="auth-explainer">
+        <Mail size={20} aria-hidden="true" />
+        <div><h2>{t('Check your inbox')}</h2><p>{t('We sent a six-digit verification code to')} <strong>{email}</strong>.</p></div>
+      </div>
+      <div className="auth-otp">
+        <div className="auth-otp__inputs" role="group" aria-label={t('Six-digit verification code')}>
+          {digits.map((digit, index) => <input
+            key={index}
+            ref={(element) => { inputRefs.current[index] = element }}
+            className="auth-otp__input"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={1}
+            value={digit}
+            autoComplete={index === 0 ? 'one-time-code' : 'off'}
+            aria-label={`Digit ${index + 1}`}
+            disabled={status === 'loading'}
+            onChange={(event) => updateDigit(index, event.target.value)}
+            onPaste={pasteCode}
+            onKeyDown={(event) => {
+              if (event.key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus()
+              if (event.key === 'ArrowLeft' && index > 0) inputRefs.current[index - 1]?.focus()
+              if (event.key === 'ArrowRight' && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
+            }}
+          />)}
+        </div>
+      </div>
+      <button className="auth-submit" type="button" disabled={status === 'loading' || digits.join('').length !== OTP_LENGTH} onClick={() => void verifyCode(digits.join(''))}>
+        {status === 'loading' ? t('Verifying code…') : t('Verify code')}<ArrowRight size={16} aria-hidden="true" />
+      </button>
+      <button className="auth-link auth-otp__resend" type="button" disabled={cooldown > 0 || status === 'loading'} onClick={() => void resend()}>
+        {cooldown > 0 ? t(`Resend code in ${cooldown}s`) : t('Resend code')}
+      </button>
+      <Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link>
+    </div>
+  </AuthLayout>
+}
+
+
 
 export function ForgotPasswordPage() {
   const { t } = useI18n()
@@ -331,28 +535,34 @@ export function AuthCallbackPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [message, setMessage] = useState('Completing your secure sign-in…')
+  const [googleError, setGoogleError] = useState(false)
   const completionRef = useRef<Promise<string> | null>(null)
 
   useEffect(() => {
     let active = true
     if (!completionRef.current) {
       completionRef.current = (async () => {
-        const params = new URLSearchParams(location.search)
-        const providerError = params.get('error_description') || params.get('error')
+        const query = new URLSearchParams(location.search)
+        const hash = new URLSearchParams(location.hash.replace(/^#/, ''))
+        const provider = query.get('provider')
+        const providerError = query.get('error_description') || query.get('error') || hash.get('error_description') || hash.get('error')
+        if (provider === 'google' && providerError) {
+          const normalized = providerError.replace(/\+/g, ' ')
+          throw new Error(normalized === 'access_denied' ? 'Google sign-in was cancelled.' : GOOGLE_PASSWORD_ACCOUNT_MESSAGE)
+        }
         if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
 
-        const code = params.get('code')
+        const code = query.get('code')
         if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
-
         const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
         if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
-        clearPendingSignupEmail()
-        const nextPath = getSafeAuthRedirect('', { from: params.get('next') })
-        if (nextPath === '/account') {
+        if (provider === 'google' && authService.isGoogleBlockedForUser(response.data.session.user)) {
           await authService.signOutLocal()
-          return '/login'
+          throw new Error(GOOGLE_PASSWORD_ACCOUNT_MESSAGE)
         }
-        return nextPath
+        clearPendingSignupEmail()
+        const nextPath = getSafeAuthRedirect('', { from: query.get('next') })
+        return provider !== 'google' && nextPath === '/account' ? '/login' : nextPath
       })()
     }
 
@@ -360,19 +570,21 @@ export function AuthCallbackPage() {
       if (active) navigate(next, { replace: true })
     }).catch((cause: unknown) => {
       if (!active) return
+      const isGoogle = new URLSearchParams(location.search).get('provider') === 'google'
+      setGoogleError(isGoogle)
       setStatus('error')
-      setMessage(friendlyAuthError(cause))
+      setMessage(isGoogle ? (describeError(cause) === 'Google sign-in was cancelled.' ? 'Google sign-in was cancelled.' : GOOGLE_PASSWORD_ACCOUNT_MESSAGE) : friendlyAuthError(cause))
     })
-
     return () => { active = false }
-  }, [location.search, navigate])
+  }, [location.search, location.hash, navigate])
 
-  return <AuthLayout eyebrow="Account security" title="Finishing verification" intro="Please wait while we securely confirm your account.">
+  return <AuthLayout eyebrow="Account security" title={googleError ? 'Google sign-in unavailable' : 'Finishing verification'} intro={googleError ? message : 'Please wait while we securely confirm your account.'}>
     <div className="auth-form" aria-busy={status === 'loading'}>
-      <AuthStatusMessage status={status} message={message} />
+      {!googleError && <AuthStatusMessage status={status} message={message} />}
       {status === 'error' && <div className="auth-callback-actions">
-        <Link className="auth-submit" to="/verify-email">{t('Request a new verification email')}<Mail size={16} aria-hidden="true" /></Link>
-        <Link className="auth-link" to="/login">{t('Back to sign in')}<ArrowRight size={15} aria-hidden="true" /></Link>
+        {googleError
+          ? <Link className="auth-submit" to="/login">{t('Back to sign in')}<ArrowRight size={16} aria-hidden="true" /></Link>
+          : <><Link className="auth-submit" to="/verify-email">{t('Request a new verification email')}<Mail size={16} aria-hidden="true" /></Link><Link className="auth-link" to="/login">{t('Back to sign in')}<ArrowRight size={15} aria-hidden="true" /></Link></>}
       </div>}
     </div>
   </AuthLayout>
