@@ -596,10 +596,10 @@ export function AuthCallbackPage() {
         const provider = query.get('provider')
         const providerError = query.get('error_description') || query.get('error') || hash.get('error_description') || hash.get('error')
         if (provider === 'google' && providerError) {
-          const normalized = providerError.replace(/\\+/g, ' ')
+          const normalized = providerError.replace(/\+/g, ' ')
           throw new Error(normalized === 'access_denied' ? 'Google sign-in was cancelled.' : GOOGLE_PASSWORD_ACCOUNT_MESSAGE)
         }
-        if (providerError) throw new Error(providerError.replace(/\\+/g, ' '))
+        if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
 
         const code = query.get('code')
         if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
