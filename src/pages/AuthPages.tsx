@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from 'react'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Info, KeyRound, LockKeyhole, LogOut, Mail } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -161,7 +161,7 @@ export function LoginPage() {
         const authError = passwordResult.error as { code?: string; message?: string }
         if (authError.code === 'email_not_confirmed') {
           throwIfAuthError(await authService.resendSignupConfirmation(email))
-          sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'signup', redirect: redirectTarget }))
+          try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'signup', redirect: redirectTarget })) } catch { /* route state remains available */ }
           navigate('/verify-otp', { replace: true, state: { email, purpose: 'signup', redirect: redirectTarget } })
           return
         }
@@ -169,7 +169,7 @@ export function LoginPage() {
       }
 
       throwIfAuthError(await authService.sendLoginOtp(email))
-      sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'login', redirect: redirectTarget }))
+      try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'login', redirect: redirectTarget })) } catch { /* route state remains available */ }
       navigate('/verify-otp', { replace: true, state: { email, purpose: 'login', redirect: redirectTarget } })
     } catch (error) {
       if (isSuspendedAccountError(error)) {
@@ -365,6 +365,15 @@ export function VerifyOtpPage() {
 
   const updateDigit = (index: number, rawValue: string) => {
     const value = rawValue.replace(/\D/g, '')
+    if (value.length > 1) {
+      const pasted = value.slice(0, OTP_LENGTH).split('')
+      const next = Array(OTP_LENGTH).fill('').map((_, i) => pasted[i] ?? '')
+      setDigits(next)
+      setMessage('')
+      if (pasted.length === OTP_LENGTH) void verifyCode(pasted.join(''))
+      else inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus()
+      return
+    }
     if (!value) {
       setDigits((current) => current.map((digit, i) => i === index ? '' : digit))
       return
@@ -378,7 +387,7 @@ export function VerifyOtpPage() {
     if (code.length === OTP_LENGTH) void verifyCode(code)
   }
 
-  const pasteCode = (event: React.ClipboardEvent<HTMLInputElement>) => {
+  const pasteCode = (event: ClipboardEvent<HTMLInputElement>) => {
     event.preventDefault()
     const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
     if (!pasted) return
@@ -426,7 +435,7 @@ export function VerifyOtpPage() {
             maxLength={1}
             value={digit}
             autoComplete={index === 0 ? 'one-time-code' : 'off'}
-            aria-label={t('Digit {{number}}', { number: index + 1 })}
+            aria-label={`Digit ${index + 1}`}
             disabled={status === 'loading'}
             onChange={(event) => updateDigit(index, event.target.value)}
             onPaste={pasteCode}
