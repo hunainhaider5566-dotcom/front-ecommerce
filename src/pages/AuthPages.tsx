@@ -268,11 +268,18 @@ export function RegisterPage() {
     try {
       const response = throwIfAuthError(await authService.signUp(email, form.password, form.name.trim()))
       if (response.data.session) {
+        // Email confirmation may be disabled in some Supabase environments.
+        // Keep registration deterministic: sign out and ask the customer to sign in.
         await authService.signOutLocal()
-        throwIfAuthError(await authService.resendSignupConfirmation(email))
+        navigate('/login', { replace: true, state: { email, message: 'Your account was created. Please sign in to continue.' } })
+        return
       }
-      try { window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email) } catch { /* route state remains available */ }
-      navigate('/verify-email', { replace: true, state: { email } })
+      const pendingOtp: PendingOtp = { email, purpose: 'signup', redirect: redirectTarget }
+      try {
+        window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pendingOtp))
+        window.sessionStorage.setItem(PENDING_SIGNUP_EMAIL_KEY, email)
+      } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: pendingOtp })
     } catch (error) {
       setStatus('error')
       setMessage(friendlyAuthError(error))
@@ -357,7 +364,7 @@ export function VerifyOtpPage() {
       throwIfAuthError(result)
       try { window.sessionStorage.removeItem(PENDING_OTP_KEY); clearPendingSignupEmail() } catch { /* storage may be unavailable */ }
       clearRememberedAccountSuspension()
-      navigate(redirectTarget, { replace: true })
+      navigate(purpose === 'signup' ? '/login' : redirectTarget, { replace: true, state: purpose === 'signup' ? { email, message: 'Your email has been verified successfully. You can now sign in to JTBazar.' } : undefined })
     } catch (error) {
       if (isSuspendedAccountError(error)) {
         rememberAccountSuspension()
@@ -426,12 +433,12 @@ export function VerifyOtpPage() {
   }
 
   if (!email) return null
-  return <AuthLayout eyebrow="Account security" title="Verify your email" intro="Enter the six-digit code sent to your email address to finish signing in securely.">
+  return <AuthLayout eyebrow="Account security" title={purpose === 'signup' ? 'Verify your email' : 'Verify your sign-in'} intro={purpose === 'signup' ? 'Enter the six-digit code sent to your email address to activate your JTBazar account.' : 'Enter the six-digit code sent to your email address to finish signing in securely.'}>
     <div className="auth-form" aria-busy={status === 'loading'}>
       <AuthStatusMessage status={status} message={message} />
       <div className="auth-explainer">
         <Mail size={20} aria-hidden="true" />
-        <div><h2>{t('Check your inbox')}</h2><p>{t('We sent a six-digit verification code to')} <strong>{email}</strong>.</p></div>
+        <div><h2>{t(purpose === 'signup' ? 'Verify your new account' : 'Check your inbox')}</h2><p>{t('We sent a six-digit verification code to')} <strong>{email}</strong>.</p></div>
       </div>
       <div className="auth-otp">
         <div className="auth-otp__inputs" role="group" aria-label={t('Six-digit verification code')}>
