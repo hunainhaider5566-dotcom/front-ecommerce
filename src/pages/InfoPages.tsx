@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, Clock3, ExternalLink, Leaf, Mail, MapPin, MessageCircle, NotebookPen, PackageCheck, Phone, Send, ShieldCheck, ShoppingBag, Store, Truck } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Clock3, ExternalLink, FileText, Leaf, Mail, MapPin, MessageCircle, NotebookPen, PackageCheck, Phone, Send, ShieldCheck, ShoppingBag, Store, Truck, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { useWishlist } from '../contexts/WishlistContext'
