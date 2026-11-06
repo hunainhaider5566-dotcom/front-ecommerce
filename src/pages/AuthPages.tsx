@@ -598,7 +598,8 @@ export function AuthCallbackPage() {
           throw new Error(GOOGLE_PASSWORD_ACCOUNT_MESSAGE)
         }
         clearPendingSignupEmail()
-        return getSafeAuthRedirect('', { from: query.get('next') })
+        const nextPath = getSafeAuthRedirect('', { from: query.get('next') })
+        return provider !== 'google' && nextPath === '/account' ? '/login' : nextPath
       })()
     }
 
