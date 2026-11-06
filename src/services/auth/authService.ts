@@ -40,6 +40,10 @@ export function verifySignupOtp(email: string, token: string) {
   return getSupabase().auth.verifyOtp({ email, token, type: 'signup' })
 }
 
+export function verifySignupTokenHash(tokenHash: string) {
+  return getSupabase().auth.verifyOtp({ token_hash: tokenHash, type: 'signup' })
+}
+
 export function isGoogleBlockedForUser(user: User): boolean {
   const identities = (user.identities ?? []) as Array<{
     provider?: string

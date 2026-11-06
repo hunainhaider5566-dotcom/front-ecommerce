@@ -3,7 +3,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Info, Ke
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/LocaleContext'
-import { authService, OTP_LENGTH } from '../services/auth/authService'
+import { authService, OTP_LENGTH, verifySignupTokenHash } from '../services/auth/authService'
 import { clearRememberedAccountSuspension, rememberAccountSuspension } from '../services/auth/accountAccessNotice'
 import { LoadingState } from '../components/common/States'
 import { isValidEmail } from '../utils/contactValidation'
@@ -622,9 +622,16 @@ export function AuthCallbackPage() {
         }
         if (providerError) throw new Error(providerError.replace(/\+/g, ' '))
 
+        const tokenHash = query.get('token_hash')
+        const tokenType = query.get('type')
         const code = query.get('code')
-        if (!code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
-        const response = throwIfAuthError(await authService.exchangeCodeForSession(code))
+        const isTokenHashSignup = Boolean(tokenHash && (tokenType === 'signup' || tokenType === 'email'))
+        if (!isTokenHashSignup && !code) throw new Error('This verification link is invalid or has expired. Please request a new link.')
+        // Token-hash confirmation is independent of the browser/device that started signup.
+        // Keep PKCE code exchange for existing links and OAuth callbacks.
+        const response = throwIfAuthError(isTokenHashSignup
+          ? await verifySignupTokenHash(tokenHash!)
+          : await authService.exchangeCodeForSession(code!))
         if (!response.data.session) throw new Error('Your account session could not be created. Please sign in again.')
         if (provider === 'google' && authService.isGoogleBlockedForUser(response.data.session.user)) {
           await authService.signOutLocal()
@@ -632,7 +639,7 @@ export function AuthCallbackPage() {
         }
 
         const nextPath = getSafeAuthRedirect('', { from: query.get('next') })
-        const isEmailConfirmation = provider !== 'google' && nextPath === '/account'
+        const isEmailConfirmation = provider !== 'google' && (isTokenHashSignup || nextPath === '/account')
         if (isEmailConfirmation) {
           const confirmedAt = response.data.session.user.email_confirmed_at
           if (!confirmedAt) throw new Error('We could not confirm your email address. Please request a new verification link.')
