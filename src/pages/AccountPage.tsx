@@ -351,10 +351,19 @@ export function AccountPage() {
             </button>
             {open && <div className="order-card__detail">
               <ul className="order-line-list">
-                {items.map((item) => <li key={item.id}>
-                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}>{t(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}</span></div>
+                {items.map((item) => <li className="order-line-list__item" key={item.id}>
+                  <div className="order-line-list__product">
+                    <div className="order-line-list__product-main">
+                      {item.product_image_url && <img className="order-line-list__image" src={item.product_image_url} alt={item.product_name_snapshot} loading="lazy" />}
+                      <div className="order-line-list__product-info">
+                        <strong>{item.product_name_snapshot}</strong>
+                        <span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))} {t('each')}</span>
+                        <span className={statusClass(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}>{t(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}</span>
+                      </div>
+                    </div>
+                    {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && items.findIndex((candidate) => candidate.seller_id === item.seller_id) === items.indexOf(item) && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
+                  </div>
                   <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
-                  {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && items.findIndex((candidate) => candidate.seller_id === item.seller_id) === items.indexOf(item) && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
                 </li>)}
               </ul>
               <div className="order-card__meta">
