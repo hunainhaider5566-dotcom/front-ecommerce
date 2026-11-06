@@ -562,7 +562,7 @@ export function AuthCallbackPage() {
         }
         clearPendingSignupEmail()
         const nextPath = getSafeAuthRedirect('', { from: query.get('next') })
-        return provider !== 'google' && nextPath === '/account' ? '/login' : nextPath
+        return nextPath
       })()
     }
 
