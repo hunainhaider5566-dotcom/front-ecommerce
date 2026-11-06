@@ -21,7 +21,7 @@ import { WishlistPage } from '../pages/WishlistPage'
 import { CartPage } from '../pages/CartPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
 import { ConfirmationPage } from '../pages/ConfirmationPage'
-import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage } from '../pages/InfoPages'
+import { AboutPage, ContactPage, FAQPage, PrivacyPage, ShippingPage, ReturnsPage, TermsPage } from '../pages/InfoPages'
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, VerifyOtpPage, ResetPasswordPage, AuthCallbackPage, LogoutPage } from '../pages/AuthPages'
 import { AccountPage } from '../pages/AccountPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -110,6 +110,7 @@ function Storefront() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/shipping" element={<ShippingPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </main>
