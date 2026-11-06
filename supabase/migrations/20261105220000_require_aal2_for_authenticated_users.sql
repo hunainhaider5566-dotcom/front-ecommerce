@@ -1,6 +1,6 @@
--- Require Supabase Auth AAL2 (verified TOTP MFA) for all signed-in
--- marketplace table access and authenticated SECURITY DEFINER business RPCs.
--- Anonymous storefront reads and service_role-only operations remain unchanged.
+-- Enforce authenticator MFA for administrators only.
+-- Customers and vendors may use AAL1 unless they explicitly enroll a TOTP factor.
+-- Email OTP remains a separate mandatory login requirement in the application.
 
 DO $$
 DECLARE
@@ -18,10 +18,10 @@ BEGIN
       SELECT 1 FROM pg_policies
       WHERE schemaname = 'public'
         AND tablename = table_row.relname
-        AND policyname = 'require_aal2_for_authenticated_access'
+        AND policyname = 'require_admin_aal2_for_authenticated_access'
     ) THEN
       EXECUTE format(
-        'CREATE POLICY require_aal2_for_authenticated_access ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING ((auth.jwt() ->> ''aal'') = ''aal2'') WITH CHECK ((auth.jwt() ->> ''aal'') = ''aal2'')',
+        'CREATE POLICY require_admin_aal2_for_authenticated_access ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING ((auth.jwt() ->> ''aal'') = ''aal2'' OR NOT private.has_role(''admin''::public.app_role)) WITH CHECK ((auth.jwt() ->> ''aal'') = ''aal2'' OR NOT private.has_role(''admin''::public.app_role))',
         table_row.relname
       );
     END IF;
@@ -29,8 +29,8 @@ BEGIN
 END;
 $$;
 
--- SECURITY DEFINER functions bypass table RLS. Require AAL2 in every
--- SECURITY DEFINER PL/pgSQL function that authenticated users can execute.
+-- SECURITY DEFINER functions bypass table RLS. Apply the same admin-only
+-- requirement to every authenticated SECURITY DEFINER PL/pgSQL business RPC.
 DO $$
 DECLARE
   fn record;
@@ -50,15 +50,15 @@ BEGIN
       AND p.proname NOT IN ('get_public_availability', 'subscribe_newsletter')
   LOOP
     definition := pg_get_functiondef(fn.oid);
-    IF position('JTBazar MFA verification is required.' IN definition) = 0 THEN
+    IF position('JTBazar administrator MFA verification is required.' IN definition) = 0 THEN
       guarded_definition := regexp_replace(
         definition,
         E'\nBEGIN\n',
-        E'\nBEGIN\n  IF (auth.jwt() ->> ''role'') IS DISTINCT FROM ''service_role'' AND (auth.jwt() ->> ''aal'') IS DISTINCT FROM ''aal2'' THEN\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar MFA verification is required.'';\n  END IF;\n',
+        E'\nBEGIN\n  IF (auth.jwt() ->> ''role'') IS DISTINCT FROM ''service_role'' AND private.has_role(''admin''::public.app_role) AND (auth.jwt() ->> ''aal'') IS DISTINCT FROM ''aal2'' THEN\n    RAISE EXCEPTION USING ERRCODE = ''42501'', MESSAGE = ''JTBazar administrator MFA verification is required.'';\n  END IF;\n',
         ''
       );
       IF guarded_definition = definition THEN
-        RAISE EXCEPTION 'Could not safely add MFA guard to function %', fn.proname;
+        RAISE EXCEPTION 'Could not safely add admin MFA guard to function %', fn.proname;
       END IF;
       EXECUTE guarded_definition;
     END IF;
@@ -66,8 +66,8 @@ BEGIN
 END;
 $$;
 
--- This SQL SECURITY DEFINER RPC returns only a vendor's own order-line
--- projection (with customer fields deliberately NULL), but still requires AAL2.
+-- Vendor order-line RPC remains usable by vendors at AAL1, but an admin
+-- session calling it must still satisfy the administrator MFA requirement.
 CREATE OR REPLACE FUNCTION public.vendor_order_items()
 RETURNS TABLE(
   id uuid, order_id uuid, order_number text, shop_name text,
@@ -102,19 +102,23 @@ AS $function$
   FROM public.order_items AS oi
   JOIN public.orders AS o ON o.id = oi.order_id
   JOIN public.seller_profiles AS seller ON seller.id = oi.seller_id
-  WHERE ((auth.jwt() ->> 'role') = 'service_role' OR (auth.jwt() ->> 'aal') = 'aal2')
+  WHERE (
+      (auth.jwt() ->> 'role') = 'service_role'
+      OR (auth.jwt() ->> 'aal') = 'aal2'
+      OR NOT private.has_role('admin'::public.app_role)
+    )
     AND seller.user_id = (SELECT auth.uid())
     AND seller.status = 'approved';
 $function$;
 
--- The role-check helper is called during profile bootstrap. Returning false
--- at AAL1 prevents role metadata from being used before MFA is verified.
+-- The frontend uses this trusted role RPC before deciding whether to show
+-- the mandatory administrator enrollment/challenge screen. Do not gate the
+-- role result itself on AAL2, or an admin at AAL1 would be mistaken for a customer.
 CREATE OR REPLACE FUNCTION public.current_user_is_admin()
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SET search_path TO ''
 AS $function$
-  SELECT (auth.jwt() ->> 'aal') = 'aal2'
-     AND private.has_role('admin'::public.app_role);
+  SELECT private.has_role('admin'::public.app_role);
 $function$;
