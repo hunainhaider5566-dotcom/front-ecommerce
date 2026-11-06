@@ -181,7 +181,7 @@ export function TermsPage() {
   return <InfoLayout eyebrow={t('Marketplace terms')} title={<>{t('Clear terms for')} <em>{t('confident shopping.')}</em></>} intro={t('Please read these terms before using JTBazar or placing an order. By accessing the marketplace, you agree to follow the terms below.')}>
     <div className="policy-summary">
       <span className="policy-summary__icon"><ShieldCheck size={21} /></span>
-      <div><span className="eyebrow">{t('A marketplace built on clarity')}</span><h2>{t('JTBazar · Terms of Service')}</h2><p>{t('Last updated: 6 November 2026. These terms apply to customers using the JTBazar marketplace.')}</p></div>
+      <div><span className="eyebrow">{t('A marketplace built on clarity')}</span><h2>{t('JTBazar · Terms of Service')}</h2><p>{t('Last updated: 7 November 2026. These terms apply to customers using the JTBazar marketplace.')}</p></div>
     </div>
     <div className="policy-grid">
       <article className="policy-card"><span className="policy-card__icon"><ShoppingBag size={18} /></span><span className="eyebrow">01 · {t('Using JTBazar')}</span><h2>{t('Marketplace access')}</h2><p>{t('JTBazar provides an online marketplace where customers can discover products offered by JTBazar and approved independent sellers. You agree to provide accurate account, contact and delivery information, keep your sign-in details secure, and use the website lawfully. Do not misuse the marketplace, interfere with its operation, submit false orders or attempt unauthorized access.')}</p></article>
