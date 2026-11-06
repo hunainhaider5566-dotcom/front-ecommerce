@@ -583,7 +583,9 @@ export function AuthCallbackPage() {
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [message, setMessage] = useState('Completing your secure sign-in…')
   const [googleError, setGoogleError] = useState(false)
-  const completionRef = useRef<Promise<string> | null>(null)
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [verifiedEmail, setVerifiedEmail] = useState('')
+  const completionRef = useRef<Promise<{ nextPath: string; emailVerified: boolean; email: string }> | null>(null)
 
   useEffect(() => {
     let active = true
@@ -607,14 +609,33 @@ export function AuthCallbackPage() {
           await authService.signOutLocal()
           throw new Error(GOOGLE_PASSWORD_ACCOUNT_MESSAGE)
         }
-        clearPendingSignupEmail()
+
         const nextPath = getSafeAuthRedirect('', { from: query.get('next') })
-        return nextPath
+        const isEmailConfirmation = provider !== 'google' && nextPath === '/account'
+        if (isEmailConfirmation) {
+          const confirmedAt = response.data.session.user.email_confirmed_at
+          if (!confirmedAt) throw new Error('We could not confirm your email address. Please request a new verification link.')
+          const email = response.data.session.user.email ?? ''
+          await authService.signOutLocal()
+          clearPendingSignupEmail()
+          return { nextPath: '/login', emailVerified: true, email }
+        }
+
+        clearPendingSignupEmail()
+        return { nextPath, emailVerified: false, email: '' }
       })()
     }
 
-    completionRef.current.then((next) => {
-      if (active) navigate(next, { replace: true })
+    completionRef.current.then((result) => {
+      if (!active) return
+      if (result.emailVerified) {
+        setVerifiedEmail(result.email)
+        setEmailVerified(true)
+        setStatus('success')
+        setMessage('Your email has been verified successfully. You can now sign in to your JTBazar account.')
+        return
+      }
+      navigate(result.nextPath, { replace: true })
     }).catch((cause: unknown) => {
       if (!active) return
       const isGoogle = new URLSearchParams(location.search).get('provider') === 'google'
@@ -625,9 +646,20 @@ export function AuthCallbackPage() {
     return () => { active = false }
   }, [location.search, location.hash, navigate])
 
-  return <AuthLayout eyebrow="Account security" title={googleError ? 'Google sign-in unavailable' : 'Finishing verification'} intro={googleError ? message : 'Please wait while we securely confirm your account.'}>
+  return <AuthLayout
+    eyebrow="Account security"
+    title={emailVerified ? 'Email verified successfully' : googleError ? 'Google sign-in unavailable' : 'Finishing verification'}
+    intro={emailVerified ? 'Your JTBazar account email is now confirmed. Sign in to continue shopping.' : googleError ? message : 'Please wait while we securely confirm your account.'}
+  >
     <div className="auth-form" aria-busy={status === 'loading'}>
-      {!googleError && <AuthStatusMessage status={status} message={message} />}
+      <AuthStatusMessage status={status} message={message} />
+      {emailVerified && <div className="auth-explainer">
+        <CheckCircle2 size={22} aria-hidden="true" />
+        <div><h2>{t('Email verified')}</h2><p>{verifiedEmail ? <><strong>{verifiedEmail}</strong><br /></> : null}{t('Your email address has been confirmed. You can now sign in with your email and password.')}</p></div>
+      </div>}
+      {emailVerified && <div className="auth-callback-actions">
+        <Link className="auth-submit" to="/login" state={{ email: verifiedEmail }}>{t('Sign in to JTBazar')}<ArrowRight size={16} aria-hidden="true" /></Link>
+      </div>}
       {status === 'error' && <div className="auth-callback-actions">
         {googleError
           ? <Link className="auth-submit" to="/login">{t('Back to sign in')}<ArrowRight size={16} aria-hidden="true" /></Link>
