@@ -59,6 +59,22 @@ function orderItemQuantityLabel(item: OrderItemRecord): string {
   return String(item.quantity)
 }
 
+function orderItemPreparationLabel(item: OrderItemRecord): string {
+  const snapshot = item.product_snapshot
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return ''
+  const data = snapshot as Record<string, unknown>
+  const keys = ['preparation_time', 'preparation_time_minutes', 'prep_time', 'prep_time_minutes', 'estimated_preparation_time', 'estimated_prep_time', 'cooking_time', 'cooking_time_minutes']
+  const value = keys.map((key) => data[key]).find((entry) => entry !== null && entry !== undefined && entry !== '')
+  if (typeof value === 'number' && Number.isFinite(value)) return value + ' min'
+  return typeof value === 'string' ? value : ''
+}
+
+function orderItemVariantLabel(item: OrderItemRecord): string {
+  const value = item.variant_snapshot
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return typeof value === 'string' ? value : ''
+  return Object.entries(value as Record<string, unknown>).map(([key, entry]) => entry == null || entry === '' ? '' : key.replace(/_/g, ' ') + ': ' + String(entry)).filter(Boolean).join(' · ')
+}
+
 function formatCaseVariant(value: unknown): string {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return typeof value === 'string' ? value : ''
   return Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
@@ -351,11 +367,26 @@ export function AccountPage() {
             </button>
             {open && <div className="order-card__detail">
               <ul className="order-line-list">
-                {items.map((item) => <li key={item.id}>
-                  <div><strong>{item.product_name_snapshot}</strong><span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))}</span><span className={statusClass(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}>{t(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}</span></div>
-                  <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
-                  {order.order_status === 'delivered' && item.product_id && <div className="order-line-list__reviews"><ReviewComposer kind="product" targetId={item.product_id} />{item.seller_id && items.findIndex((candidate) => candidate.seller_id === item.seller_id) === items.indexOf(item) && <ReviewComposer kind="seller" targetId={item.seller_id} />}</div>}
-                </li>)}
+                {items.map((item) => {
+                  const prepTime = orderItemPreparationLabel(item)
+                  const variant = orderItemVariantLabel(item)
+                  return <li className="order-line-list__item" key={item.id}>
+                    <div className="order-line-list__product">
+                      <div className="order-line-list__product-main">
+                        {item.product_image_url ? <img className="order-line-list__image" src={item.product_image_url} alt={item.product_name_snapshot} loading="lazy" /> : <div className="order-line-list__image order-line-list__image--empty"><Package size={20} /></div>}
+                        <div className="order-line-list__product-info">
+                          <strong>{item.product_name_snapshot}</strong>
+                          {variant && <span>{variant}</span>}
+                          <span>{t('Qty')} {orderItemQuantityLabel(item)} · {formatPKR(Number(item.unit_price))} {t('each')}</span>
+                          {item.seller_name_snapshot && <span>{t('Sold by')} {item.seller_name_snapshot}</span>}
+                          {prepTime && <span className="order-line-list__prep">{t('Preparation time')}: {prepTime}</span>}
+                          <span className={statusClass(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}>{t(order.order_status === 'delivered' ? 'delivered' : order.order_status === 'cancelled' ? 'cancelled' : item.vendor_fulfillment_status)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="order-line-list__actions"><strong>{formatPKR(Number(item.line_total))}</strong><button type="button" className="text-button" onClick={() => openCase(order, item)}>{t('Open a case')}</button></div>
+                  </li>
+                })}
               </ul>
               <div className="order-card__meta">
                 {order.expected_delivery_date && order.delivery_timing_confirmed_at && <div className="order-card__delivery-eta"><span className="eyebrow">{t('Confirmed delivery schedule')}</span><p><strong>{formatDeliveryDate(order.expected_delivery_date)}</strong></p>{order.delivery_window_start && order.delivery_window_end && <p>{formatDeliveryTime(order.delivery_window_start)} – {formatDeliveryTime(order.delivery_window_end)}</p>}{order.delivery_note && <p>{order.delivery_note}</p>}<small>{t('This is the delivery time confirmed by JTBazar.')}</small></div>}
@@ -363,6 +394,9 @@ export function AccountPage() {
                 <div><span className="eyebrow">{t('Payment')}</span><p>{t('Item subtotal')}: {formatPKR(Number(order.subtotal))}</p><p>{t('Delivery fee')}: {formatPKR(Number(order.delivery_fee))}</p><p><strong>{t('Total')}: {formatPKR(Number(order.total))}</strong></p></div>
               </div>
               <div className="order-card__actions"><Link to={`/order-confirmation/${order.order_number}`} className="text-button">{t('View confirmation')}</Link><button type="button" className="text-button" onClick={() => openCase(order, null)}>{t('Report an order issue')}</button>{canCancel && <button type="button" className="text-button text-button--danger" onClick={() => void cancelOrder(order)} disabled={cancellingOrderId === order.id}><XCircle size={14} /> {t(cancellingOrderId === order.id ? 'Cancelling…' : 'Cancel order')}</button>}</div>
+              {order.order_status === 'delivered' && <div className="order-card__review-actions" aria-label={t('Write a review')}>
+                {items.filter((item, index, all) => item.product_id && all.findIndex((candidate) => candidate.product_id === item.product_id) === index).map((item) => <ReviewComposer key={item.product_id} kind="product" targetId={item.product_id!} compact />)}
+              </div>}
             </div>}
           </article>
         })}

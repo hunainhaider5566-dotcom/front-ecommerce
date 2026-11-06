@@ -5,9 +5,9 @@ import { useToast } from '../../contexts/ToastContext'
 import { useI18n } from '../../i18n/LocaleContext'
 import { getProductReviews, getReviewableOrderId, getSellerReviews, submitProductReview, submitSellerReview, type ProductReview, type SellerReview } from '../../services/products/reviewService'
 
-type Props = { kind: 'product' | 'seller'; targetId: string }
+type Props = { kind: 'product' | 'seller'; targetId: string; compact?: boolean }
 
-export function ReviewComposer({ kind, targetId }: Props) {
+export function ReviewComposer({ kind, targetId, compact = false }: Props) {
   const { t } = useI18n()
   const { user } = useAuth()
   const { push } = useToast()
@@ -98,7 +98,7 @@ export function ReviewComposer({ kind, targetId }: Props) {
 
   const average = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : '—'
 
-  return <section className="review-composer" aria-label={t(kind === 'product' ? 'Product reviews' : 'Seller reviews')}>
+  return <section className={`review-composer${compact ? ' review-composer--compact' : ''}`} aria-label={t(kind === 'product' ? 'Product reviews' : 'Seller reviews')}>
     <div className="review-composer__heading">
       <div><span className="eyebrow">{t('Community feedback')}</span><h3>{t(kind === 'product' ? 'Customer reviews' : 'Shop reviews')}</h3></div>
       <div className="review-composer__summary"><Star size={17} fill="currentColor" /><strong>{average}</strong><span>{reviews.length} {t('reviews')}</span></div>
