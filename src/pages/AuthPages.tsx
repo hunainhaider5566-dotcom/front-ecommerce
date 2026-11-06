@@ -82,6 +82,26 @@ function PasswordField({ name, label, value, onChange, error, autoComplete }: { 
   return <AuthField label={label} name={name} type={visible ? 'text' : 'password'} value={value} onChange={onChange} error={error} autoComplete={autoComplete}><button type="button" className="auth-password-toggle" onClick={() => setVisible((current) => !current)} aria-label={t(visible ? 'Hide password' : 'Show password')}><span aria-hidden="true">{visible ? <EyeOff size={16} /> : <Eye size={16} />}</span><span>{t(visible ? 'Hide' : 'Show')}</span></button></AuthField>
 }
 
+function isSuspendedAccountError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown }
+  const code = typeof candidate.code === 'string' ? candidate.code : ''
+  const message = typeof candidate.message === 'string' ? candidate.message : ''
+  return code === 'account_suspended' || /account (?:is )?suspended|user (?:is )?suspended|vendor account (?:is )?locked/i.test(message)
+}
+
+function ProviderButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  const { t } = useI18n()
+  return <button type="button" className="auth-provider-button" onClick={onClick} disabled={disabled}>
+    <span aria-hidden="true">G</span>{t('Continue with Google')}
+  </button>
+}
+
+function Divider() {
+  const { t } = useI18n()
+  return <div className="auth-divider" role="separator"><span>{t('or continue with email')}</span></div>
+}
+
 function AuthLinks({ mode }: { mode: 'login' | 'register' }) {
   const { t } = useI18n()
   return <div className="auth-links">{mode === 'login' ? <><span>{t('No account?')}</span><Link to="/register" className="auth-link">{t('Register instead')}<ArrowRight size={15} aria-hidden="true" /></Link></> : <><span>{t('Already have an account?')}</span><Link to="/login" className="auth-link">{t('Sign in instead')}<ArrowRight size={15} aria-hidden="true" /></Link></>}</div>
@@ -93,46 +113,51 @@ export function LoginPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const redirectTarget = getSafeAuthRedirect(location.search, location.state)
-  const [email, setEmail] = useState((location.state as { email?: string } | null)?.email ?? '')
-  const [code, setCode] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [resendCooldown, setResendCooldown] = useState(0)
+  const [form, setForm] = useState({
+    email: (location.state as { email?: string } | null)?.email ?? '',
+    password: '',
+  })
   const [errors, setErrors] = useState<FieldErrors>({})
   const [status, setStatus] = useState<AuthStatus>('ready')
   const [message, setMessage] = useState('')
+
   const update = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
     setErrors((current) => ({ ...current, [name]: '' }))
   }
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const email = form.email.trim().toLowerCase()
     const next: FieldErrors = {}
-    if (!email.trim()) next.email = 'Email is required.'
+    if (!email) next.email = 'Email is required.'
     else if (!emailPattern(email)) next.email = 'Enter a valid email address.'
+    if (!form.password) next.password = 'Password is required.'
     setErrors(next)
     if (Object.keys(next).length) return
 
     clearRememberedAccountSuspension()
     setStatus('loading')
     setMessage('')
-    const email = form.email.trim().toLowerCase()
     try {
       const passwordResult = await authService.signInWithPassword(email, form.password)
       if (passwordResult.error) {
         const authError = passwordResult.error as { code?: string; message?: string }
         if (authError.code === 'email_not_confirmed') {
           throwIfAuthError(await authService.resendSignupConfirmation(email))
-          try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'signup', redirect: redirectTarget })) } catch { /* route state remains available */ }
-          navigate('/verify-otp', { replace: true, state: { email, purpose: 'signup', redirect: redirectTarget } })
+          const pending = { email, purpose: 'signup' as const, redirect: redirectTarget }
+          try { window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending)) } catch { /* route state remains available */ }
+          navigate('/verify-otp', { replace: true, state: pending })
           return
         }
         throw passwordResult.error
       }
 
       throwIfAuthError(await authService.sendLoginOtp(email))
-      try { sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify({ email, purpose: 'login', redirect: redirectTarget })) } catch { /* route state remains available */ }
-      navigate('/verify-otp', { replace: true, state: { email, purpose: 'login', redirect: redirectTarget } })
+      const pending = { email, purpose: 'login' as const, redirect: redirectTarget }
+      try { window.sessionStorage.setItem(PENDING_OTP_KEY, JSON.stringify(pending)) } catch { /* route state remains available */ }
+      navigate('/verify-otp', { replace: true, state: pending })
     } catch (error) {
       if (isSuspendedAccountError(error)) {
         rememberAccountSuspension()
@@ -143,6 +168,7 @@ export function LoginPage() {
       setMessage(describeError(error))
     }
   }
+
   const google = async () => {
     clearRememberedAccountSuspension()
     setStatus('loading')
@@ -159,7 +185,8 @@ export function LoginPage() {
 
   if (authLoading) return <LoadingState label="Checking your account…" />
   if (user) return <Navigate to={redirectTarget} replace />
-  return <AuthLayout eyebrow="Authentication" title="Sign in to your account" intro="Sign in securely to manage your orders, wishlist, and account preferences.">
+
+  return <AuthLayout eyebrow="Authentication" title="Sign in to your account" intro="Sign in with your email and password, then verify the six-digit code sent to your inbox.">
     <form className="auth-form" onSubmit={submit} noValidate aria-busy={status === 'loading'}>
       <AuthStatusMessage status={status} message={message} />
       <ProviderButton onClick={google} disabled={status === 'loading'} />
