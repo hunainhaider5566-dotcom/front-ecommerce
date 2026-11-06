@@ -44,7 +44,7 @@ export function HomePage() {
   }, [sellerBanner?.id, sellerBannerImages.length])
   useEffect(() => {
     const rail = shopRailRef.current
-    if (!rail || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!rail || window.matchMedia('(max-width: 700px), (prefers-reduced-motion: reduce)').matches) return
     let direction = 1
     const timer = window.setInterval(() => {
       if (rail.matches(':hover') || rail.contains(document.activeElement)) return
