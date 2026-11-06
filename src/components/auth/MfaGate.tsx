@@ -14,6 +14,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -26,6 +27,13 @@ export function MfaGate({ children }: { children: ReactNode }) {
     const prepare = async () => {
       setMode('checking')
       setError('')
+
+      // Read the role from the trusted user_roles table, never user-editable metadata.
+      const roleResult = await client.rpc('current_user_is_admin')
+      if (roleResult.error) throw roleResult.error
+      const admin = Boolean(roleResult.data)
+      if (active) setIsAdmin(admin)
+
       const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel()
       if (assurance.error) throw assurance.error
       if (assurance.data.currentLevel === 'aal2') {
@@ -36,6 +44,18 @@ export function MfaGate({ children }: { children: ReactNode }) {
       const listed = await client.auth.mfa.listFactors()
       if (listed.error) throw listed.error
       const verified = listed.data.totp.find((factor) => factor.status === 'verified')
+
+      // Customers and vendors only use TOTP after explicitly enrolling.
+      // Administrators must enroll TOTP before accessing the marketplace.
+      if (!admin && !verified) {
+        for (const pending of listed.data.totp.filter((factor) => factor.status !== 'verified')) {
+          const removed = await client.auth.mfa.unenroll({ factorId: pending.id })
+          if (removed.error) throw removed.error
+        }
+        if (active) setMode('complete')
+        return
+      }
+
       if (verified) {
         if (active) {
           setFactorId(verified.id)
@@ -54,7 +74,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
 
       const enrolled = await client.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'JTBazar Authenticator',
+        friendlyName: 'JTBazar Admin Authenticator',
       })
       if (enrolled.error) throw enrolled.error
       if (active) {
@@ -116,18 +136,18 @@ export function MfaGate({ children }: { children: ReactNode }) {
 
   if (mode === 'complete') return <>{children}</>
   if (mode === 'checking') {
-    return <main style={shell}><section style={panel}><div style={mark}>JT</div><p style={eyebrow}>JTBazar account security</p><h1 style={heading}>Checking your security…</h1><p style={copy}>Please wait while we verify your second authentication factor.</p></section></main>
+    return <main style={shell}><section style={panel}><div style={mark}>JT</div><p style={eyebrow}>JTBazar account security</p><h1 style={heading}>Checking your security…</h1><p style={copy}>Please wait while we verify your account security requirements.</p></section></main>
   }
 
   return <main style={shell}>
     <section style={panel}>
       <div style={mark}>JT</div>
-      <p style={eyebrow}>Mandatory two-factor authentication</p>
-      <h1 style={heading}>{mode === 'enroll' ? 'Secure your account' : mode === 'challenge' ? 'Verify it’s you' : 'Security verification required'}</h1>
+      <p style={eyebrow}>{isAdmin ? 'Mandatory administrator security' : 'Authenticator verification'}</p>
+      <h1 style={heading}>{mode === 'enroll' ? 'Secure your admin account' : mode === 'challenge' ? 'Verify it’s you' : 'Security verification required'}</h1>
       <p style={copy}>{mode === 'enroll'
-        ? 'JTBazar requires an authenticator app for every customer, vendor and administrator account. Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password or another TOTP app.'
+        ? 'JTBazar administrators must secure their accounts with an authenticator app. Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password or another TOTP app.'
         : mode === 'challenge'
-          ? 'Open your authenticator app and enter the current 6-digit JTBazar code to continue.'
+          ? 'Enter the current 6-digit code from your authenticator app to continue.'
           : 'We could not start secure verification. Please retry or sign out and contact support.'}</p>
       {mode === 'enroll' && qrCode && <div style={qrWrap}><img src={qrCode} alt="Authenticator setup QR code" style={{ width: 190, height: 190 }} /></div>}
       {mode === 'enroll' && secret && <details style={secretBox}><summary>Can’t scan the QR code?</summary><code style={{ wordBreak: 'break-all' }}>{secret}</code></details>}
@@ -137,12 +157,12 @@ export function MfaGate({ children }: { children: ReactNode }) {
         </label>}
         {error && <p role="alert" style={errorStyle}>{error}</p>}
         <button type="submit" disabled={busy || code.length !== 6} style={primaryButton}>
-          {busy ? 'Verifying…' : mode === 'enroll' ? 'Verify and secure account' : 'Verify and continue'}
+          {busy ? 'Verifying…' : mode === 'enroll' ? 'Verify and secure admin account' : 'Verify and continue'}
         </button>
       </form>}
       {mode === 'error' && error && <p role="alert" style={errorStyle}>{error}</p>}
       <button type="button" onClick={() => void signOut()} style={secondaryButton}>Sign out</button>
-      <p style={footnote}>Your account and marketplace data stay protected until verification is complete.</p>
+      <p style={footnote}>Email OTP remains required for every account. Administrator access also requires authenticator verification.</p>
     </section>
   </main>
 }
