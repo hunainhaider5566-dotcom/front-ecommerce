@@ -451,7 +451,7 @@ export function VerifyOtpPage() {
         {status === 'loading' ? t('Verifying code…') : t('Verify code')}<ArrowRight size={16} aria-hidden="true" />
       </button>
       <button className="auth-link auth-otp__resend" type="button" disabled={cooldown > 0 || status === 'loading'} onClick={() => void resend()}>
-        {cooldown > 0 ? t('Resend code in {{seconds}}s', { seconds: cooldown }) : t('Resend code')}
+        {cooldown > 0 ? t(`Resend code in ${cooldown}s`) : t('Resend code')}
       </button>
       <Link className="auth-link auth-form__back" to="/login"><ArrowLeft size={15} aria-hidden="true" />{t('Back to sign in')}</Link>
     </div>
