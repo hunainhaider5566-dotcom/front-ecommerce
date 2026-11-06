@@ -1799,3 +1799,36 @@ button { font-family: var(--font-body); }
   .review-form__stars{gap:2px}
   .review-form__stars button{width:32px;height:34px}
 }
+
+
+/* Refined customer order details for narrow screens. */
+.order-card { min-width: 0; overflow: hidden; border-radius: 14px; }
+.order-card__detail { min-width: 0; }
+.order-line-list__item { min-width: 0; }
+.order-line-list__product { display: grid; gap: 12px; min-width: 0; }
+.order-line-list__product-main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.order-line-list__image { flex: 0 0 76px; width: 76px; height: 86px; object-fit: cover; border-radius: 10px; background: #f3f1eb; }
+.order-line-list__image--empty { display: grid; place-items: center; color: var(--muted); }
+.order-line-list__product-info { display: grid; justify-items: start; gap: 6px; min-width: 0; }
+.order-line-list__product-info > strong { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.order-line-list__product-info > span { font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.order-line-list__product-info .order-status { width: fit-content; }
+.order-line-list__prep { padding: 4px 8px; border-radius: 7px; color: #73502c !important; background: #f8f0e4; font-weight: 650; }
+.order-line-list__reviews { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; width: 100%; min-width: 0; }
+.order-line-list__reviews > * { min-width: 0; width: 100%; }
+.order-card__delivery-eta, .order-card__delivery { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #fcfbf8; }
+@media (max-width: 640px) {
+  .order-card__summary { grid-template-columns: minmax(0,1fr); gap: 9px; padding: 14px; }
+  .order-card__detail { gap: 14px; padding: 12px; }
+  .order-line-list__item { display: grid !important; grid-template-columns: minmax(0,1fr); gap: 11px; padding: 14px 0; }
+  .order-line-list__product-main { gap: 10px; }
+  .order-line-list__image { flex-basis: 70px; width: 70px; height: 80px; }
+  .order-line-list__actions { display: flex !important; align-items: center; justify-content: space-between !important; width: 100%; padding-left: 80px; }
+  .order-line-list__reviews { grid-template-columns: minmax(0,1fr); }
+  .order-card__meta { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .order-card__actions { align-items: flex-start; flex-direction: column; gap: 11px; }
+}
+@media (max-width: 380px) {
+  .order-line-list__image { flex-basis: 62px; width: 62px; height: 72px; }
+  .order-line-list__actions { padding-left: 72px; }
+}
