@@ -1616,3 +1616,152 @@ button { font-family: var(--font-body); }
 @media (max-width: 560px) { .cart-item-group__option .cart-item__controls { align-items:flex-start; flex-wrap:wrap; } }
 
 .budget-custom{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12px;font-weight:700}.budget-custom input{width:118px;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}.budget-custom:focus-within,.budget-custom.is-active{border-color:var(--ink);box-shadow:0 0 0 2px rgba(32,35,31,.08)}.budget-custom input::placeholder{color:var(--muted);font-weight:400}
+
+
+/* Mobile home vendor shops: calm, readable cards with manual swipe only. */
+@media (max-width:700px) {
+  .home-shop-showcase {
+    width:100%;
+    max-width:100%;
+    margin:36px 0!important;
+    padding:0!important;
+    overflow:hidden;
+  }
+  .home-shop-showcase__heading {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:8px;
+    margin:0 0 14px;
+    padding:0 16px;
+  }
+  .home-shop-showcase__heading h2 {
+    max-width:100%;
+    font-size:clamp(23px,6.5vw,29px);
+    line-height:1.15;
+    letter-spacing:-.04em;
+  }
+  .home-shop-showcase__heading p {font-size:12px;line-height:1.5}
+  .home-shop-showcase__heading .home-text-link {font-size:12px}
+  .home-shop-showcase__viewport {
+    display:block;
+    width:100%;
+    max-width:100%;
+    margin:0!important;
+    padding:4px 16px 14px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden;
+    scroll-snap-type:x mandatory;
+    scroll-padding-inline:16px;
+    overscroll-behavior-inline:contain;
+    mask-image:none!important;
+    -webkit-mask-image:none!important;
+  }
+  .home-shop-showcase__track {
+    display:flex!important;
+    width:max-content!important;
+    max-width:none!important;
+    animation:none!important;
+    transform:none!important;
+    translate:none!important;
+    will-change:auto!important;
+  }
+  .home-shop-showcase__group {
+    display:flex!important;
+    flex:0 0 auto;
+    gap:12px;
+    padding:0 16px 0 0;
+  }
+  .home-shop-showcase__group .home-shop-card {
+    display:grid;
+    flex:0 0 min(78vw,290px)!important;
+    width:min(78vw,290px)!important;
+    min-width:0;
+    max-width:none;
+    padding:0;
+    border:1px solid #e8e3d9;
+    border-radius:16px;
+    box-shadow:0 5px 18px rgba(31,38,31,.07);
+    scroll-snap-align:start;
+    scroll-snap-stop:always;
+    animation:none!important;
+    translate:none!important;
+  }
+  .home-shop-card::before {display:none!important}
+  .home-shop-card__cover {
+    display:grid;
+    min-height:132px;
+    aspect-ratio:auto!important;
+    background:#f1eee6!important;
+    background-image:none!important;
+  }
+  .home-shop-card__seller-image {
+    position:static;
+    display:grid;
+    place-items:center;
+    width:76px;
+    height:76px;
+    max-width:none;
+    max-height:none;
+    overflow:hidden;
+    transform:none;
+    border:3px solid #fff;
+    border-radius:18px;
+    background:#fff;
+    box-shadow:0 3px 12px rgba(36,42,32,.10);
+  }
+  .home-shop-card__seller-image img {
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    padding:5px;
+  }
+  .home-shop-card__verified {
+    top:10px;
+    right:auto;
+    bottom:auto;
+    left:10px;
+    padding:6px 8px;
+    font-size:9px;
+  }
+  .home-shop-card__arrow {
+    right:10px;
+    bottom:10px;
+    width:30px;
+    height:30px;
+  }
+  .home-shop-card__body {
+    min-width:0;
+    gap:12px;
+    padding:13px!important;
+    grid-template-rows:auto auto;
+  }
+  .home-shop-card__body>div:first-child {min-width:0}
+  .home-shop-card__kicker {font-size:8px;letter-spacing:.1em}
+  .home-shop-card__body h3 {
+    margin:5px 0 6px;
+    font-size:17px;
+    line-height:1.2;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .home-shop-card__body p {
+    min-height:0;
+    font-size:11px;
+    line-height:1.5;
+    -webkit-line-clamp:2;
+  }
+  .home-shop-card__meta {
+    display:flex;
+    flex-wrap:nowrap;
+    justify-content:space-between;
+    gap:8px;
+    padding-top:10px;
+    font-size:9px;
+  }
+  .home-shop-card__meta span:first-child {max-width:58%}
+}
+@media (prefers-reduced-motion:reduce) {
+  .home-shop-showcase__track {animation:none!important}
+  .home-shop-card {animation:none!important}
+}
