@@ -763,3 +763,14 @@ img { display: block; max-width: 100%; }
     justify-content: center;
   }
 }
+
+
+/* Six-digit email verification */
+.auth-otp { display: grid; gap: 18px; margin: 8px 0 4px; }
+.auth-otp__inputs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.auth-otp__input { width: 100%; min-width: 0; height: 58px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--forest); text-align: center; font-size: 24px; font-weight: 700; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
+.auth-otp__input:focus { border-color: var(--sage); box-shadow: 0 0 0 3px rgba(120,148,95,.16); }
+.auth-otp__input:disabled { opacity: .65; cursor: not-allowed; }
+.auth-otp__resend { justify-self: center; border: 0; padding: 8px 12px; background: transparent; cursor: pointer; font: inherit; }
+.auth-otp__resend:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 420px) { .auth-otp__inputs { gap: 6px; } .auth-otp__input { height: 50px; border-radius: 9px; font-size: 20px; } }
